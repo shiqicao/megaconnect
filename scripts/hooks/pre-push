@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+echo "PRE-PUSH: running Golint and Vet..."
+
+go get -u github.com/golang/lint/golint
+go get -u github.com/ashwch/precommit-vet-lint
+
+$(go env GOPATH)/bin/precommit-vet-lint

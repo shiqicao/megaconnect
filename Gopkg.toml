@@ -26,14 +26,6 @@
 
 
 [[constraint]]
-  name = "github.com/ethereum/go-ethereum"
-  version = "1.8.15"
-
-[[constraint]]
-  name = "github.com/mattn/go-colorable"
-  version = "0.0.9"
-
-[[constraint]]
   branch = "v2"
   name = "gopkg.in/urfave/cli.v2"
 
