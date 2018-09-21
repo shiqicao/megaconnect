@@ -8,7 +8,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cmd
 
 import (
 	"fmt"
@@ -17,43 +17,29 @@ import (
 	"syscall"
 
 	"github.com/mattn/go-isatty"
-	"github.com/megaspacelab/eventmanager/common"
 	"github.com/megaspacelab/eventmanager/connector"
 	"github.com/megaspacelab/eventmanager/eventmanager"
-	"github.com/megaspacelab/eventmanager/exampleconn"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	cli "gopkg.in/urfave/cli.v2"
 )
 
-const (
-	// AppName is the name for cmd tool
-	AppName = "EventManager"
-)
-
-func main() {
-	app := &cli.App{
-		Name:   AppName,
-		Action: defaultAction,
-		Flags: []cli.Flag{
-			&common.DebugFlag,
-		},
-	}
-	app.Run(os.Args)
-}
-
-func defaultAction(ctx *cli.Context) error {
-	logger, err := setupLogger(ctx)
+// Run runs an EventManager instance with the specified connector and configs.
+// It should be called from the main function and will block until CTRL_C is pressed.
+func Run(
+	builder connector.Builder,
+	configs connector.Configs,
+	debug bool,
+) error {
+	logger, err := newLogger(debug)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 	defer logger.Sync()
 
-	builder := connector.Builder(&exampleconn.Builder{})
-	connector, err := builder.BuildConnector(&connector.Context{Logger: logger})
+	connector, err := builder.BuildConnector(&connector.Context{Logger: logger, Configs: configs})
 	if err != nil {
-		logger.Error("eventManager can not start", zap.Error(err))
+		logger.Error("Failed to build connector", zap.Error(err))
 		return nil
 	}
 	eventManager := eventmanager.New(connector, logger)
@@ -77,11 +63,10 @@ func waitForSignal() {
 	<-sig
 }
 
-func setupLogger(ctx *cli.Context) (*zap.Logger, error) {
+func newLogger(debug bool) (*zap.Logger, error) {
 	config := zap.NewDevelopmentConfig()
-	debug := ctx.Bool(common.DebugFlag.Name)
 	if !debug {
-		config.Level = zap.NewAtomicLevelAt(0)
+		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
 
 	isTerm := isatty.IsTerminal(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"

@@ -14,7 +14,9 @@ import (
 	"go.uber.org/zap"
 )
 
+type Configs map[string]interface{}
+
 type Context struct {
 	Logger  *zap.Logger
-	Configs map[string]interface{}
+	Configs Configs
 }
