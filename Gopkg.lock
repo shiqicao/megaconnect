@@ -10,6 +10,14 @@
   version = "v0.0.4"
 
 [[projects]]
+  digest = "1:ed615c5430ecabbb0fb7629a182da65ecee6523900ac1ac932520860878ffcad"
+  name = "github.com/robfig/cron"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b41be1df696709bb6395fe435af20370037c0b4c"
+  version = "v1.1"
+
+[[projects]]
   digest = "1:3c1a69cdae3501bf75e76d0d86dc6f2b0a7421bc205c0cb7b96b19eed464a34d"
   name = "go.uber.org/atomic"
   packages = ["."]
@@ -60,6 +68,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/mattn/go-isatty",
+    "github.com/robfig/cron",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
     "gopkg.in/urfave/cli.v2",

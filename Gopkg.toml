@@ -24,10 +24,13 @@
 #   go-tests = true
 #   unused-packages = true
 
-
 [[constraint]]
   branch = "v2"
   name = "gopkg.in/urfave/cli.v2"
+
+[[contraint]]
+  branch = "v2"
+  name = "github.com/robfig/cron"
 
 [prune]
   go-tests = true

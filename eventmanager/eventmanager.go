@@ -14,19 +14,23 @@ import (
 	"fmt"
 	"sync"
 
-	"go.uber.org/zap"
-
 	conn "github.com/megaspacelab/eventmanager/connector"
 	"github.com/megaspacelab/eventmanager/types"
+	"github.com/robfig/cron"
+	"go.uber.org/zap"
 )
 
+const (
+	blockBuffer = 100
+)
+
+// EventManager defines the shared event manager process for Connector
 type EventManager struct {
-	connector conn.Connector
-
-	running bool
-
-	logger *zap.Logger
-	lock   sync.Mutex
+	connector conn.Connector // connector
+	cron      *cron.Cron     // scheduler
+	running   bool           // if event manager is running
+	logger    *zap.Logger    // logging
+	lock      sync.Mutex     // mutex lock
 }
 
 // New constructs an instance of eventManager
@@ -37,6 +41,7 @@ func New(conn conn.Connector, logger *zap.Logger) *EventManager {
 	}
 }
 
+// Start would start an EventManager loop
 func (e *EventManager) Start() error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -50,11 +55,14 @@ func (e *EventManager) Start() error {
 		return err
 	}
 
-	blocks := make(chan types.Block, 100)
+	blocks := make(chan types.Block, blockBuffer)
 	_, err = e.connector.SubscribeBlock(nil, blocks)
 	if err != nil {
 		return err
 	}
+
+	e.cron = cron.New()
+	e.cron.Start()
 
 	go func() {
 		for block := range blocks {
@@ -66,6 +74,7 @@ func (e *EventManager) Start() error {
 	return nil
 }
 
+// Stop would stop an EventManager loop
 func (e *EventManager) Stop() error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -75,6 +84,7 @@ func (e *EventManager) Stop() error {
 		return fmt.Errorf("")
 	}
 
+	e.cron.Stop()
 	err := e.connector.Stop()
 	if err != nil {
 		e.logger.Error("connect stop with err", zap.Error(err))
