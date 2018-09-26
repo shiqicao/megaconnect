@@ -25,12 +25,14 @@ func main() {
 		Name: "Example EventManager",
 		Flags: []cli.Flag{
 			&common.DebugFlag,
+			&common.DataDirFlag,
 		},
 		Action: func(ctx *cli.Context) error {
 			return cmd.Run(
 				&exampleconn.Builder{},
 				connector.Configs{},
 				ctx.Bool(common.DebugFlag.Name),
+				ctx.Path(common.DataDirFlag.Name),
 			)
 		},
 	}

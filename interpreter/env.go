@@ -8,18 +8,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package common
+package interpreter
 
-// HashSize is the size of Hash
-// TODO - Is it a good assumption that all chains have this hash size?
-const HashSize = 32
-
-// AddressSize is the size of address
-// TODO - Verify assumption of 20 bytes on all supported blockchain
-const AddressSize = 20
-
-// Hash represents the double sha256 of data
-type Hash [HashSize]byte
-
-// Address represents account in blockchain
-type Address [AddressSize]byte
+type Env struct{}

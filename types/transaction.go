@@ -14,18 +14,28 @@ import "github.com/megaspacelab/eventmanager/common"
 
 type Transaction interface {
 	Hash() common.Hash
+	From() common.Address
+	To() common.Address
 }
 
 func NewTransaction(
 	hash common.Hash,
+	from common.Address,
+	to common.Address,
 ) Transaction {
 	return &transaction{
 		hash: hash,
+		from: from,
+		to:   to,
 	}
 }
 
 type transaction struct {
 	hash common.Hash
+	from common.Address
+	to   common.Address
 }
 
-func (t *transaction) Hash() common.Hash { return t.hash }
+func (t *transaction) Hash() common.Hash    { return t.hash }
+func (t *transaction) From() common.Address { return t.from }
+func (t *transaction) To() common.Address   { return t.to }

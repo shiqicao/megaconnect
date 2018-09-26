@@ -11,7 +11,10 @@
 package eventmanager
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"os"
 	"sync"
 
 	conn "github.com/megaspacelab/eventmanager/connector"
@@ -26,6 +29,8 @@ const (
 
 // EventManager defines the shared event manager process for Connector
 type EventManager struct {
+	datafile  string         // Data file for tracking processed block (temporary)
+	processor BlockProcessor // Processor consumes new block pushed from connector
 	connector conn.Connector // connector
 	cron      *cron.Cron     // scheduler
 	running   bool           // if event manager is running
@@ -34,8 +39,10 @@ type EventManager struct {
 }
 
 // New constructs an instance of eventManager
-func New(conn conn.Connector, logger *zap.Logger) *EventManager {
+func New(conn conn.Connector, processor BlockProcessor, datafile string, logger *zap.Logger) *EventManager {
 	return &EventManager{
+		datafile:  datafile,
+		processor: processor,
 		connector: conn,
 		logger:    logger,
 	}
@@ -46,17 +53,26 @@ func (e *EventManager) Start() error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	if e.running {
-		e.logger.Warn("event manager is already running")
-		return fmt.Errorf("")
+		return errors.New("event manage is already running")
 	}
 
-	err := e.connector.Start()
+	previousBlock, err := e.findPreviousBlock()
+	if err != nil {
+		e.logger.Error("Failed to find previous block", zap.Error(err))
+	}
+
+	err = e.connector.Start()
+	if err != nil {
+		return err
+	}
+
+	err = e.processor.Start()
 	if err != nil {
 		return err
 	}
 
 	blocks := make(chan types.Block, blockBuffer)
-	_, err = e.connector.SubscribeBlock(nil, blocks)
+	_, err = e.connector.SubscribeBlock(previousBlock, blocks)
 	if err != nil {
 		return err
 	}
@@ -90,10 +106,40 @@ func (e *EventManager) Stop() error {
 		e.logger.Error("connect stop with err", zap.Error(err))
 	}
 
+	err = e.processor.Stop()
+	if err != nil {
+		e.logger.Error("processor stop with err", zap.Error(err))
+	}
+
 	e.running = false
 	return nil
 }
 
 func (e *EventManager) processBlock(block types.Block) {
 	e.logger.Info("Received new block", zap.Stringer("height", block.Height()))
+	err := e.processor.ProcessBlock(block)
+	if err != nil {
+		e.logger.Error("processor error", zap.Error(err))
+	}
+}
+
+func (e *EventManager) findPreviousBlock() (types.Block, error) {
+	file, err := os.Open(e.datafile)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var last string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		last = scanner.Text()
+	}
+	if scanner.Err() != nil {
+		return nil, scanner.Err()
+	}
+	if last == "" {
+		return nil, nil
+	}
+	return types.UnmarshalBlock([]byte(last))
 }

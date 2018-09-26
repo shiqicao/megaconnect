@@ -25,4 +25,8 @@ var (
 		Usage: "Debugging: prints debug logging",
 		Value: false,
 	}
+	DataDirFlag = cli.PathFlag{
+		Name:  "datadir",
+		Usage: "Data directory for the databases and keystore",
+	}
 )

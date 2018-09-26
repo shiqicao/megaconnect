@@ -8,18 +8,22 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package common
+package types
 
-// HashSize is the size of Hash
-// TODO - Is it a good assumption that all chains have this hash size?
-const HashSize = 32
+import intpr "github.com/megaspacelab/eventmanager/interpreter"
 
-// AddressSize is the size of address
-// TODO - Verify assumption of 20 bytes on all supported blockchain
-const AddressSize = 20
+type Monitor struct {
+	condition *intpr.Expr
+	// TODO: Define trigger
+}
 
-// Hash represents the double sha256 of data
-type Hash [HashSize]byte
+func NewMonitor(condition *intpr.Expr) (*Monitor, error) {
+	return &Monitor{
+		condition: condition,
+	}, nil
+}
 
-// Address represents account in blockchain
-type Address [AddressSize]byte
+func (m *Monitor) Condition() *intpr.Expr { return m.condition }
+func (m *Monitor) EvalCondition(i *intpr.Interpreter) (*intpr.Const, error) {
+	return i.EvalExpr(m.condition)
+}

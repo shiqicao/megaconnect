@@ -10,6 +10,7 @@
 package types
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/megaspacelab/eventmanager/common"
@@ -20,6 +21,25 @@ type Block interface {
 	ParentHash() common.Hash
 	Height() *big.Int
 	Transactions() []Transaction
+}
+
+func UnmarshalBlock(data []byte) (Block, error) {
+	b := &struct {
+		Hash         common.Hash
+		ParentHash   common.Hash
+		Height       *big.Int
+		Transactions []Transaction
+	}{}
+	err := json.Unmarshal(data, b)
+	if err != nil {
+		return nil, err
+	}
+	return &block{
+		hash:         b.Hash,
+		parentHash:   b.ParentHash,
+		height:       b.Height,
+		transactions: b.Transactions,
+	}, nil
 }
 
 func NewBlock(
@@ -47,3 +67,18 @@ func (b *block) Hash() common.Hash           { return b.hash }
 func (b *block) ParentHash() common.Hash     { return b.parentHash }
 func (b *block) Height() *big.Int            { return b.height }
 func (b *block) Transactions() []Transaction { return b.transactions }
+
+func (b *block) MarshalJSON() ([]byte, error) {
+	return json.Marshal(
+		&struct {
+			Hash         common.Hash
+			ParentHash   common.Hash
+			Height       *big.Int
+			Transactions []Transaction
+		}{
+			Hash:         b.hash,
+			ParentHash:   b.parentHash,
+			Height:       b.height,
+			Transactions: b.transactions,
+		})
+}

@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"os/user"
+	"path/filepath"
 	"syscall"
 
 	"github.com/mattn/go-isatty"
@@ -23,12 +25,17 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	appDir = ".megaspace"
+)
+
 // Run runs an EventManager instance with the specified connector and configs.
 // It should be called from the main function and will block until CTRL_C is pressed.
 func Run(
 	builder connector.Builder,
 	configs connector.Configs,
 	debug bool,
+	datadir string,
 ) error {
 	logger, err := newLogger(debug)
 	if err != nil {
@@ -37,12 +44,32 @@ func Run(
 	}
 	defer logger.Sync()
 
+	if datadir == "" {
+		datadir = defaultDatadir()
+	}
+	logger.Info("Set data dir", zap.String("datadir", datadir))
+
+	err = os.MkdirAll(datadir, 0700)
+	if err != nil {
+		return err
+	}
+
+	// TODO: emdatafile can be abstract to a datastorage
+	emdatafile := filepath.Join(datadir, "records.json")
+
 	connector, err := builder.BuildConnector(&connector.Context{Logger: logger, Configs: configs})
 	if err != nil {
 		logger.Error("Failed to build connector", zap.Error(err))
 		return nil
 	}
-	eventManager := eventmanager.New(connector, logger)
+
+	processor, err := eventmanager.NewBlockBodyProcessor(emdatafile, logger)
+	if err != nil {
+		logger.Error("Block processor failed to instantiate", zap.Error(err))
+		return nil
+	}
+
+	eventManager := eventmanager.New(connector, processor, emdatafile, logger)
 	err = eventManager.Start()
 	if err != nil {
 		logger.Error("eventManager can not start", zap.Error(err))
@@ -77,4 +104,16 @@ func newLogger(debug bool) (*zap.Logger, error) {
 		config.Encoding = "json"
 	}
 	return config.Build()
+}
+
+func defaultDatadir() string {
+	var basedir string
+	if basedir = os.Getenv("HOME"); basedir == "" {
+		if usr, err := user.Current(); err == nil {
+			basedir = usr.HomeDir
+		} else {
+			basedir = os.TempDir()
+		}
+	}
+	return filepath.Join(basedir, appDir)
 }
