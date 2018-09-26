@@ -10,6 +10,8 @@
 
 package common
 
+import "encoding/hex"
+
 // HashSize is the size of Hash
 // TODO - Is it a good assumption that all chains have this hash size?
 const HashSize = 32
@@ -23,3 +25,11 @@ type Hash [HashSize]byte
 
 // Address represents account in blockchain
 type Address [AddressSize]byte
+
+// String returns the Hash as the hexadecimal string of the byte-reversed hash.
+func (hash Hash) String() string {
+	for i := 0; i < HashSize/2; i++ {
+		hash[i], hash[HashSize-1-i] = hash[HashSize-1-i], hash[i]
+	}
+	return hex.EncodeToString(hash[:])
+}
