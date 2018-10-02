@@ -12,16 +12,18 @@ package types
 
 import "github.com/megaspacelab/eventmanager/common"
 
+// Transaction stores information about a specific blockchain transaction.
 type Transaction interface {
 	Hash() common.Hash
-	From() common.Address
-	To() common.Address
+	From() []common.Address
+	To() []common.Address
 }
 
+// NewTransaction creates a new Transaction.
 func NewTransaction(
 	hash common.Hash,
-	from common.Address,
-	to common.Address,
+	from []common.Address,
+	to []common.Address,
 ) Transaction {
 	return &transaction{
 		hash: hash,
@@ -32,10 +34,10 @@ func NewTransaction(
 
 type transaction struct {
 	hash common.Hash
-	from common.Address
-	to   common.Address
+	from []common.Address
+	to   []common.Address
 }
 
-func (t *transaction) Hash() common.Hash    { return t.hash }
-func (t *transaction) From() common.Address { return t.from }
-func (t *transaction) To() common.Address   { return t.to }
+func (t *transaction) Hash() common.Hash      { return t.hash }
+func (t *transaction) From() []common.Address { return t.from }
+func (t *transaction) To() []common.Address   { return t.to }
