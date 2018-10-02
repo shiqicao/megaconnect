@@ -8,10 +8,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package interpreter
+package workflow
 
-type Stmt struct{}
-
-type Expr struct{}
-
-type Const struct{}
+func copyObjMap(obj map[string]Const) map[string]Const {
+	result := make(map[string]Const, len(obj))
+	for n, v := range obj {
+		result[n] = v
+	}
+	return result
+}

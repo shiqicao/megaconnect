@@ -8,18 +8,24 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package interpreter
+package workflow
 
-type Interpreter struct {
-	env *Env
-}
+import (
+	"testing"
 
-func New(env *Env) *Interpreter {
-	return &Interpreter{
-		env: env,
-	}
-}
+	"github.com/stretchr/testify/assert"
+)
 
-func (i *Interpreter) EvalExpr(expr *Expr) (*Const, error) {
-	return &Const{}, nil
+func TestNewObjConst(t *testing.T) {
+	objType := NewObjType(map[string]Type{
+		"a": BoolType,
+	})
+
+	value := NewObjConst(
+		map[string]Const{
+			"a": TrueConst,
+		},
+	)
+	assert.True(t, value.Type().Equal(objType))
+	assert.True(t, value.Value()["a"].Equal(TrueConst))
 }

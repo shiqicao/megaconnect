@@ -10,20 +10,20 @@
 
 package types
 
-import intpr "github.com/megaspacelab/eventmanager/interpreter"
+import wfl "github.com/megaspacelab/eventmanager/workflow"
 
+// Monitor specifies how an event will be created, it defines monitor frequency and conditions
 type Monitor struct {
-	condition *intpr.Expr
+	condition wfl.Expr
 	// TODO: Define trigger
 }
 
-func NewMonitor(condition *intpr.Expr) (*Monitor, error) {
+// NewMonitor creates a new Monitor object
+func NewMonitor(condition wfl.Expr) (*Monitor, error) {
 	return &Monitor{
 		condition: condition,
 	}, nil
 }
 
-func (m *Monitor) Condition() *intpr.Expr { return m.condition }
-func (m *Monitor) EvalCondition(i *intpr.Interpreter) (*intpr.Const, error) {
-	return i.EvalExpr(m.condition)
-}
+// Condition returns the condition an event will be fired
+func (m *Monitor) Condition() wfl.Expr { return m.condition }

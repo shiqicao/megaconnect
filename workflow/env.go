@@ -8,6 +8,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package interpreter
+package workflow
 
-type Env struct{}
+// Env provides execution environment for interpreter and analyzer,
+// analyzer does symbol resolving and type checking but not execution.
+type Env struct {
+	prelude []*NamespaceDecl
+}
+
+// NewEnv creates a new Env
+func NewEnv() *Env {
+	return &Env{
+		prelude: prelude,
+	}
+}
