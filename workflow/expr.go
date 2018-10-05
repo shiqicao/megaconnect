@@ -27,6 +27,7 @@ var (
 // Expr represents expression in the language. All type of expression derives from it.
 type Expr interface {
 	String() string
+	Equal(Expr) bool
 }
 
 // Args is a list of function arguments, it is referenced in FuncCall expression
@@ -37,6 +38,19 @@ func (a Args) Copy() Args {
 	r := make([]Expr, len(a))
 	copy(r, a)
 	return r
+}
+
+// Equal returns true if two argument lists are the same
+func (a Args) Equal(b Args) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if !a[i].Equal(b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // FuncCall represents a function invoking expression
@@ -88,11 +102,19 @@ func (f *FuncCall) String() string {
 	return buf.String()
 }
 
+// Equal returns true if two expressions are the same
+func (f *FuncCall) Equal(expr Expr) bool {
+	y, ok := expr.(*FuncCall)
+	return ok &&
+		f.Name() == y.Name() &&
+		f.Args().Equal(y.Args()) &&
+		f.NamespacePrefix().Equal(y.NamespacePrefix())
+}
+
 // Const represents a single value or an object, it derives from Expr
 type Const interface {
 	Expr
 	Type() Type
-	Equal(Const) bool
 }
 
 // BoolConst is a value typed to BoolType
@@ -118,12 +140,9 @@ func (b *BoolConst) String() string { return strconv.FormatBool(b.value) }
 func (b *BoolConst) Negate() *BoolConst { return GetBoolConst(!b.value) }
 
 // Equal returns whether x is equal to the current value
-func (b *BoolConst) Equal(x Const) bool {
+func (b *BoolConst) Equal(x Expr) bool {
 	y, ok := x.(*BoolConst)
-	if !ok {
-		return false
-	}
-	return y.value == b.value
+	return ok && y.value == b.value
 }
 
 // StrConst is a value typed to StrType
@@ -141,12 +160,9 @@ func (s *StrConst) Value() string { return s.value }
 func (s *StrConst) String() string { return s.value }
 
 // Equal returns whether x is equal to the current value
-func (s *StrConst) Equal(x Const) bool {
+func (s *StrConst) Equal(x Expr) bool {
 	y, ok := x.(*StrConst)
-	if !ok {
-		return false
-	}
-	return s.value == y.value
+	return ok && s.value == y.value
 }
 
 // IntConst represents a big interger
@@ -167,12 +183,9 @@ func (i *IntConst) Value() *big.Int { return new(big.Int).Set(i.value) }
 func (i *IntConst) String() string { return i.value.String() }
 
 // Equal return whether x is equal to the current value
-func (i *IntConst) Equal(x Const) bool {
+func (i *IntConst) Equal(x Expr) bool {
 	y, ok := x.(*IntConst)
-	if !ok {
-		return false
-	}
-	return i.value.Cmp(y.value) == 0
+	return ok && i.value.Cmp(y.value) == 0
 }
 
 // ObjConst represents an object, an object contains a list of fields and corresponding types
@@ -247,20 +260,14 @@ func (o *ObjConst) String() string {
 }
 
 // Equal checks whether x is equal current object.
-func (o *ObjConst) Equal(x Const) bool {
+func (o *ObjConst) Equal(x Expr) bool {
 	y, ok := x.(*ObjConst)
-	if !ok {
-		return false
-	}
-	if len(o.value) != len(y.value) {
+	if !ok || len(o.value) != len(y.value) {
 		return false
 	}
 	for field, value := range o.value {
 		yValue, ok := y.value[field]
-		if !ok {
-			return false
-		}
-		if !value.Equal(yValue) {
+		if !ok || !value.Equal(yValue) {
 			return false
 		}
 	}
@@ -277,6 +284,19 @@ func (n NamespacePrefix) String() string {
 		buf.WriteString("::")
 	}
 	return buf.String()
+}
+
+// Equal returns true if two namespace prefix are the same
+func (n NamespacePrefix) Equal(m NamespacePrefix) bool {
+	if len(n) != len(m) {
+		return false
+	}
+	for i := 0; i < len(n); i++ {
+		if n[i] != m[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // ObjAccessor represents field selection operation,
@@ -297,3 +317,12 @@ func NewObjAccessor(expr Expr, field string) *ObjAccessor {
 // Expr returns the expression which is expected to be evaluated to an object
 func (o *ObjAccessor) Expr() Expr     { return o.expr }
 func (o *ObjAccessor) String() string { return o.expr.String() + "." + o.field }
+func (o *ObjAccessor) Field() string  { return o.field }
+
+// Equal returns true if two expressions are the same
+func (o *ObjAccessor) Equal(expr Expr) bool {
+	y, ok := expr.(*ObjAccessor)
+	return ok &&
+		o.field == y.field &&
+		o.expr.Equal(y.expr)
+}

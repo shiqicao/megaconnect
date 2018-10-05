@@ -32,6 +32,12 @@ func (u *UniOp) Operant() Expr { return u.operant }
 // Op returns operator
 func (u *UniOp) Op() Operator { return u.op }
 
+// Equal returns true if two expressions are the same
+func (u *UniOp) Equal(expr Expr) bool {
+	y, ok := expr.(*UniOp)
+	return ok && u.Op() == y.Op() && u.Operant().Equal(y.Operant())
+}
+
 // BinOp represents binary operators like "<", "&&", etc.
 type BinOp struct {
 	op    Operator
@@ -58,6 +64,15 @@ func (b *BinOp) Right() Expr { return b.right }
 
 // Op returns operator of a binary operator
 func (b *BinOp) Op() Operator { return b.op }
+
+// Equal returns true if two expressions are the same
+func (b *BinOp) Equal(expr Expr) bool {
+	y, ok := expr.(*BinOp)
+	return ok &&
+		b.Op() == y.Op() &&
+		b.Left().Equal(y.Left()) &&
+		b.Right().Equal(y.Right())
+}
 
 // Operator enumerates all unary and binary
 type Operator uint8

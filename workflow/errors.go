@@ -104,3 +104,12 @@ type ErrAccessorRequireObjType struct {
 func (e *ErrAccessorRequireObjType) Error() string {
 	return fmt.Sprintf("Object accessor requires object type, not %s", e.Type)
 }
+
+// ErrConstExpected is returned if expected const not present
+type ErrConstExpected struct {
+	Actual string
+}
+
+func (e *ErrConstExpected) Error() string {
+	return fmt.Sprintf("Expect const type not %s", e.Actual)
+}
