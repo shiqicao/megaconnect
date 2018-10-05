@@ -26,18 +26,18 @@ func NewTransaction(
 	to []common.Address,
 ) Transaction {
 	return &transaction{
-		hash: hash,
-		from: from,
-		to:   to,
+		TxHash:    hash,
+		FromAddrs: from,
+		ToAddrs:   to,
 	}
 }
 
 type transaction struct {
-	hash common.Hash
-	from []common.Address
-	to   []common.Address
+	TxHash    common.Hash      `json:"hash"`
+	FromAddrs []common.Address `json:"from"`
+	ToAddrs   []common.Address `json:"to"`
 }
 
-func (t *transaction) Hash() common.Hash      { return t.hash }
-func (t *transaction) From() []common.Address { return t.from }
-func (t *transaction) To() []common.Address   { return t.to }
+func (t *transaction) Hash() common.Hash      { return t.TxHash }
+func (t *transaction) From() []common.Address { return t.FromAddrs }
+func (t *transaction) To() []common.Address   { return t.ToAddrs }
