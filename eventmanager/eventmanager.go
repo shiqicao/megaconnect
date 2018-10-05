@@ -143,3 +143,9 @@ func (e *EventManager) findPreviousBlock() (types.Block, error) {
 	}
 	return types.UnmarshalBlock([]byte(last))
 }
+
+// QueryAccountBalance queries the chain for the current balance of the given address.
+// Returns a channel into which the result will be pushed once retrieved.
+func (e *EventManager) QueryAccountBalance(addr string) (<-chan float64, error) {
+	return e.connector.QueryAccountBalance(addr)
+}
