@@ -19,6 +19,7 @@ import (
 	"github.com/megaspacelab/eventmanager/common"
 	"github.com/megaspacelab/eventmanager/connector"
 	"github.com/megaspacelab/eventmanager/types"
+
 	"go.uber.org/zap"
 )
 
@@ -76,11 +77,8 @@ func (c *Connector) Stop() error {
 
 // SubscribeBlock subscribes to blocks on this chain, starting from after the specified block.
 // If resumeAfter is nil, the subscription starts from the next block.
-func (c *Connector) SubscribeBlock(resumeAfter types.Block, blocks chan<- types.Block) (connector.Subscription, error) {
+func (c *Connector) SubscribeBlock(resumeAfter *common.Hash, blocks chan<- types.Block) (connector.Subscription, error) {
 	var height int64
-	if resumeAfter != nil {
-		height = resumeAfter.Height().Int64() + 1
-	}
 
 	done := make(chan common.Nothing, 1)
 

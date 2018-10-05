@@ -2,6 +2,37 @@
 
 
 [[projects]]
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  pruneopts = "UT"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
+
+[[projects]]
+  digest = "1:5ac24c0ad5dc117fb2b6d90d205c876ec599c09cccb702a36586680e09cb20b5"
+  name = "github.com/golang/protobuf"
+  packages = [
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/empty",
+    "ptypes/timestamp",
+  ]
+  pruneopts = "UT"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
+
+[[projects]]
+  digest = "1:3a26588bc48b96825977c1b3df964f8fd842cd6860cc26370588d3563433cf11"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:0981502f9816113c9c8c4ac301583841855c8cf4da8c72f696b3ebedf6d0e4e5"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
@@ -10,12 +41,28 @@
   version = "v0.0.4"
 
 [[projects]]
-  digest = "1:ed615c5430ecabbb0fb7629a182da65ecee6523900ac1ac932520860878ffcad"
-  name = "github.com/robfig/cron"
-  packages = ["."]
+  branch = "hao/rpc-impl"
+  digest = "1:70873e7d91b3fae01604febb366f70eb9bed68b301d239551b6ea658e9ab6d49"
+  name = "github.com/megaspacelab/flowmanager"
+  packages = ["rpc"]
   pruneopts = "UT"
-  revision = "b41be1df696709bb6395fe435af20370037c0b4c"
-  version = "v1.1"
+  revision = "df381652bc07beac68883ce61a8d016d4ffb43db"
+
+[[projects]]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  pruneopts = "UT"
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:18752d0b95816a1b777505a97f71c7467a8445b8ffb55631a7bf779f6ba4fa83"
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  pruneopts = "UT"
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   digest = "1:3c1a69cdae3501bf75e76d0d86dc6f2b0a7421bc205c0cb7b96b19eed464a34d"
@@ -49,11 +96,93 @@
   version = "v1.9.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:505dbee0833715a72a529bb57c354826ad42a4496fad787fa143699b4de1a6d0"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "trace",
+  ]
+  pruneopts = "UT"
+  revision = "4dfa2610cdf3b287375bbba5b8f2a14d3b01d8de"
+
+[[projects]]
   digest = "1:76b5ca88193bf744f729c2fde12151b24364ffaca3fd092069d9ca2ea6e1f999"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
   revision = "904bdc257025c7b3f43c19360ad3ab85783fad78"
+
+[[projects]]
+  digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
+  name = "golang.org/x/text"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable",
+  ]
+  pruneopts = "UT"
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:1e6b0176e8c5dd8ff551af65c76f8b73a99bcf4d812cedff1b91711b7df4804c"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  pruneopts = "UT"
+  revision = "c7e5094acea1ca1b899e2259d80a6b0f882f81f8"
+
+[[projects]]
+  digest = "1:ab8e92d746fb5c4c18846b0879842ac8e53b3d352449423d0924a11f1020ae1b"
+  name = "google.golang.org/grpc"
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "codes",
+    "connectivity",
+    "credentials",
+    "encoding",
+    "encoding/proto",
+    "grpclog",
+    "internal",
+    "internal/backoff",
+    "internal/channelz",
+    "internal/envconfig",
+    "internal/grpcrand",
+    "internal/transport",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
+  ]
+  pruneopts = "UT"
+  revision = "8dea3dc473e90c8179e519d91302d0597c0ca1d1"
+  version = "v1.15.0"
 
 [[projects]]
   branch = "v2"
@@ -67,10 +196,16 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/golang/protobuf/ptypes/empty",
+    "github.com/google/uuid",
     "github.com/mattn/go-isatty",
-    "github.com/robfig/cron",
+    "github.com/megaspacelab/flowmanager/rpc",
+    "github.com/stretchr/testify/assert",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
+    "google.golang.org/grpc",
+    "google.golang.org/grpc/codes",
+    "google.golang.org/grpc/status",
     "gopkg.in/urfave/cli.v2",
   ]
   solver-name = "gps-cdcl"

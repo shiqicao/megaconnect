@@ -10,13 +10,16 @@
 
 package connector
 
-import "github.com/megaspacelab/eventmanager/types"
+import (
+	"github.com/megaspacelab/eventmanager/common"
+	"github.com/megaspacelab/eventmanager/types"
+)
 
 // Connector defines the shared structure for each chain-specific connector.
 type Connector interface {
 	Name() string
 	ChainName() string
-	SubscribeBlock(resumeAfter types.Block, blocks chan<- types.Block) (Subscription, error)
+	SubscribeBlock(resumeAfter *common.Hash, blocks chan<- types.Block) (Subscription, error)
 	Start() error
 	Stop() error
 	QueryAccountBalance(addr string) (<-chan float64, error)

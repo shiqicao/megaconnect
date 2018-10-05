@@ -10,7 +10,10 @@
 
 package common
 
-import "encoding/hex"
+import (
+	"encoding/hex"
+	"fmt"
+)
 
 // HashSize is the size of Hash
 // TODO - Is it a good assumption that all chains have this hash size?
@@ -32,4 +35,27 @@ func (hash Hash) String() string {
 		hash[i], hash[HashSize-1-i] = hash[HashSize-1-i], hash[i]
 	}
 	return hex.EncodeToString(hash[:])
+}
+
+// Bytes converts this Hash to a byte slice.
+// Returns empty slice for nil Hash.
+func (h *Hash) Bytes() []byte {
+	if h == nil {
+		return nil
+	}
+	return h[:]
+}
+
+// BytesToHash converts a byte slice to a Hash.
+// Returns nil if bs is nil.
+func BytesToHash(bs []byte) (*Hash, error) {
+	if bs == nil {
+		return nil, nil
+	}
+	if len(bs) != HashSize {
+		return nil, fmt.Errorf("Invalid byte slice length %d", len(bs))
+	}
+	hash := Hash{}
+	copy(hash[:], bs)
+	return &hash, nil
 }

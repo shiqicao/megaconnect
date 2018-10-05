@@ -12,15 +12,18 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
 	"syscall"
 
-	"github.com/mattn/go-isatty"
 	"github.com/megaspacelab/eventmanager/connector"
 	"github.com/megaspacelab/eventmanager/eventmanager"
+	"github.com/megaspacelab/flowmanager/rpc"
+
+	"github.com/mattn/go-isatty"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -54,40 +57,49 @@ func Run(
 		return err
 	}
 
-	// TODO: emdatafile can be abstract to a datastorage
-	emdatafile := filepath.Join(datadir, "records.json")
-
 	connector, err := builder.BuildConnector(&connector.Context{Logger: logger, Configs: configs})
 	if err != nil {
 		logger.Error("Failed to build connector", zap.Error(err))
 		return nil
 	}
 
-	processor, err := eventmanager.NewBlockBodyProcessor(emdatafile, logger)
-	if err != nil {
-		logger.Error("Block processor failed to instantiate", zap.Error(err))
-		return nil
-	}
+	// TODO - parameterize these hardcoded values
+	eventManager := eventmanager.New("em1", "localhost:12345", connector, logger)
 
-	eventManager := eventmanager.New(connector, processor, emdatafile, logger)
-	err = eventManager.Start()
+	listenerAddr := make(chan net.Addr, 1)
+	serveErr := make(chan error, 1)
+	go func() {
+		serveErr <- rpc.Serve("localhost:", []rpc.RegisterFunc{eventManager.Register}, listenerAddr)
+	}()
+
+	addr := <-listenerAddr
+	if addr == nil {
+		err = <-serveErr
+		logger.Error("Serve failed", zap.Error(err))
+		return err
+	}
+	logger.Info("Started to listen", zap.Stringer("addr", addr))
+
+	err = eventManager.Start(addr.String())
 	if err != nil {
 		logger.Error("eventManager can not start", zap.Error(err))
 		return nil
 	}
 	defer eventManager.Stop()
 
-	waitForSignal()
-	logger.Info("Interrupted, shutting down...")
-
-	return nil
-}
-
-func waitForSignal() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sig)
-	<-sig
+
+	select {
+	case err = <-serveErr:
+		logger.Error("Serve failed", zap.Error(err))
+		return err
+	case <-sig:
+		logger.Info("Interrupted, shutting down...")
+	}
+
+	return nil
 }
 
 func newLogger(debug bool) (*zap.Logger, error) {

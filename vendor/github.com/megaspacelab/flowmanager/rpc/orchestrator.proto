@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package rpc;
+
+import "google/protobuf/empty.proto";
+
+
+// Orchestrator manages megaflows and assigns monitor tasks to ChainManagers and gathers blocks and events.
+service Orchestrator {
+    // RegisterChainManager is invoked by ChainManagers to register themselves with this Orchestrator.
+    rpc RegisterChainManager (RegisterChainManagerRequest) returns (RegisterChainManagerResponse);
+
+    // RenewLease renews the lease between a ChainManager and this Orchestrator.
+    // Upon lease expiration, Orchestrator will consider the ChainManager dead and be free to accept new registrations.
+    rpc RenewLease (RenewLeaseRequest) returns (Lease);
+
+    // ReportBlockEvents reports a new block on the monitored chain, as well as all fired events from this block.
+    // The request stream must begin with a valid Preflight, followed by a Block, followed by zero or more Events.
+    rpc ReportBlockEvents (stream ReportBlockEventsRequest) returns (google.protobuf.Empty);
+}
+
+message RegisterChainManagerRequest {
+    // ChainManagerId identifies the instance of the requesting ChainManager.
+    InstanceId chain_manager_id = 1;
+
+    // ChainId identifies the chain being managed.
+    string chain_id = 2;
+
+    // RpcAddr allows Orchestrator to reach out to this ChainManager.
+    string rpc_addr = 3;
+
+    // SessionId should be included in all outbound communications from Orchestrator to ChainManager as a validity proof.
+    bytes session_id = 4;
+}
+
+message RegisterChainManagerResponse {
+    // Lease indicates the validity period allocated to the requesting ChainManager.
+    Lease lease = 1;
+
+    // ResumeAfterBlockHash indicates the last processed block by Orchestrator.
+    // If not nil, ChainManager is expected to start reporting from right after this block.
+    // Otherwise, ChainManager can start reporting from the next new block.
+    bytes resume_after_block_hash = 2;
+
+    // Monitors contain all things to be monitored by the requesting ChainManager.
+    MonitorSet monitors = 3;
+}
+
+// InstanceId identifies a specific instance of an entity.
+message InstanceId {
+    // Id is the entity id.
+    bytes id = 1;
+
+    // Instance is a monotonically increasing sequence number, namespaced by Id.
+    uint32 instance = 2;
+}
+
+message MonitorSet {
+    // Monitors contain all things to be monitored by the requesting ChainManager.
+    repeated Monitor monitors = 1;
+
+    // Version is used for Orchestrator and ChainManager to agree on the set of monitors evaluated on each block.
+    uint32 version = 2;
+}
+
+// TODO - TBD
+message Monitor {
+    int64 id = 1;
+}
+
+message RenewLeaseRequest {
+    // LeaseId must be the id of a still valid Lease.
+    bytes lease_id = 1;
+}
+
+message Lease {
+    // Id uniquely identifies this Lease.
+    bytes id = 1;
+
+    // RemainingSeconds indicates the length of the validity period in seconds.
+    uint32 remaining_seconds = 2;
+}
+
+message ReportBlockEventsRequest {
+    message Preflight {
+        // LeaseId must be the id of a still valid Lease.
+        bytes lease_id = 1;
+
+        // MonitorSetVersion is the version of the MonitorSet this block was processed with.
+        uint32 monitor_set_version = 2;
+    }
+
+    oneof msg_type {
+        Preflight preflight = 1;
+        Block block = 2;
+        Event event = 3;
+    }
+}
+
+// TODO - TBD
+message Block {
+    bytes hash = 1;
+    bytes parent_hash = 2;
+    BigInt height = 3;
+}
+
+message BigInt {
+    // Bytes are interpreted as a big-endian unsigned integer.
+    bytes bytes = 1;
+    bool negative = 2;
+}
+
+// Event describes a fired Monitor.
+message Event {
+    // MonitorId identifies the Monitor being fired.
+    bytes monitor_id = 1;
+
+    // Context contains a set of key/value pairs associated with this firing.
+    // The values are accurate as of the specified block.
+    map<string, bytes> context = 3;
+}
