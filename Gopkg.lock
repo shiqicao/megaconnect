@@ -41,12 +41,12 @@
   version = "v0.0.4"
 
 [[projects]]
-  branch = "hao/rpc-impl"
-  digest = "1:70873e7d91b3fae01604febb366f70eb9bed68b301d239551b6ea658e9ab6d49"
+  branch = "master"
+  digest = "1:62ebda540c8f11ef1f0cd399f950ceb2c9444047d6bdfcdabee4f5b1f561a7a9"
   name = "github.com/megaspacelab/flowmanager"
   packages = ["rpc"]
   pruneopts = "UT"
-  revision = "df381652bc07beac68883ce61a8d016d4ffb43db"
+  revision = "7e4f8c1a4bdc2a34b9cb9822222b1680a9c7230c"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"

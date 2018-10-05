@@ -5,7 +5,7 @@ package rpc;
 import "google/protobuf/empty.proto";
 
 
-// Orchestrator manages megaflows and assigns monitor tasks to ChainManagers and gathers blocks and events.
+// Orchestrator orchestrates ChainManagers, by telling them what to monitor and receiving reports from them.
 service Orchestrator {
     // RegisterChainManager is invoked by ChainManagers to register themselves with this Orchestrator.
     rpc RegisterChainManager (RegisterChainManagerRequest) returns (RegisterChainManagerResponse);
