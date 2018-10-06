@@ -115,28 +115,6 @@ func (s subscription) Unsubscribe() {
 
 // QueryAccountBalance queries the chain for the current balance of the given address.
 // Returns a channel into which the result will be pushed once retrieved.
-func (c *Connector) QueryAccountBalance(addr string) (<-chan float64, error) {
-	result := make(chan float64, 1)
-
-	go func() {
-		defer close(result)
-
-		var (
-			totalReceived float64
-			totalSpent    float64
-			total         float64
-		)
-
-		// Fetch transactions for address to deduce the total amounts received and spent.
-		totalReceived = 0.37073317
-		totalSpent = 0.20285404
-
-		// Subtract totalSpent from totalReceived for the total.
-		total = totalReceived - totalSpent
-
-		// Push total result into channel
-		result <- total
-	}()
-
-	return result, nil
+func (c *Connector) QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error) {
+	return big.NewInt(256), nil
 }

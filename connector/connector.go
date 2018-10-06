@@ -11,6 +11,8 @@
 package connector
 
 import (
+	"math/big"
+
 	"github.com/megaspacelab/eventmanager/common"
 	"github.com/megaspacelab/eventmanager/types"
 )
@@ -34,8 +36,11 @@ type Connector interface {
 	Stop() error
 
 	// QueryAccountBalance gets account balance of given address on demand.
-	// It returns a float64 value in local unit.
-	QueryAccountBalance(addr string) (<-chan float64, error)
+	// addr is the string representation of the address, asOfBlock is the hash
+	// of the specific block that balance is querying on.
+	// If asOfBlock is set to nil, the balance is taken from the latest known block.
+	// return result a big integer in base unit.
+	QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error)
 }
 
 // Subscription defines the shared structure for each connector's new block subscription.

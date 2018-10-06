@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math/big"
 	"sync"
 	"time"
 
@@ -433,6 +434,6 @@ func (e *EventManager) Register(server *grpc.Server) {
 
 // QueryAccountBalance queries the chain for the current balance of the given address.
 // Returns a channel into which the result will be pushed once retrieved.
-func (e *EventManager) QueryAccountBalance(addr string) (<-chan float64, error) {
-	return e.connector.QueryAccountBalance(addr)
+func (e *EventManager) QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error) {
+	return e.connector.QueryAccountBalance(addr, asOfBlock)
 }
