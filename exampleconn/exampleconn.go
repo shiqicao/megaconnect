@@ -12,7 +12,9 @@ package exampleconn
 
 import (
 	"fmt"
+	"math"
 	"math/big"
+	"math/rand"
 	"reflect"
 	"time"
 
@@ -116,5 +118,5 @@ func (s subscription) Unsubscribe() {
 // QueryAccountBalance queries the chain for the current balance of the given address.
 // Returns a channel into which the result will be pushed once retrieved.
 func (c *Connector) QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error) {
-	return big.NewInt(256), nil
+	return big.NewInt(rand.Int63n(math.MaxInt64)), nil
 }

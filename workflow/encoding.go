@@ -11,6 +11,7 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -176,9 +177,26 @@ func (e *Encoder) encodeBytes(bytes []byte) error {
 	return err
 }
 
+// EncodeExpr encode an expression to binary format
+func EncodeExpr(expr Expr) ([]byte, error) {
+	var buf bytes.Buffer
+	e := &Encoder{writer: &buf}
+	if err := e.EncodeExpr(expr); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // Decoder deserializes binary format to workflow AST
 type Decoder struct {
 	reader io.Reader
+}
+
+// NewDecoder creates a new Decoder
+func NewDecoder(reader io.Reader) *Decoder {
+	return &Decoder{
+		reader: reader,
+	}
 }
 
 // DecodeExpr deserializes binary format to `Expr`

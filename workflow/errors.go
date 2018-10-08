@@ -113,3 +113,13 @@ type ErrConstExpected struct {
 func (e *ErrConstExpected) Error() string {
 	return fmt.Sprintf("Expect const type not %s", e.Actual)
 }
+
+// ErrMissingArg is returned if expected argument is missing
+type ErrMissingArg struct {
+	ArgName string
+	Func    string
+}
+
+func (e *ErrMissingArg) Error() string {
+	return fmt.Sprintf("Expected argument %s is missing, function: %s", e.ArgName, e.Func)
+}

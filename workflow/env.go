@@ -10,15 +10,36 @@
 
 package workflow
 
+import (
+	"math/big"
+
+	"github.com/megaspacelab/eventmanager/common"
+	"github.com/megaspacelab/eventmanager/types"
+)
+
 // Env provides execution environment for interpreter and analyzer,
 // analyzer does symbol resolving and type checking but not execution.
+// TODO: this env is specificity for ChainManager
 type Env struct {
-	prelude []*NamespaceDecl
+	prelude      []*NamespaceDecl
+	chain        chain
+	currentBlock types.Block
+}
+
+type chain interface {
+	QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error)
 }
 
 // NewEnv creates a new Env
-func NewEnv() *Env {
+func NewEnv(chain chain, currentBlock types.Block) *Env {
 	return &Env{
-		prelude: prelude,
+		prelude:      prelude,
+		chain:        chain,
+		currentBlock: currentBlock,
 	}
+}
+
+// CurrentBlock returns the block interpreter anchors for a workflow
+func (e *Env) CurrentBlock() types.Block {
+	return e.currentBlock
 }

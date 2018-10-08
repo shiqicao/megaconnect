@@ -23,6 +23,7 @@ import (
 	"github.com/megaspacelab/eventmanager/common"
 	"github.com/megaspacelab/eventmanager/connector"
 	"github.com/megaspacelab/eventmanager/types"
+	"github.com/megaspacelab/eventmanager/workflow"
 	"github.com/megaspacelab/flowmanager/rpc"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -222,7 +223,29 @@ func (e *EventManager) processNewBlock(block types.Block) error {
 func (e *EventManager) processBlockWithLock(block types.Block) error {
 	e.logger.Debug("Processing block", zap.Stringer("height", block.Height()))
 
-	// TODO - evaluate monitors
+	interpreter := workflow.New(workflow.NewEnv(e.connector, block))
+	events := []*rpc.Event{}
+	for _, monitor := range e.monitors {
+		event := rpc.Event{}
+		event.MonitorId = monitor.Id
+		event.EvaluationsResults = make([][]byte, 0, len(monitor.Evaluations))
+		for _, expr := range monitor.Evaluations {
+			decoder := workflow.NewDecoder(bytes.NewReader(expr))
+			expr, err := decoder.DecodeExpr()
+			e.logger.Debug("Evaluating", zap.String("expr", expr.String()))
+			if err != nil {
+				return err
+			}
+			result, err := interpreter.EvalExpr(expr)
+			if err != nil {
+				return err
+			}
+			e.logger.Debug("Evaluated", zap.String("result", result.String()))
+			encoded, err := workflow.EncodeExpr(result)
+			event.EvaluationsResults = append(event.EvaluationsResults, encoded)
+		}
+		events = append(events, &event)
+	}
 
 	stream, err := e.orchClient.ReportBlockEvents(e.ctx)
 	if err != nil {
@@ -260,7 +283,16 @@ func (e *EventManager) processBlockWithLock(block types.Block) error {
 		return err
 	}
 
-	// TODO - send events
+	for _, event := range events {
+		err = stream.Send(&rpc.ReportBlockEventsRequest{
+			MsgType: &rpc.ReportBlockEventsRequest_Event{
+				Event: event,
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
 
 	_, err = stream.CloseAndRecv()
 	return err

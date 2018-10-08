@@ -19,6 +19,27 @@ var (
 			name: ethNS,
 			funs: []*FuncDecl{
 				NewFuncDecl(
+					"GetBalance",
+					[]*ParamDecl{
+						NewParamDecl("addr", StrType),
+					},
+					IntType,
+					func(env *Env, args map[string]Const) (Const, error) {
+						addrRaw, ok := args["addr"]
+						if !ok {
+							// This should be checked by type checker
+							return nil, &ErrMissingArg{ArgName: "addr", Func: "GetBalance"}
+						}
+						addr, ok := addrRaw.(*StrConst)
+						blockHash := env.CurrentBlock().Hash()
+						balance, err := env.chain.QueryAccountBalance(addr.Value(), &blockHash)
+						if err != nil {
+							return nil, err
+						}
+						return NewIntConst(balance), nil
+					},
+				),
+				NewFuncDecl(
 					"Addr",
 					[]*ParamDecl{
 						NewParamDecl("addr", StrType),

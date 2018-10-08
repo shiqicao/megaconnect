@@ -271,7 +271,7 @@ func assertExpEval(t *testing.T, expected Const, expr Expr) {
 }
 
 func assertExpEvalWithPrelude(t *testing.T, expected Const, expr Expr, prelude []*NamespaceDecl) {
-	env := NewEnv()
+	env := NewEnv(nil, nil)
 	if prelude != nil {
 		env.prelude = prelude
 	}
@@ -285,7 +285,7 @@ func assertExpEvalWithPrelude(t *testing.T, expected Const, expr Expr, prelude [
 }
 
 func assertExpEvalErr(t *testing.T, expr Expr) {
-	i := New(NewEnv())
+	i := New(NewEnv(nil, nil))
 	result, err := i.EvalExpr(expr)
 	assert.Error(t, err)
 	assert.Nil(t, result)

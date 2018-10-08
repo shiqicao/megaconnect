@@ -63,9 +63,10 @@ message MonitorSet {
     uint32 version = 2;
 }
 
-// TODO - TBD
+// Monitor contains a list of encoded workflow expressions
 message Monitor {
     int64 id = 1;
+    repeated bytes evaluations = 2;
 }
 
 message RenewLeaseRequest {
@@ -113,9 +114,9 @@ message BigInt {
 // Event describes a fired Monitor.
 message Event {
     // MonitorId identifies the Monitor being fired.
-    bytes monitor_id = 1;
+    int64 monitor_id = 1;
 
-    // Context contains a set of key/value pairs associated with this firing.
-    // The values are accurate as of the specified block.
-    map<string, bytes> context = 3;
+    // Context contains a list of evalutaion result of expressions in Monitor, the order of list is 
+    // the same the order of list in Monitor
+    repeated bytes evaluations_results = 2;
 }

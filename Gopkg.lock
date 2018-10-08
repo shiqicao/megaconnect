@@ -42,11 +42,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:62ebda540c8f11ef1f0cd399f950ceb2c9444047d6bdfcdabee4f5b1f561a7a9"
+  digest = "1:81a2654c1f1a94f696a6330763368b45b926eb08b18cd5b14cbcba1188ae9de1"
   name = "github.com/megaspacelab/flowmanager"
   packages = ["rpc"]
   pruneopts = "UT"
-  revision = "7e4f8c1a4bdc2a34b9cb9822222b1680a9c7230c"
+  revision = "30bc953036e9a21e5e41a568b6d5dc04c7e6e9ce"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"

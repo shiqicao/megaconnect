@@ -315,9 +315,12 @@ func NewObjAccessor(expr Expr, field string) *ObjAccessor {
 }
 
 // Expr returns the expression which is expected to be evaluated to an object
-func (o *ObjAccessor) Expr() Expr     { return o.expr }
+func (o *ObjAccessor) Expr() Expr { return o.expr }
+
 func (o *ObjAccessor) String() string { return o.expr.String() + "." + o.field }
-func (o *ObjAccessor) Field() string  { return o.field }
+
+// Field returns the accessor
+func (o *ObjAccessor) Field() string { return o.field }
 
 // Equal returns true if two expressions are the same
 func (o *ObjAccessor) Equal(expr Expr) bool {
