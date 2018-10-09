@@ -107,7 +107,7 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		}
 		return nil
 	case *ObjAccessor:
-		if err = e.EncodeExpr(expr.Expr()); err != nil {
+		if err = e.EncodeExpr(expr.Receiver()); err != nil {
 			return err
 		}
 		if err = e.encodeString(expr.Field()); err != nil {
@@ -308,7 +308,7 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		}
 		return NewFuncCall(string(name), args, nss), nil
 	case exprKindObjAccessor:
-		expr, err := d.DecodeExpr()
+		receiver, err := d.DecodeExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +316,7 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewObjAccessor(expr, string(field)), nil
+		return NewObjAccessor(receiver, string(field)), nil
 	}
 	return nil, &ErrNotSupported{Name: string(kind)}
 }
