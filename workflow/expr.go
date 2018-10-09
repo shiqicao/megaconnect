@@ -302,22 +302,22 @@ func (n NamespacePrefix) Equal(m NamespacePrefix) bool {
 // ObjAccessor represents field selection operation,
 // for example, A.foo, where A is an object and foo is a field of A
 type ObjAccessor struct {
-	expr  Expr
-	field string
+	receiver Expr
+	field    string
 }
 
 // NewObjAccessor creates a new ObjAccessor
-func NewObjAccessor(expr Expr, field string) *ObjAccessor {
+func NewObjAccessor(receiver Expr, field string) *ObjAccessor {
 	return &ObjAccessor{
-		expr:  expr,
-		field: field,
+		receiver: receiver,
+		field:    field,
 	}
 }
 
-// Expr returns the expression which is expected to be evaluated to an object
-func (o *ObjAccessor) Expr() Expr { return o.expr }
+// Receiver returns the expression which is expected to be evaluated to an object
+func (o *ObjAccessor) Receiver() Expr { return o.receiver }
 
-func (o *ObjAccessor) String() string { return o.expr.String() + "." + o.field }
+func (o *ObjAccessor) String() string { return o.receiver.String() + "." + o.field }
 
 // Field returns the accessor
 func (o *ObjAccessor) Field() string { return o.field }
@@ -327,5 +327,5 @@ func (o *ObjAccessor) Equal(expr Expr) bool {
 	y, ok := expr.(*ObjAccessor)
 	return ok &&
 		o.field == y.field &&
-		o.expr.Equal(y.expr)
+		o.receiver.Equal(y.receiver)
 }

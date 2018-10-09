@@ -64,7 +64,7 @@ func (i *Interpreter) evalUniOp(expr *UniOp) (Const, error) {
 }
 
 func (i *Interpreter) evalObjAccessor(accessor *ObjAccessor) (Const, error) {
-	value, err := i.evalExpr(accessor.Expr())
+	value, err := i.evalExpr(accessor.Receiver())
 	if err != nil {
 		return nil, err
 	}
