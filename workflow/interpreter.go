@@ -11,6 +11,8 @@
 package workflow
 
 import (
+	"errors"
+	"math/big"
 	"reflect"
 )
 
@@ -154,8 +156,36 @@ func (i *Interpreter) evalBinOp(expr *BinOp) (Const, error) {
 		return i.shortcircuitEval(FalseConst, expr.Left(), expr.Right())
 	case OrOp:
 		return i.shortcircuitEval(TrueConst, expr.Left(), expr.Right())
+
+	// Arithmetic
+	case PlusOp:
+		return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Add)
+	case MinusOp:
+		return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Sub)
+	case MultOp:
+		return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Mul)
+	case DivOp:
+		return i.evalDiv(expr)
 	}
 	return nil, &ErrNotSupported{Name: expr.Op().String()}
+}
+
+func (i *Interpreter) evalDiv(expr *BinOp) (ret *IntConst, err error) {
+	defer func() {
+		// big.Div panic if dinomirator is zero as big.Int.Div doesn't return error.
+		// Interpret should return error on any invalid execution.
+		if r := recover(); r != nil {
+			switch r := r.(type) {
+			case error:
+				err = r
+			case string:
+				err = errors.New(r)
+			default:
+				err = errors.New("Unknown error")
+			}
+		}
+	}()
+	return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Div)
 }
 
 func (i *Interpreter) evalNot(expr *UniOp) (*BoolConst, error) {
@@ -176,6 +206,26 @@ func (i *Interpreter) evalAsBool(expr Expr) (*BoolConst, error) {
 		return nil, &ErrTypeMismatch{ExpectedType: BoolType, ActualType: r.Type()}
 	}
 	return b, nil
+}
+
+func (i *Interpreter) evalIntOp(left Expr, right Expr, op func(*big.Int, *big.Int) *big.Int) (*IntConst, error) {
+	lRet, err := i.evalExpr(left)
+	if err != nil {
+		return nil, err
+	}
+	rRet, err := i.evalExpr(right)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := rRet.(*IntConst)
+	if !ok {
+		return nil, &ErrTypeMismatch{ExpectedType: IntType, ActualType: rRet.Type()}
+	}
+	l, ok := lRet.(*IntConst)
+	if !ok {
+		return nil, &ErrTypeMismatch{ExpectedType: IntType, ActualType: lRet.Type()}
+	}
+	return NewIntConst(op(l.Value(), r.Value())), nil
 }
 
 // shortcircuitEval is a helper for evaluating logical AND and OR, it does not evaluate right operant
