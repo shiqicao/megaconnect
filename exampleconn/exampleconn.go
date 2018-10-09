@@ -42,6 +42,11 @@ type Connector struct {
 	logger  *zap.Logger
 }
 
+// IsHealthy always returns true for example connector
+func (c *Connector) IsHealthy() (bool, error) {
+	return true, nil
+}
+
 // Name returns the name of this connector.
 func (c *Connector) Name() string {
 	return reflect.TypeOf(c).PkgPath()

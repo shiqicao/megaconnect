@@ -42,10 +42,10 @@ type Connector interface {
 	// return result a big integer in base unit.
 	QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error)
 
-	// IsFresh performs health check on connected blockchains on sync status.
+	// IsHealthy performs health check on connected blockchains on sync status.
 	// Returns true if it is fresh and fully synced.
 	// Returns false if it is still syncing and not ready to serve live traffic.
-	IsFresh() (bool, error)
+	IsHealthy() (bool, error)
 }
 
 // Subscription defines the shared structure for each connector's new block subscription.
