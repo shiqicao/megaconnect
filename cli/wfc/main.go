@@ -17,7 +17,7 @@ import (
 	"io"
 	"os"
 
-	wf "github.com/megaspacelab/eventmanager/workflow"
+	wf "github.com/megaspacelab/megaconnect/workflow"
 	cli "gopkg.in/urfave/cli.v2"
 )
 
