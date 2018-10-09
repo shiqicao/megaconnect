@@ -104,6 +104,18 @@ const (
 
 	// OrOp is logic OR operator
 	OrOp
+
+	// PlusOp is arithmetic addition operator
+	PlusOp
+
+	// MinusOp is arithmetic minus operator
+	MinusOp
+
+	// MultOp is arithmetic multiplication operator
+	MultOp
+
+	// DivOp is arithmetic division operator
+	DivOp
 )
 
 func (o Operator) String() string {

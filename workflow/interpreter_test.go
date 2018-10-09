@@ -266,6 +266,24 @@ func TestBooleanOps(t *testing.T) {
 	assertExpEval(t, TrueConst, NewUniOp(NotOp, FalseConst))
 }
 
+func TestIntOp(t *testing.T) {
+	assertExpEval(t, NewIntConstFromI64(2), NewBinOp(PlusOp, NewIntConstFromI64(1), NewIntConstFromI64(1)))
+	assertExpEval(t, NewIntConstFromI64(0), NewBinOp(PlusOp, NewIntConstFromI64(1), NewIntConstFromI64(-1)))
+
+	assertExpEval(t, NewIntConstFromI64(0), NewBinOp(MinusOp, NewIntConstFromI64(1), NewIntConstFromI64(1)))
+	assertExpEval(t, NewIntConstFromI64(-1), NewBinOp(MinusOp, NewIntConstFromI64(1), NewIntConstFromI64(2)))
+
+	assertExpEval(t, NewIntConstFromI64(1), NewBinOp(MultOp, NewIntConstFromI64(1), NewIntConstFromI64(1)))
+	assertExpEval(t, NewIntConstFromI64(0), NewBinOp(MultOp, NewIntConstFromI64(1), NewIntConstFromI64(0)))
+
+	assertExpEval(t, NewIntConstFromI64(1), NewBinOp(DivOp, NewIntConstFromI64(1), NewIntConstFromI64(1)))
+	assertExpEval(t, NewIntConstFromI64(0), NewBinOp(DivOp, NewIntConstFromI64(0), NewIntConstFromI64(1)))
+	assertExpEval(t, NewIntConstFromI64(0), NewBinOp(DivOp, NewIntConstFromI64(1), NewIntConstFromI64(2)))
+	assertExpEval(t, NewIntConstFromI64(1), NewBinOp(DivOp, NewIntConstFromI64(3), NewIntConstFromI64(2)))
+
+	assertExpEvalErr(t, NewBinOp(DivOp, NewIntConstFromI64(1), NewIntConstFromI64(0)))
+}
+
 func assertExpEval(t *testing.T, expected Const, expr Expr) {
 	assertExpEvalWithPrelude(t, expected, expr, nil)
 }
