@@ -62,16 +62,16 @@ type FuncCall struct {
 }
 
 // NewFuncCall returns a new FuncCall
-func NewFuncCall(name string, args Args, ns NamespacePrefix) *FuncCall {
+func NewFuncCall(ns NamespacePrefix, name string, args ...Expr) *FuncCall {
 	return &FuncCall{
 		name: name,
-		args: args.Copy(),
-		ns:   ns,
+		args: Args(args).Copy(),
+		ns:   ns.Copy(),
 	}
 }
 
 // NamespacePrefix returns namespace of a function
-func (f *FuncCall) NamespacePrefix() NamespacePrefix { return f.ns }
+func (f *FuncCall) NamespacePrefix() NamespacePrefix { return f.ns.Copy() }
 
 // Name returns the function name
 func (f *FuncCall) Name() string { return f.name }
@@ -191,24 +191,36 @@ func (i *IntConst) Equal(x Expr) bool {
 // ObjConst represents an object, an object contains a list of fields and corresponding types
 type ObjConst struct {
 	ty    *ObjType
-	value map[string]Const
+	value ObjFields
+}
+
+// ObjFields represents a mapping from field name to value
+type ObjFields map[string]Const
+
+// Copy creates a new mapping
+func (o ObjFields) Copy() ObjFields {
+	result := make(ObjFields, len(o))
+	for n, v := range o {
+		result[n] = v
+	}
+	return result
 }
 
 // NewObjConst converts a list of named `Const` to ObjConst, it also calculates type of this ObjConst
-func NewObjConst(values map[string]Const) *ObjConst {
+func NewObjConst(values ObjFields) *ObjConst {
 	ty := make(map[string]Type)
 	for field, value := range values {
 		ty[field] = value.Type()
 	}
 	return &ObjConst{
 		ty:    NewObjType(ty),
-		value: copyObjMap(values),
+		value: values.Copy(),
 	}
 }
 
 // NewObjConstWithTy creates an ObjConst with a list of named `Const` and expected ObjConst type.
 // It returns error if type mismatch
-func NewObjConstWithTy(ty *ObjType, values map[string]Const) (*ObjConst, error) {
+func NewObjConstWithTy(ty *ObjType, values ObjFields) (*ObjConst, error) {
 	// check type
 	if ty.FieldsCount() != len(values) {
 		fields := make([]string, len(values))
@@ -232,7 +244,7 @@ func NewObjConstWithTy(ty *ObjType, values map[string]Const) (*ObjConst, error) 
 
 	return &ObjConst{
 		ty:    ty,
-		value: copyObjMap(values),
+		value: values.Copy(),
 	}, nil
 }
 
@@ -240,7 +252,7 @@ func NewObjConstWithTy(ty *ObjType, values map[string]Const) (*ObjConst, error) 
 func (o *ObjConst) Type() Type { return o.ty }
 
 // Value returns a copy of fields
-func (o *ObjConst) Value() map[string]Const { return copyObjMap(o.value) }
+func (o *ObjConst) Value() ObjFields { return o.value.Copy() }
 
 func (o *ObjConst) String() string {
 	var buf bytes.Buffer
@@ -297,6 +309,18 @@ func (n NamespacePrefix) Equal(m NamespacePrefix) bool {
 		}
 	}
 	return true
+}
+
+// Copy creates a new namespace prefix
+func (n NamespacePrefix) Copy() NamespacePrefix {
+	if n == nil {
+		return nil
+	}
+	r := make(NamespacePrefix, len(n))
+	for i, m := range n {
+		r[i] = m
+	}
+	return r
 }
 
 // ObjAccessor represents field selection operation,

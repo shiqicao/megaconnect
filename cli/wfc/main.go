@@ -78,29 +78,25 @@ func compile(ctx *cli.Context) error {
 	expr := wf.NewBinOp(
 		wf.NotEqualOp,
 		wf.NewFuncCall(
-			"GetBalance",
-			wf.Args{
-				wf.NewStrConst(addr),
-				wf.NewObjAccessor(
-					wf.NewFuncCall("GetBlock", wf.Args{}, wf.NamespacePrefix{"Eth"}),
-					"height",
-				),
-			},
 			wf.NamespacePrefix{"Eth"},
+			"GetBalance",
+			wf.NewStrConst(addr),
+			wf.NewObjAccessor(
+				wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
+				"height",
+			),
 		),
 		wf.NewFuncCall(
-			"GetBalance",
-			wf.Args{
-				wf.NewStrConst(addr),
-				wf.NewBinOp(wf.MinusOp,
-					wf.NewObjAccessor(
-						wf.NewFuncCall("GetBlock", wf.Args{}, wf.NamespacePrefix{"Eth"}),
-						"height",
-					),
-					wf.NewIntConstFromI64(1),
-				),
-			},
 			wf.NamespacePrefix{"Eth"},
+			"GetBalance",
+			wf.NewStrConst(addr),
+			wf.NewBinOp(wf.MinusOp,
+				wf.NewObjAccessor(
+					wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
+					"height",
+				),
+				wf.NewIntConstFromI64(1),
+			),
 		),
 	)
 
