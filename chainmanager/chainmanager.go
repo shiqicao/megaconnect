@@ -253,6 +253,10 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 			}
 			e.logger.Debug("Evaluated", zap.Stringer("result", result))
 			encoded, err := workflow.EncodeExpr(result)
+			if err != nil {
+				e.logger.Error("Failed to encode result", zap.Error(err))
+				return err
+			}
 			event.EvaluationsResults = append(event.EvaluationsResults, encoded)
 		}
 		events = append(events, &event)

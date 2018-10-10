@@ -118,6 +118,10 @@ func reloadMonitors(flowManager *flowmanager.FlowManager, log *zap.Logger, chain
 			return err
 		}
 		monitor, err := wf.NewByteDecoder(monitorRaw).DecodeMonitorDecl()
+		if err != nil {
+			log.Error("Failed to decode monitor", zap.Error(err))
+			return err
+		}
 		log.Debug("Adding monitor valuations", zap.Stringer("monitor", monitor))
 		monitorDecls = append(monitorDecls, monitor)
 	}

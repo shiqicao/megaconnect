@@ -34,11 +34,10 @@ type Connector interface {
 	// Stop stops the Connector and calls Unsubscribe on subscription channels.
 	Stop() error
 
-	// QueryAccountBalance gets account balance of given address on demand.
-	// addr is the string representation of the address, asOfBlock is the hash
-	// of the specific block that balance is querying on.
-	// If asOfBlock is set to nil, the balance is taken from the latest known block.
-	// return result a big integer in base unit.
+	// QueryAccountBalance gets account balance of given height on demand.
+	// addr is the string representation of the address, height is the block height
+	// that we are trying to get balance from.
+	// If height is set to nil, get latest account balance.
 	QueryAccountBalance(addr string, height *big.Int) (*big.Int, error)
 
 	// IsHealthy performs health check on connected blockchains on sync status.
