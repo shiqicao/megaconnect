@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
-	"os/user"
 	"path"
 
+	mcli "github.com/megaspacelab/megaconnect/cli"
 	"github.com/megaspacelab/megaconnect/flowmanager"
 	"github.com/megaspacelab/megaconnect/grpc"
 	wf "github.com/megaspacelab/megaconnect/workflow"
@@ -15,45 +16,66 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/reflection"
+	cli "gopkg.in/urfave/cli.v2"
 )
 
-const (
-	listenAddr = ":12345"
-)
-
-// TODO - make this a proper cli app.
 func main() {
-	log, err := zap.NewDevelopment()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create logger. %v", err)
-		return
+	listenPortFlag := cli.IntFlag{
+		Name:  "listen-port",
+		Usage: "Listening port",
+		Value: 9000,
 	}
 
-	flowManager := flowmanager.NewFlowManager(log)
-	orchestrator := flowmanager.NewOrchestrator(flowManager, log)
+	app := cli.App{
+		Usage: "Megaspace flow manager",
+		Flags: []cli.Flag{
+			&mcli.DebugFlag,
+			&mcli.DataDirFlag,
+			&listenPortFlag,
+		},
+		Action: func(ctx *cli.Context) error {
+			log, err := mcli.NewLogger(ctx.Bool(mcli.DebugFlag.Name))
+			if err != nil {
+				return err
+			}
 
-	done := make(chan struct{}, 1)
-	go loadAndWatchChainConfigs(flowManager, log, done, "Example", "Ethereum", "Bitcoin")
+			fm := flowmanager.NewFlowManager(log)
+			orch := flowmanager.NewOrchestrator(fm, log)
 
-	log.Debug("Serving", zap.String("listenAddr", listenAddr))
-	err = grpc.Serve(listenAddr, []grpc.RegisterFunc{orchestrator.Register, reflection.Register}, nil)
-	done <- struct{}{}
-	if err != nil {
-		log.Error("Failed to serve", zap.Error(err))
+			dataDir := ctx.Path(mcli.DataDirFlag.Name)
+			done := make(chan struct{}, 1)
+			go loadAndWatchChainConfigs(fm, log, dataDir, done, "Example", "Ethereum", "Bitcoin")
+
+			listenAddr := fmt.Sprintf(":%d", ctx.Int(listenPortFlag.Name))
+			actualAddr := make(chan net.Addr, 1)
+			go func() {
+				addr, ok := <-actualAddr
+				if ok {
+					log.Debug("Serving", zap.Stringer("listenAddr", addr))
+				}
+			}()
+
+			err = grpc.Serve(listenAddr, []grpc.RegisterFunc{orch.Register, reflection.Register}, actualAddr)
+			done <- struct{}{}
+			if err != nil {
+				log.Error("Failed to serve", zap.Error(err))
+				return err
+			}
+
+			return nil
+		},
 	}
+
+	app.Run(os.Args)
 }
 
 func loadAndWatchChainConfigs(
-	flowManager *flowmanager.FlowManager,
+	fm *flowmanager.FlowManager,
 	log *zap.Logger,
+	dataDir string,
 	done <-chan struct{},
 	chains ...string,
 ) {
-	usr, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
@@ -61,13 +83,13 @@ func loadAndWatchChainConfigs(
 	defer watcher.Close()
 
 	for _, chain := range chains {
-		chainDir := path.Join(usr.HomeDir, ".megaspace", "fm", "chains", chain)
+		chainDir := path.Join(dataDir, "fm", "chains", chain)
 		err = os.MkdirAll(chainDir, 0700)
 		if err != nil {
 			panic(err)
 		}
 
-		err = reloadMonitors(flowManager, log, chain, path.Join(chainDir, "monitors"))
+		err = reloadMonitors(fm, log, chain, path.Join(chainDir, "monitors"))
 		if err != nil {
 			panic(err)
 		}
@@ -88,7 +110,7 @@ func loadAndWatchChainConfigs(
 				continue
 			}
 			chain := path.Base(path.Dir(event.Name))
-			err = reloadMonitors(flowManager, log, chain, event.Name)
+			err = reloadMonitors(fm, log, chain, event.Name)
 			if err != nil {
 				log.Error("Failed to reload monitors", zap.String("chain", chain))
 			}
@@ -96,7 +118,7 @@ func loadAndWatchChainConfigs(
 	}
 }
 
-func reloadMonitors(flowManager *flowmanager.FlowManager, log *zap.Logger, chain, file string) error {
+func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file string) error {
 	log.Info("Reloading monitors", zap.String("chain", chain), zap.String("file", file))
 
 	fs, err := os.Open(file)
@@ -104,7 +126,7 @@ func reloadMonitors(flowManager *flowmanager.FlowManager, log *zap.Logger, chain
 
 	if _, ok := err.(*os.PathError); ok {
 		log.Debug("File does not exist", zap.String("file", file))
-		flowManager.SetChainConfig(chain, nil, nil)
+		fm.SetChainConfig(chain, nil, nil)
 		return nil
 	} else if err != nil {
 		return err
@@ -144,6 +166,6 @@ func reloadMonitors(flowManager *flowmanager.FlowManager, log *zap.Logger, chain
 		}
 	}
 
-	flowManager.SetChainConfig(chain, monitors, nil)
+	fm.SetChainConfig(chain, monitors, nil)
 	return nil
 }

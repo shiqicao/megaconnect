@@ -26,8 +26,8 @@ message RegisterChainManagerRequest {
     // ChainId identifies the chain being managed.
     string chain_id = 2;
 
-    // RpcAddr allows Orchestrator to reach out to this ChainManager.
-    string rpc_addr = 3;
+    // ListenPort allows Orchestrator to reach out to this ChainManager.
+    int32 listen_port = 3;
 
     // SessionId should be included in all outbound communications from Orchestrator to ChainManager as a validity proof.
     bytes session_id = 4;

@@ -24,23 +24,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// Builder builds the connector.
-type Builder struct{}
-
-// BuildConnector returns a new stopped connector.
-func (b *Builder) BuildConnector(ctx *connector.Context) (connector.Connector, error) {
-	return &Connector{
-		logger:       ctx.Logger,
-		balanceCache: make([]*big.Int, 0),
-	}, nil
-}
-
-// Connector is the main connector data structure.
+// Connector is an example implementation of connector.Connector.
 type Connector struct {
 	balanceCache []*big.Int
 	subs         []connector.Subscription
 	running      bool
 	logger       *zap.Logger
+}
+
+// New creates a new example connector.
+func New(logger *zap.Logger) (connector.Connector, error) {
+	return &Connector{logger: logger}, nil
 }
 
 // IsHealthy always returns true for example connector

@@ -11,6 +11,10 @@
 package cli
 
 import (
+	"os"
+	"os/user"
+	"path/filepath"
+
 	"gopkg.in/urfave/cli.v2"
 )
 
@@ -18,14 +22,30 @@ import (
 // Sharing flags keeps megaspace cmd tools consistent.
 
 var (
-	// DebugFlag specifies whether print debug logging
+	// DebugFlag specifies whether to print debug logging.
 	DebugFlag = cli.BoolFlag{
-		Name:  "debug",
-		Usage: "Debugging: prints debug logging",
-		Value: false,
+		Name:    "debug",
+		Aliases: []string{"d"},
+		Usage:   "Enable debug logging",
+		Value:   false,
 	}
+
+	// DataDirFlag specifies the directory for the databases and keystore.
 	DataDirFlag = cli.PathFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
+		Value: defaultDataDir(),
 	}
 )
+
+func defaultDataDir() string {
+	basedir := os.Getenv("HOME")
+	if basedir == "" {
+		if usr, err := user.Current(); err == nil {
+			basedir = usr.HomeDir
+		} else {
+			basedir = os.TempDir()
+		}
+	}
+	return filepath.Join(basedir, ".megaspace")
+}

@@ -3,11 +3,11 @@
 # This script initializes the repo with the necessary Go deps and git hooks.
 # Usage: `./init-dev.sh`
 
-# Install all packages required by eventmanager.
+# Install all go dependencies.
 # Please ensure you have `dep` installed locally first (see README.md)!
 dep ensure
 
-# Install all tools needed for eventmanager development.
+# Install all tools needed for megaconnect development.
 go get -u github.com/golang/lint/golint
 go get -u github.com/ashwch/precommit-vet-lint
 

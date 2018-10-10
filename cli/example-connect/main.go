@@ -11,31 +11,20 @@
 package main
 
 import (
-	"os"
-
-	"github.com/megaspacelab/megaconnect/chainmanager"
-	mcli "github.com/megaspacelab/megaconnect/cli"
+	cmcli "github.com/megaspacelab/megaconnect/chainmanager/cli"
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/connector/example"
 
+	"go.uber.org/zap"
 	cli "gopkg.in/urfave/cli.v2"
 )
 
 func main() {
-	app := &cli.App{
-		Name: "Example EventManager",
-		Flags: []cli.Flag{
-			&mcli.DebugFlag,
-			&mcli.DataDirFlag,
-		},
-		Action: func(ctx *cli.Context) error {
-			return chainmanager.Run(
-				&example.Builder{},
-				connector.Configs{},
-				ctx.Bool(mcli.DebugFlag.Name),
-				ctx.Path(mcli.DataDirFlag.Name),
-			)
-		},
-	}
-	app.Run(os.Args)
+	app := cmcli.NewRunner(newConnector)
+	app.Usage = "Example Megaspace connector"
+	app.Run()
+}
+
+func newConnector(ctx *cli.Context, logger *zap.Logger) (connector.Connector, error) {
+	return example.New(logger)
 }

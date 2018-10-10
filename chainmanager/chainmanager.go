@@ -65,7 +65,7 @@ type ChainManager struct {
 	lock    sync.Mutex
 }
 
-// New constructs an instance of eventManager
+// New constructs an instance of ChainManager.
 func New(
 	id string,
 	orchAddr string,
@@ -82,8 +82,8 @@ func New(
 	}
 }
 
-// Start would start an EventManager loop
-func (e *ChainManager) Start(localAddr string) error {
+// Start would start an ChainManager loop
+func (e *ChainManager) Start(listenPort int) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	if e.running {
@@ -104,7 +104,7 @@ func (e *ChainManager) Start(localAddr string) error {
 	resp, err := e.orchClient.RegisterChainManager(e.ctx, &mgrpc.RegisterChainManagerRequest{
 		ChainId:        e.connector.ChainName(),
 		ChainManagerId: &mgrpc.InstanceId{Id: []byte(e.id), Instance: e.instance},
-		RpcAddr:        localAddr,
+		ListenPort:     int32(listenPort),
 		SessionId:      e.sessionID[:],
 	})
 	if err != nil {
@@ -149,7 +149,7 @@ func (e *ChainManager) Start(localAddr string) error {
 	return nil
 }
 
-// Stop would stop an EventManager loop
+// Stop would stop an ChainManager loop
 func (e *ChainManager) Stop() error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -188,7 +188,7 @@ func (e *ChainManager) renewLease() {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	if !e.running {
-		e.logger.Warn("Skipping lease renewal on stopped EventManager")
+		e.logger.Warn("Skipping lease renewal on stopped ChainManager")
 		return
 	}
 
@@ -210,7 +210,7 @@ func (e *ChainManager) processNewBlock(block common.Block) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	if !e.running {
-		e.logger.Warn("Skipping block on stopped EventManager")
+		e.logger.Warn("Skipping block on stopped ChainManager")
 		return nil
 	}
 

@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
+	"reflect"
 	"sync"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -94,23 +97,35 @@ func (o *Orchestrator) RegisterChainManager(
 	if req.ChainManagerId == nil {
 		return nil, status.Error(codes.InvalidArgument, "Missing ChainManagerId")
 	}
-	if req.RpcAddr == "" {
-		return nil, status.Error(codes.InvalidArgument, "Missing RpcAddr")
+	if req.ListenPort == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Missing ListenPort")
 	}
 
-	chainConfig := o.flowManager.GetChainConfig(req.ChainId)
-	if chainConfig == nil {
-		return nil, status.Error(codes.InvalidArgument, "Invalid ChainId")
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unknown, "Failed to get peer info")
 	}
+	peerAddr, ok := peer.Addr.(*net.TCPAddr)
+	if !ok {
+		return nil, status.Errorf(codes.Unknown, "Unknown peer addr type %v", reflect.TypeOf(peer.Addr))
+	}
+	rpcAddr := *peerAddr
+	rpcAddr.Port = int(req.ListenPort)
 
 	// Front-load connection to minimize work inside lock.
-	o.log.Debug("Connecting to ChainManager", zap.String("rpcAddr", req.RpcAddr))
-	conn, err := grpc.DialContext(ctx, req.RpcAddr,
+	o.log.Debug("Connecting to ChainManager", zap.Stringer("rpcAddr", &rpcAddr))
+	conn, err := grpc.DialContext(ctx, rpcAddr.String(),
 		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(cmConnTimeout))
 	if err != nil {
 		return nil, err
 	}
 	cmClient := mgrpc.NewChainManagerClient(conn)
+
+	chainConfig := o.flowManager.GetChainConfig(req.ChainId)
+	if chainConfig == nil {
+		conn.Close()
+		return nil, status.Error(codes.InvalidArgument, "Invalid ChainId")
+	}
 
 	o.lock.Lock()
 	defer o.lock.Unlock()
