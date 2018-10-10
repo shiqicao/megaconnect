@@ -13,8 +13,7 @@ package workflow
 import (
 	"math/big"
 
-	"github.com/megaspacelab/eventmanager/common"
-	"github.com/megaspacelab/eventmanager/types"
+	"github.com/megaspacelab/megaconnect/common"
 )
 
 // Env provides execution environment for interpreter and analyzer,
@@ -23,7 +22,7 @@ import (
 type Env struct {
 	prelude      []*NamespaceDecl
 	chain        chain
-	currentBlock types.Block
+	currentBlock common.Block
 }
 
 type chain interface {
@@ -31,7 +30,7 @@ type chain interface {
 }
 
 // NewEnv creates a new Env
-func NewEnv(chain chain, currentBlock types.Block) *Env {
+func NewEnv(chain chain, currentBlock common.Block) *Env {
 	return &Env{
 		prelude:      prelude,
 		chain:        chain,
@@ -40,6 +39,6 @@ func NewEnv(chain chain, currentBlock types.Block) *Env {
 }
 
 // CurrentBlock returns the block interpreter anchors for a workflow
-func (e *Env) CurrentBlock() types.Block {
+func (e *Env) CurrentBlock() common.Block {
 	return e.currentBlock
 }

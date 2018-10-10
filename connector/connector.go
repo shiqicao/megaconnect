@@ -13,8 +13,7 @@ package connector
 import (
 	"math/big"
 
-	"github.com/megaspacelab/eventmanager/common"
-	"github.com/megaspacelab/eventmanager/types"
+	"github.com/megaspacelab/megaconnect/common"
 )
 
 // Connector defines the shared structure for each chain-specific connector.
@@ -27,7 +26,7 @@ type Connector interface {
 
 	// SubscribeBlock establishes blocks channel to accept new blocks.
 	// It supports "resume after" functionality by passing in the hash of the checkpoint block.
-	SubscribeBlock(resumeAfter *common.Hash, blocks chan<- types.Block) (Subscription, error)
+	SubscribeBlock(resumeAfter *common.Hash, blocks chan<- common.Block) (Subscription, error)
 
 	// Start starts the Connector, proper setup is done here.
 	Start() error
