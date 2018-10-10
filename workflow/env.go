@@ -26,7 +26,7 @@ type Env struct {
 }
 
 type chain interface {
-	QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error)
+	QueryAccountBalance(addr string, height *big.Int) (*big.Int, error)
 }
 
 // NewEnv creates a new Env

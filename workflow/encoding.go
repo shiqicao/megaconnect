@@ -38,7 +38,18 @@ type Encoder struct {
 	writer io.Writer
 }
 
-// EncodeExpr serialize `Expr` to binary format
+// EncodeMonitorDecl serializes a monitor declaration to binary format
+func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
+	if err := e.encodeString(md.Name()); err != nil {
+		return err
+	}
+	if err := e.EncodeExpr(md.Condition()); err != nil {
+		return err
+	}
+	return nil
+}
+
+// EncodeExpr serializes `Expr` to binary format
 // Expression are disjoint union of concrete constructs, expression kind is a one byte value encodes construct type.
 // TODO: add expression kind code mapping in binary format spec
 func (e *Encoder) EncodeExpr(expr Expr) error {
@@ -187,16 +198,42 @@ func EncodeExpr(expr Expr) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// EncodeMonitorDecl encode a monitor declaration
+func EncodeMonitorDecl(m *MonitorDecl) ([]byte, error) {
+	var buf bytes.Buffer
+	e := &Encoder{writer: &buf}
+	if err := e.EncodeMonitorDecl(m); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // Decoder deserializes binary format to workflow AST
 type Decoder struct {
 	reader io.Reader
 }
+
+// NewByteDecoder creates a new Decoder from bytes
+func NewByteDecoder(data []byte) *Decoder { return NewDecoder(bytes.NewReader(data)) }
 
 // NewDecoder creates a new Decoder
 func NewDecoder(reader io.Reader) *Decoder {
 	return &Decoder{
 		reader: reader,
 	}
+}
+
+// DecodeMonitorDecl deserializes binary format to `MonitorDecl`
+func (d *Decoder) DecodeMonitorDecl() (*MonitorDecl, error) {
+	name, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	cond, err := d.DecodeExpr()
+	if err != nil {
+		return nil, err
+	}
+	return NewMonitorDecl(string(name), cond), nil
 }
 
 // DecodeExpr deserializes binary format to `Expr`

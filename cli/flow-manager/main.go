@@ -10,6 +10,7 @@ import (
 
 	"github.com/megaspacelab/megaconnect/flowmanager"
 	"github.com/megaspacelab/megaconnect/grpc"
+	wf "github.com/megaspacelab/megaconnect/workflow"
 
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
@@ -110,24 +111,37 @@ func reloadMonitors(flowManager *flowmanager.FlowManager, log *zap.Logger, chain
 	}
 
 	scanner := bufio.NewScanner(fs)
-	exprs := [][]byte{}
+	monitorDecls := []*wf.MonitorDecl{}
 	for scanner.Scan() {
-		expr, err := hex.DecodeString(scanner.Text())
+		monitorRaw, err := hex.DecodeString(scanner.Text())
 		if err != nil {
 			return err
 		}
-		log.Debug("Adding monitor valuations", zap.ByteString("expr", expr))
-		exprs = append(exprs, expr)
+		monitor, err := wf.NewByteDecoder(monitorRaw).DecodeMonitorDecl()
+		if err != nil {
+			log.Error("Failed to decode monitor", zap.Error(err))
+			return err
+		}
+		log.Debug("Adding monitor valuations", zap.Stringer("monitor", monitor))
+		monitorDecls = append(monitorDecls, monitor)
 	}
 	if scanner.Err() != nil {
 		return scanner.Err()
 	}
 
-	monitors := map[flowmanager.MonitorID]*grpc.Monitor{
-		1: &grpc.Monitor{
-			Id:          1,
-			Evaluations: exprs,
-		},
+	monitors := make(map[flowmanager.MonitorID]*grpc.Monitor)
+	for i, m := range monitorDecls {
+		cond, err := wf.EncodeExpr(m.Condition())
+		if err != nil {
+			log.Error("Failed to encode condition", zap.Stringer("condition", m.Condition()))
+			return err
+		}
+		monitors[flowmanager.MonitorID(i)] = &grpc.Monitor{
+			Id: int64(i),
+			// TODO: determine required expressions at chain manager
+			Evaluations: [][]byte{},
+			Condition:   cond,
+		}
 	}
 
 	flowManager.SetChainConfig(chain, monitors, nil)

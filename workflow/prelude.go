@@ -22,6 +22,7 @@ var (
 					"GetBalance",
 					[]*ParamDecl{
 						NewParamDecl("addr", StrType),
+						NewParamDecl("height", IntType),
 					},
 					IntType,
 					func(env *Env, args map[string]Const) (Const, error) {
@@ -30,9 +31,13 @@ var (
 							// This should be checked by type checker
 							return nil, &ErrMissingArg{ArgName: "addr", Func: "GetBalance"}
 						}
-						addr, ok := addrRaw.(*StrConst)
-						blockHash := env.CurrentBlock().Hash()
-						balance, err := env.chain.QueryAccountBalance(addr.Value(), &blockHash)
+						heightRaw, ok := args["height"]
+						if !ok {
+							return nil, &ErrMissingArg{ArgName: "height", Func: "GetBalance"}
+						}
+						addr, _ := addrRaw.(*StrConst)
+						height, _ := heightRaw.(*IntConst)
+						balance, err := env.chain.QueryAccountBalance(addr.Value(), height.Value())
 						if err != nil {
 							return nil, err
 						}
@@ -40,22 +45,17 @@ var (
 					},
 				),
 				NewFuncDecl(
-					"Addr",
-					[]*ParamDecl{
-						NewParamDecl("addr", StrType),
-					},
+					"GetBlock",
+					[]*ParamDecl{},
 					NewObjType(map[string]Type{
-						"balance": IntType,
+						"height": IntType,
 					}),
 					func(env *Env, args map[string]Const) (Const, error) {
-						// TODO: read data from chain through env,
-						// env should provide access to chain data
-						result := NewObjConst(
+						return NewObjConst(
 							map[string]Const{
-								"balance": NewIntConstFromI64(100),
+								"height": NewIntConst(env.CurrentBlock().Height()),
 							},
-						)
-						return result, nil
+						), nil
 					},
 				),
 			},

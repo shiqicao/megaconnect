@@ -63,7 +63,7 @@ type block struct {
 
 func (b *block) Hash() Hash                  { return b.hash }
 func (b *block) ParentHash() Hash            { return b.parentHash }
-func (b *block) Height() *big.Int            { return b.height }
+func (b *block) Height() *big.Int            { return new(big.Int).Set(b.height) }
 func (b *block) Transactions() []Transaction { return b.transactions }
 
 func (b *block) MarshalJSON() ([]byte, error) {

@@ -138,6 +138,14 @@ func (o Operator) String() string {
 		return "||"
 	case NotOp:
 		return "!"
+	case PlusOp:
+		return "+"
+	case MinusOp:
+		return "-"
+	case MultOp:
+		return "*"
+	case DivOp:
+		return "/"
 	default:
 		return ""
 	}

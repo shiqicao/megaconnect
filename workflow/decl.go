@@ -10,6 +10,8 @@
 
 package workflow
 
+import "bytes"
+
 type evaluator func(*Env, map[string]Const) (Const, error)
 
 // Params is parameter declaration list for a function decalaraion
@@ -100,4 +102,41 @@ func (f FuncDecls) Copy() FuncDecls {
 		r[i] = f
 	}
 	return r
+}
+
+// MonitorDecl represents a monitor unit in workflow lang
+type MonitorDecl struct {
+	name string
+	cond Expr
+}
+
+// NewMonitorDecl creates a new MonitorDecl
+func NewMonitorDecl(name string, cond Expr) *MonitorDecl {
+	return &MonitorDecl{
+		name: name,
+		cond: cond,
+	}
+}
+
+// Name returns monitor name
+func (m *MonitorDecl) Name() string { return m.name }
+
+// Condition returns an boolean expression when the monitor is triggered
+func (m *MonitorDecl) Condition() Expr { return m.cond }
+
+// Equal returns true if two monitor declaraions are the same
+func (m *MonitorDecl) Equal(x *MonitorDecl) bool {
+	return m.Name() == x.Name() && m.Condition().Equal(x.Condition())
+}
+
+func (m *MonitorDecl) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("monitor {")
+	buf.WriteString("name = ")
+	buf.WriteString(m.Name())
+	buf.WriteString(",")
+	buf.WriteString("condition = ")
+	buf.WriteString(m.Condition().String())
+	buf.WriteString("}")
+	return buf.String()
 }
