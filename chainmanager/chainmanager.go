@@ -243,10 +243,10 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		event.EvaluationsResults = make([][]byte, 0, len(monitor.Evaluations))
 		for _, expr := range monitor.Evaluations {
 			expr, err := workflow.NewByteDecoder(expr).DecodeExpr()
-			e.logger.Debug("Evaluating", zap.Stringer("expr", expr))
 			if err != nil {
 				return err
 			}
+			e.logger.Debug("Evaluating", zap.Stringer("expr", expr))
 			result, err := interpreter.EvalExpr(expr)
 			if err != nil {
 				return err
