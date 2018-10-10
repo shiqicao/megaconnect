@@ -43,7 +43,7 @@ func compile(ctx *cli.Context) error {
 		metaWriter = os.Stdout
 	} else {
 		path := ctx.Path("output")
-		metafs, err := os.Create(path + ".mast")
+		metafs, err := os.Create(path + ".json")
 		defer metafs.Close()
 		if err != nil {
 			return err
@@ -58,9 +58,38 @@ func compile(ctx *cli.Context) error {
 	}
 
 	// TODO: Read script file and parse it to AST
-	expr := wf.NewFuncCall("GetBalance", wf.Args{wf.NewStrConst("0x01C797d1AD1b36FE4eB17d58c96D6E844cD70a6B")}, wf.NamespacePrefix{"Eth"})
+	expr := wf.NewBinOp(
+		wf.NotEqualOp,
+		wf.NewFuncCall(
+			"GetBalance",
+			wf.Args{
+				wf.NewStrConst("0x01C797d1AD1b36FE4eB17d58c96D6E844cD70a6B"),
+				wf.NewObjAccessor(
+					wf.NewFuncCall("GetBlock", wf.Args{}, wf.NamespacePrefix{"Eth"}),
+					"height",
+				),
+			},
+			wf.NamespacePrefix{"Eth"},
+		),
+		wf.NewFuncCall(
+			"GetBalance",
+			wf.Args{
+				wf.NewStrConst("0x01C797d1AD1b36FE4eB17d58c96D6E844cD70a6B"),
+				wf.NewBinOp(wf.MinusOp,
+					wf.NewObjAccessor(
+						wf.NewFuncCall("GetBlock", wf.Args{}, wf.NamespacePrefix{"Eth"}),
+						"height",
+					),
+					wf.NewIntConstFromI64(1),
+				),
+			},
+			wf.NamespacePrefix{"Eth"},
+		),
+	)
 
-	bin, err := wf.EncodeExpr(expr)
+	monitor := wf.NewMonitorDecl("Test", expr)
+
+	bin, err := wf.EncodeMonitorDecl(monitor)
 	if err != nil {
 		return err
 	}
@@ -68,7 +97,7 @@ func compile(ctx *cli.Context) error {
 		Source string
 		Hex    string
 	}{
-		Source: expr.String(),
+		Source: monitor.String(),
 		Hex:    hex.EncodeToString(bin),
 	}
 

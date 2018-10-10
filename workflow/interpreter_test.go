@@ -210,7 +210,7 @@ func TestObjAccessor(t *testing.T) {
 	assertExpEvalErr(t, accessor)
 }
 
-func TestFunc(t *testing.T) {
+func TestSymbolResolve(t *testing.T) {
 	prelude = []*NamespaceDecl{
 		&NamespaceDecl{
 			name: "TEST",
@@ -236,11 +236,19 @@ func TestFunc(t *testing.T) {
 						return result, nil
 					},
 				),
+				NewFuncDecl(
+					"bar",
+					[]*ParamDecl{},
+					StrType,
+					func(_ *Env, args map[string]Const) (Const, error) {
+						return NewStrConst("aa"), nil
+					},
+				),
 			},
 		},
 	}
 
-	callAddr := NewFuncCall("foo", []Expr{NewStrConst("bar")}, []string{"TEST"})
+	callFoo := NewFuncCall("foo", Args{NewStrConst("bar")}, []string{"TEST"})
 	result := NewObjConst(
 		map[string]Const{
 			"size": NewIntConstFromI64(int64(len("bar"))),
@@ -248,7 +256,25 @@ func TestFunc(t *testing.T) {
 		},
 	)
 
-	assertExpEvalWithPrelude(t, result, callAddr, prelude)
+	assertExpEvalWithPrelude(t, result, callFoo, prelude)
+
+	callBar := NewFuncCall("bar", Args{}, []string{"TEST"})
+	callFooBar := NewFuncCall("foo", Args{callBar}, []string{"TEST"})
+
+	result = NewObjConst(
+		map[string]Const{
+			"size": NewIntConstFromI64(int64(len("aa"))),
+			"text": NewStrConst("aa"),
+		},
+	)
+
+	assertExpEvalWithPrelude(t, result, callFooBar, prelude)
+
+	callFoo = NewFuncCall("foo", Args{NewStrConst("bar")}, []string{"TEST"})
+	assertExpEvalWithPrelude(t, NewStrConst("bar"), NewObjAccessor(
+		callFoo,
+		"text",
+	), prelude)
 }
 
 func TestBooleanOps(t *testing.T) {

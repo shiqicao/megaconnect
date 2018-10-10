@@ -16,7 +16,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math/big"
 	"sync"
 	"time"
 
@@ -225,13 +224,26 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	interpreter := workflow.New(workflow.NewEnv(e.connector, block))
 	events := []*mgrpc.Event{}
 	for _, monitor := range e.monitors {
+		cond, err := workflow.NewByteDecoder(monitor.Condition).DecodeExpr()
+		if err != nil {
+			return err
+		}
+		e.logger.Debug("Evaluating", zap.Stringer("condition", cond))
+		result, err := interpreter.EvalExpr(cond)
+		if err != nil {
+			return err
+		}
+		e.logger.Debug("Evaluated", zap.Stringer("condition", result))
+		if result.Equal(workflow.GetBoolConst(false)) {
+			continue
+		}
+
 		event := mgrpc.Event{}
 		event.MonitorId = monitor.Id
 		event.EvaluationsResults = make([][]byte, 0, len(monitor.Evaluations))
 		for _, expr := range monitor.Evaluations {
-			decoder := workflow.NewDecoder(bytes.NewReader(expr))
-			expr, err := decoder.DecodeExpr()
-			e.logger.Debug("Evaluating", zap.String("expr", expr.String()))
+			expr, err := workflow.NewByteDecoder(expr).DecodeExpr()
+			e.logger.Debug("Evaluating", zap.Stringer("expr", expr))
 			if err != nil {
 				return err
 			}
@@ -239,7 +251,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 			if err != nil {
 				return err
 			}
-			e.logger.Debug("Evaluated", zap.String("result", result.String()))
+			e.logger.Debug("Evaluated", zap.Stringer("result", result))
 			encoded, err := workflow.EncodeExpr(result)
 			event.EvaluationsResults = append(event.EvaluationsResults, encoded)
 		}
@@ -461,10 +473,4 @@ func (e *ChainManager) replayWithLock(resumeAfter *common.Hash) {
 // Register registers itself as ChainManagerServer to the gRPC server.
 func (e *ChainManager) Register(server *grpc.Server) {
 	mgrpc.RegisterChainManagerServer(server, e)
-}
-
-// QueryAccountBalance queries the chain for the current balance of the given address.
-// Returns a channel into which the result will be pushed once retrieved.
-func (e *ChainManager) QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error) {
-	return e.connector.QueryAccountBalance(addr, asOfBlock)
 }

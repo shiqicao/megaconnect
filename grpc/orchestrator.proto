@@ -67,6 +67,7 @@ message MonitorSet {
 message Monitor {
     int64 id = 1;
     repeated bytes evaluations = 2;
+    bytes condition = 3;
 }
 
 message RenewLeaseRequest {

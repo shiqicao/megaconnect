@@ -39,7 +39,7 @@ type Connector interface {
 	// of the specific block that balance is querying on.
 	// If asOfBlock is set to nil, the balance is taken from the latest known block.
 	// return result a big integer in base unit.
-	QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error)
+	QueryAccountBalance(addr string, height *big.Int) (*big.Int, error)
 
 	// IsHealthy performs health check on connected blockchains on sync status.
 	// Returns true if it is fresh and fully synced.

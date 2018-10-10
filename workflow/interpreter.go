@@ -315,7 +315,16 @@ func (i *Interpreter) resolveExpr(expr Expr) error {
 		if err != nil {
 			return err
 		}
+	case *ObjAccessor:
+		if err := i.resolveExpr(e.Receiver()); err != nil {
+			return err
+		}
 	case *FuncCall:
+		for _, arg := range e.Args() {
+			if err := i.resolveExpr(arg); err != nil {
+				return err
+			}
+		}
 		return i.resolveFun(e)
 	}
 	return nil

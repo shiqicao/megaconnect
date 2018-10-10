@@ -30,15 +30,17 @@ type Builder struct{}
 // BuildConnector returns a new stopped connector.
 func (b *Builder) BuildConnector(ctx *connector.Context) (connector.Connector, error) {
 	return &Connector{
-		logger: ctx.Logger,
+		logger:       ctx.Logger,
+		balanceCache: make([]*big.Int, 0),
 	}, nil
 }
 
 // Connector is the main connector data structure.
 type Connector struct {
-	subs    []connector.Subscription
-	running bool
-	logger  *zap.Logger
+	balanceCache []*big.Int
+	subs         []connector.Subscription
+	running      bool
+	logger       *zap.Logger
 }
 
 // IsHealthy always returns true for example connector
@@ -99,6 +101,7 @@ func (c *Connector) SubscribeBlock(resumeAfter *common.Hash, blocks chan<- commo
 
 			select {
 			case blocks <- block:
+				c.balanceCache = append(c.balanceCache, big.NewInt(rand.Int63n(math.MaxInt64)))
 				time.Sleep(5 * time.Second)
 			case <-done:
 				close(blocks)
@@ -121,6 +124,12 @@ func (s subscription) Unsubscribe() {
 
 // QueryAccountBalance queries the chain for the current balance of the given address.
 // Returns a channel into which the result will be pushed once retrieved.
-func (c *Connector) QueryAccountBalance(addr string, asOfBlock *common.Hash) (*big.Int, error) {
-	return big.NewInt(rand.Int63n(math.MaxInt64)), nil
+func (c *Connector) QueryAccountBalance(addr string, height *big.Int) (*big.Int, error) {
+	h := height.Int64()
+	if h < 0 {
+		return new(big.Int).SetInt64(0), nil
+	} else if int(h) >= len(c.balanceCache) {
+		return nil, fmt.Errorf("height %d is not yet observed", h)
+	}
+	return c.balanceCache[h], nil
 }

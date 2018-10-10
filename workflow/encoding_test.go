@@ -122,7 +122,7 @@ func TestBinExpEncoding(t *testing.T) {
 	assertExprEncoding(t, NewUniOp(NotOp, NewBinOp(EqualOp, GetBoolConst(true), GetBoolConst(false))))
 }
 
-func TestLargeArray(t *testing.T) {
+func TestLargeArrayEncoding(t *testing.T) {
 	str := ""
 	for i := 0; i <= math.MaxUint8; i++ {
 		str = str + "a"
@@ -130,6 +130,23 @@ func TestLargeArray(t *testing.T) {
 	assertExprEncoding(t, NewStrConst(str))
 	assertExprEncoding(t, NewStrConst(str+str))
 	assertExprEncoding(t, NewStrConst(str+str+str))
+}
+
+func TestMonitorDeclEncoding(t *testing.T) {
+	check := func(m *MonitorDecl) {
+		var b bytes.Buffer
+		e := Encoder{writer: &b}
+		d := Decoder{reader: &b}
+
+		err := e.EncodeMonitorDecl(m)
+		assert.NoError(t, err)
+		decoded, err := d.DecodeMonitorDecl()
+		assert.NoError(t, err)
+		assert.True(t, m.Equal(decoded))
+	}
+
+	check(NewMonitorDecl("a", GetBoolConst(true)))
+	check(NewMonitorDecl("b", NewBinOp(AndOp, GetBoolConst(true), GetBoolConst(false))))
 }
 
 func assertExprEncoding(t *testing.T, expr Expr) {
