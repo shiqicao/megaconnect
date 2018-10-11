@@ -35,6 +35,9 @@ type Args []Expr
 
 // Copy creates a new Args
 func (a Args) Copy() Args {
+	if a == nil {
+		return nil
+	}
 	r := make([]Expr, len(a))
 	copy(r, a)
 	return r
@@ -199,6 +202,9 @@ type ObjFields map[string]Const
 
 // Copy creates a new mapping
 func (o ObjFields) Copy() ObjFields {
+	if o == nil {
+		return nil
+	}
 	result := make(ObjFields, len(o))
 	for n, v := range o {
 		result[n] = v
@@ -317,9 +323,7 @@ func (n NamespacePrefix) Copy() NamespacePrefix {
 		return nil
 	}
 	r := make(NamespacePrefix, len(n))
-	for i, m := range n {
-		r[i] = m
-	}
+	copy(r, n)
 	return r
 }
 

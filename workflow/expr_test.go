@@ -149,3 +149,45 @@ func TestExprEquality(t *testing.T) {
 	assert.False(t, NewBinOp(EqualOp, FalseConst, TrueConst).Equal(NewBinOp(EqualOp, TrueConst, TrueConst)))
 	assert.False(t, NewBinOp(EqualOp, TrueConst, FalseConst).Equal(NewBinOp(EqualOp, TrueConst, TrueConst)))
 }
+
+func TestCopy(t *testing.T) {
+	ns := NamespacePrefix(nil).Copy()
+	assert.Nil(t, ns)
+	ns = NamespacePrefix{"a", "a"}
+	ns_ := ns.Copy()
+	assert.Equal(t, ns, ns_)
+	ns[0] = "b"
+	assert.Equal(t, "a", ns_[0])
+
+	args := Args(nil).Copy()
+	assert.Nil(t, args)
+	args = Args{TrueConst, FalseConst}
+	args_ := args.Copy()
+	assert.Equal(t, args, args_)
+	args[0] = FalseConst
+	assert.True(t, args_[0].Equal(TrueConst))
+
+	obf := ObjFields(nil).Copy()
+	assert.Nil(t, obf)
+	obf = ObjFields{"a": TrueConst, "b": FalseConst}
+	obf_ := obf.Copy()
+	assert.Equal(t, obf, obf_)
+	obf["a"] = FalseConst
+	assert.True(t, obf_["a"].Equal(TrueConst))
+
+	pm := Params(nil).Copy()
+	assert.Nil(t, pm)
+	pm = Params{NewParamDecl("a", BoolType), NewParamDecl("b", IntType)}
+	pm_ := pm.Copy()
+	assert.Equal(t, pm, pm_)
+	pm[0] = NewParamDecl("c", StrType)
+	assert.Equal(t, "a", pm_[0].Name())
+
+	fd := FuncDecls(nil).Copy()
+	assert.Nil(t, fd)
+	fd = FuncDecls{NewFuncDecl("a", nil, IntType, nil), NewFuncDecl("b", nil, StrType, nil)}
+	fd_ := fd.Copy()
+	assert.Equal(t, fd, fd_)
+	fd[0] = NewFuncDecl("c", nil, BoolType, nil)
+	assert.Equal(t, "a", fd_[0].Name())
+}

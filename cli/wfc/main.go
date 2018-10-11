@@ -103,10 +103,10 @@ func compile(ctx *cli.Context) error {
 	monitor := wf.NewMonitorDecl("Test", expr)
 
 	bin, err := wf.EncodeMonitorDecl(monitor)
-	hex := hex.EncodeToString(bin)
 	if err != nil {
 		return err
 	}
+	hex := hex.EncodeToString(bin)
 	meta := struct {
 		Source string
 		Hex    string
