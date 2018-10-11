@@ -19,10 +19,11 @@ type Params []*ParamDecl
 
 // Copy returns a new Params
 func (p Params) Copy() Params {
-	r := make(Params, len(p))
-	for i, param := range p {
-		r[i] = param
+	if p == nil {
+		return nil
 	}
+	r := make(Params, len(p))
+	copy(r, p)
 	return r
 }
 
@@ -97,10 +98,11 @@ func (f FuncDecls) find(name string) *FuncDecl {
 
 // Copy creates a new list of function declarations
 func (f FuncDecls) Copy() FuncDecls {
-	r := make(FuncDecls, len(f))
-	for i, f := range f {
-		r[i] = f
+	if f == nil {
+		return nil
 	}
+	r := make(FuncDecls, len(f))
+	copy(r, f)
 	return r
 }
 

@@ -21,12 +21,12 @@ func TestEvalExpr(t *testing.T) {
 	assertExpEval(t, FalseConst, FalseConst)
 }
 
-func TestEquality(t *testing.T) {
-	equalityTest(t, true)
-	equalityTest(t, false)
+func TestEqualOp(t *testing.T) {
+	equalOpTest(t, true)
+	equalOpTest(t, false)
 }
 
-func equalityTest(t *testing.T, isEqual bool) {
+func equalOpTest(t *testing.T, isEqual bool) {
 	op := EqualOp
 	if !isEqual {
 		op = NotEqualOp
@@ -248,7 +248,7 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	}
 
-	callFoo := NewFuncCall("foo", Args{NewStrConst("bar")}, []string{"TEST"})
+	callFoo := NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
 	result := NewObjConst(
 		map[string]Const{
 			"size": NewIntConstFromI64(int64(len("bar"))),
@@ -258,8 +258,8 @@ func TestSymbolResolve(t *testing.T) {
 
 	assertExpEvalWithPrelude(t, result, callFoo, prelude)
 
-	callBar := NewFuncCall("bar", Args{}, []string{"TEST"})
-	callFooBar := NewFuncCall("foo", Args{callBar}, []string{"TEST"})
+	callBar := NewFuncCall(NamespacePrefix{"TEST"}, "bar")
+	callFooBar := NewFuncCall(NamespacePrefix{"TEST"}, "foo", callBar)
 
 	result = NewObjConst(
 		map[string]Const{
@@ -270,7 +270,7 @@ func TestSymbolResolve(t *testing.T) {
 
 	assertExpEvalWithPrelude(t, result, callFooBar, prelude)
 
-	callFoo = NewFuncCall("foo", Args{NewStrConst("bar")}, []string{"TEST"})
+	callFoo = NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
 	assertExpEvalWithPrelude(t, NewStrConst("bar"), NewObjAccessor(
 		callFoo,
 		"text",
