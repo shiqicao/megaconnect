@@ -19,13 +19,71 @@ import (
 // Interpreter executes a program or an expression with a given Env
 type Interpreter struct {
 	env *Env
+
+	// interpreter only support single scope, variable must be unique. It does not support variable shadowing
+	vars map[string]Expr
 }
 
 // New creates an interpreter with an Env
 func New(env *Env) *Interpreter {
 	return &Interpreter{
-		env: env,
+		env:  env,
+		vars: make(map[string]Expr),
 	}
+}
+
+// EvalMonitor evaluates a monitor. It push a scope with var declaration and pops it up after evaluation.
+// It evaluates RHS of var declaration if monitor condition evaluates to true and returns variable results
+// to caller.
+func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (Const, map[string]Const, error) {
+	// push variable declarations
+	for v, expr := range monitor.vars {
+		if _, ok := i.vars[v]; ok {
+			return nil, nil, &ErrVarDeclaredAlready{VarName: v}
+		}
+		if err := i.resolveExpr(expr); err != nil {
+			return nil, nil, err
+		}
+		i.vars[v] = expr
+	}
+	defer func() { i.vars = nil }()
+
+	if err := i.resolveExpr(monitor.Condition()); err != nil {
+		return nil, nil, err
+	}
+	result, err := i.evalExpr(monitor.Condition())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vars := make(map[string]Const, len(monitor.vars))
+	if result.Equal(TrueConst) {
+		for v := range monitor.vars {
+			r, err := i.evalExpr(NewVar(v))
+			if err != nil {
+				return nil, nil, err
+			}
+			vars[v] = r
+		}
+	}
+	return result, vars, nil
+}
+
+func (i *Interpreter) lookup(v *Var) (Const, error) {
+	expr, ok := i.vars[v.Name()]
+	if !ok {
+		return nil, &ErrVarNotFound{VarName: v.Name()}
+	}
+	value, ok := expr.(Const)
+	if ok {
+		return value, nil
+	}
+	value, err := i.evalExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	i.vars[v.Name()] = value
+	return value, nil
 }
 
 // EvalExpr evaluates an unbound expression. Unbound expression contains symbols(like function names) unresolved.
@@ -44,6 +102,8 @@ func (i *Interpreter) evalExpr(expr Expr) (Const, error) {
 		return i.evalUniOp(e)
 	case *BinOp:
 		return i.evalBinOp(e)
+	case *Var:
+		return i.lookup(e)
 	case Const:
 		return e, nil
 	case *FuncCall:

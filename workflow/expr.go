@@ -12,6 +12,7 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"strconv"
 )
@@ -26,7 +27,7 @@ var (
 
 // Expr represents expression in the language. All type of expression derives from it.
 type Expr interface {
-	String() string
+	fmt.Stringer
 	Equal(Expr) bool
 }
 
@@ -357,3 +358,23 @@ func (o *ObjAccessor) Equal(expr Expr) bool {
 		o.field == y.field &&
 		o.receiver.Equal(y.receiver)
 }
+
+// Var represents a variable in workflow lang
+type Var struct {
+	name string
+}
+
+// NewVar creates Var instance
+func NewVar(name string) *Var {
+	return &Var{name: name}
+}
+
+// Equal returns true if `expr` is the same variable
+func (v *Var) Equal(expr Expr) bool {
+	y, ok := expr.(*Var)
+	return ok && y.name == v.name
+}
+
+// Name returns variable name
+func (v *Var) Name() string   { return v.name }
+func (v *Var) String() string { return v.name }
