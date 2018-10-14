@@ -106,17 +106,47 @@ func (f FuncDecls) Copy() FuncDecls {
 	return r
 }
 
+// VarDecls is a set of variable declarations
+type VarDecls map[string]Expr
+
+// Equal returns true iff two VarDecls are the same
+func (v VarDecls) Equal(x VarDecls) bool {
+	if len(v) != len(x) {
+		return false
+	}
+	for n, e := range v {
+		if xe, ok := x[n]; !ok || !xe.Equal(e) {
+			return false
+		}
+	}
+	return true
+}
+
+// Copy return a new instance of VarDecls with identical content
+func (v VarDecls) Copy() VarDecls {
+	if v == nil {
+		return nil
+	}
+	r := make(VarDecls, len(v))
+	for n, e := range v {
+		r[n] = e
+	}
+	return r
+}
+
 // MonitorDecl represents a monitor unit in workflow lang
 type MonitorDecl struct {
 	name string
 	cond Expr
+	vars VarDecls
 }
 
 // NewMonitorDecl creates a new MonitorDecl
-func NewMonitorDecl(name string, cond Expr) *MonitorDecl {
+func NewMonitorDecl(name string, cond Expr, vars VarDecls) *MonitorDecl {
 	return &MonitorDecl{
 		name: name,
 		cond: cond,
+		vars: vars.Copy(),
 	}
 }
 
@@ -126,9 +156,12 @@ func (m *MonitorDecl) Name() string { return m.name }
 // Condition returns an boolean expression when the monitor is triggered
 func (m *MonitorDecl) Condition() Expr { return m.cond }
 
+// Vars returns a copy of variable declared in this monitor
+func (m *MonitorDecl) Vars() VarDecls { return m.vars.Copy() }
+
 // Equal returns true if two monitor declaraions are the same
 func (m *MonitorDecl) Equal(x *MonitorDecl) bool {
-	return m.Name() == x.Name() && m.Condition().Equal(x.Condition())
+	return m.Name() == x.Name() && m.Condition().Equal(x.Condition()) && m.vars.Equal(x.vars)
 }
 
 func (m *MonitorDecl) String() string {

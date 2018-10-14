@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"container/ring"
 	"context"
+	"encoding/hex"
 	"errors"
 	"io"
 	"sync"
@@ -121,6 +122,7 @@ func (e *ChainManager) Start(listenPort int) error {
 
 	e.monitorsVersion = resp.Monitors.Version
 	for _, m := range resp.Monitors.Monitors {
+		e.logger.Debug("Monitor received", zap.String("monitor", hex.EncodeToString(m.Monitor)))
 		e.monitors[m.Id] = m
 	}
 
@@ -221,37 +223,30 @@ func (e *ChainManager) processNewBlock(block common.Block) error {
 func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	e.logger.Debug("Processing block", zap.Stringer("height", block.Height()))
 
-	interpreter := workflow.New(workflow.NewEnv(e.connector, block))
 	events := []*mgrpc.Event{}
 	for _, monitor := range e.monitors {
-		cond, err := workflow.NewByteDecoder(monitor.Condition).DecodeExpr()
+		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
+		interpreter := workflow.New(workflow.NewEnv(e.connector, block))
+		md, err := workflow.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
 		if err != nil {
 			return err
 		}
-		e.logger.Debug("Evaluating", zap.Stringer("condition", cond))
-		result, err := interpreter.EvalExpr(cond)
+
+		e.logger.Debug("Evaluating condition", zap.Stringer("height", block.Height()), zap.Stringer("condition", md.Condition()))
+		result, vars, err := interpreter.EvalMonitor(md)
 		if err != nil {
 			return err
 		}
-		e.logger.Debug("Evaluated", zap.Stringer("condition", result))
-		if result.Equal(workflow.GetBoolConst(false)) {
+		e.logger.Debug("Evaluated condition", zap.Stringer("height", block.Height()), zap.Stringer("condition", result))
+		if result.Equal(workflow.FalseConst) {
 			continue
 		}
 
 		event := mgrpc.Event{}
 		event.MonitorId = monitor.Id
-		event.EvaluationsResults = make([][]byte, 0, len(monitor.Evaluations))
-		for _, expr := range monitor.Evaluations {
-			expr, err := workflow.NewByteDecoder(expr).DecodeExpr()
-			if err != nil {
-				return err
-			}
-			e.logger.Debug("Evaluating", zap.Stringer("expr", expr))
-			result, err := interpreter.EvalExpr(expr)
-			if err != nil {
-				return err
-			}
-			e.logger.Debug("Evaluated", zap.Stringer("result", result))
+		event.EvaluationsResults = make([][]byte, 0, len(vars))
+		for varName, value := range vars {
+			e.logger.Debug("Packing var", zap.Stringer(varName, value))
 			encoded, err := workflow.EncodeExpr(result)
 			if err != nil {
 				e.logger.Error("Failed to encode result", zap.Error(err))
