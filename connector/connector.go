@@ -44,6 +44,10 @@ type Connector interface {
 	// Returns true if it is fresh and fully synced.
 	// Returns false if it is still syncing and not ready to serve live traffic.
 	IsHealthy() (bool, error)
+
+	// IsValidAddress checks if the string could represent a valid address on
+	// the connected blockchain
+	IsValidAddress(addr string) bool
 }
 
 // Subscription defines the shared structure for each connector's new block subscription.
