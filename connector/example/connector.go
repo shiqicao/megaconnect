@@ -20,7 +20,6 @@ import (
 
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
-
 	"go.uber.org/zap"
 )
 
@@ -126,4 +125,10 @@ func (c *Connector) QueryAccountBalance(addr string, height *big.Int) (*big.Int,
 		return nil, fmt.Errorf("height %d is not yet observed", h)
 	}
 	return c.balanceCache[h], nil
+}
+
+// IsValidAddress returns if the string could represent a valid address on
+// connected blockchain
+func (c *Connector) IsValidAddress(addr string) bool {
+	return true
 }
