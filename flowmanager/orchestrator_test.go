@@ -8,18 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/golang/protobuf/proto"
-
 	"github.com/megaspacelab/megaconnect/common"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type OrchestratorSuite struct {
