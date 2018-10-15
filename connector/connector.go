@@ -45,8 +45,8 @@ type Connector interface {
 	// Returns false if it is still syncing and not ready to serve live traffic.
 	IsHealthy() (bool, error)
 
-	// IsValidAddress returns if the string could represent a valid address on
-	// connected blockchain
+	// IsValidAddress checks if the string could represent a valid address on
+	// the connected blockchain
 	IsValidAddress(addr string) bool
 }
 

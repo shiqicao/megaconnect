@@ -127,8 +127,7 @@ func (c *Connector) QueryAccountBalance(addr string, height *big.Int) (*big.Int,
 	return c.balanceCache[h], nil
 }
 
-// IsValidAddress returns if the string could represent a valid address on
-// connected blockchain
+// IsValidAddress checks if the address string is valid
 func (c *Connector) IsValidAddress(addr string) bool {
 	return true
 }
