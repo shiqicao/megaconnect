@@ -1,5 +1,7 @@
 package flowmanager
 
+//go:generate moq -out chainmanagerserver_moq_test.go -pkg flowmanager ../grpc ChainManagerServer
+
 import (
 	"bytes"
 	"context"
@@ -59,11 +61,13 @@ func (s *OrchestratorSuite) SetupTest() {
 		listenPort: lis.Addr().(*net.TCPAddr).Port,
 		sessionID:  []byte("session1"),
 
-		setMonitorsMethod: func(stream mgrpc.ChainManager_SetMonitorsServer) error {
-			return stream.SendAndClose(new(empty.Empty))
-		},
-		updateMonitorsMethod: func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
-			return stream.SendAndClose(new(empty.Empty))
+		ChainManagerServerMock: ChainManagerServerMock{
+			SetMonitorsFunc: func(stream mgrpc.ChainManager_SetMonitorsServer) error {
+				return stream.SendAndClose(new(empty.Empty))
+			},
+			UpdateMonitorsFunc: func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
+				return stream.SendAndClose(new(empty.Empty))
+			},
 		},
 	}
 	mgrpc.RegisterChainManagerServer(s.server, s.cm)
@@ -173,7 +177,7 @@ func (s *OrchestratorSuite) TestUpdateMonitors() {
 	setReqs := make(chan *mgrpc.SetMonitorsRequest)
 	updateReqs := make(chan *mgrpc.UpdateMonitorsRequest)
 
-	s.cm.setMonitorsMethod = func(stream mgrpc.ChainManager_SetMonitorsServer) error {
+	s.cm.SetMonitorsFunc = func(stream mgrpc.ChainManager_SetMonitorsServer) error {
 		msg, err := stream.Recv()
 		s.Require().NoError(err)
 
@@ -192,7 +196,7 @@ func (s *OrchestratorSuite) TestUpdateMonitors() {
 			setReqs <- msg
 		}
 	}
-	s.cm.updateMonitorsMethod = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
+	s.cm.UpdateMonitorsFunc = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
 		msg, err := stream.Recv()
 		s.Require().NoError(err)
 
@@ -249,7 +253,7 @@ func (s *OrchestratorSuite) TestUpdateMonitors() {
 
 	// Scenario 3 - forced reset
 	ims = IndexedMonitors{3: &mgrpc.Monitor{Id: 3}}
-	s.cm.updateMonitorsMethod = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
+	s.cm.UpdateMonitorsFunc = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
 		return status.Error(codes.Aborted, "Injected error")
 	}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
@@ -287,7 +291,7 @@ func (s *OrchestratorSuite) TestUpdateMonitors_Fail() {
 	s.Require().NoError(err)
 	cm := s.orch.chainToLease[s.cm.chainID].chainManager
 
-	s.cm.updateMonitorsMethod = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
+	s.cm.UpdateMonitorsFunc = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
 		return status.Error(codes.FailedPrecondition, "Injected error")
 	}
 
@@ -302,21 +306,12 @@ func (s *OrchestratorSuite) TestUpdateMonitors_Fail() {
 }
 
 type fakeChainManager struct {
+	ChainManagerServerMock
+
 	chainID    string
 	cmID       *mgrpc.InstanceId
 	listenPort int
 	sessionID  []byte
-
-	setMonitorsMethod    func(mgrpc.ChainManager_SetMonitorsServer) error
-	updateMonitorsMethod func(mgrpc.ChainManager_UpdateMonitorsServer) error
-}
-
-func (cm *fakeChainManager) SetMonitors(stream mgrpc.ChainManager_SetMonitorsServer) error {
-	return cm.setMonitorsMethod(stream)
-}
-
-func (cm *fakeChainManager) UpdateMonitors(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
-	return cm.updateMonitorsMethod(stream)
 }
 
 func TestOrchestrator(t *testing.T) {
