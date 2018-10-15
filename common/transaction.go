@@ -14,10 +14,10 @@ import "math/big"
 
 // Transaction stores information about a specific blockchain transaction.
 type Transaction interface {
-	Hash() Hash
-	From() []Address
-	To() []Address
-	Amount() *big.Int
+	Hash() Hash       // Hash of the transaction
+	From() []Address  // From address
+	To() []Address    // To address
+	Amount() *big.Int // Amount of transaction in the currency/token's base unit
 }
 
 // NewTransaction creates a new Transaction.
