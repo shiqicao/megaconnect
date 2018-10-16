@@ -223,10 +223,14 @@ func (e *ChainManager) processNewBlock(block common.Block) error {
 func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	e.logger.Debug("Processing block", zap.Stringer("height", block.Height()))
 
+	cache, err := workflow.NewFuncCallCache()
+	if err != nil {
+		e.logger.Error("Cache creation failed", zap.Error(err))
+	}
+	interpreter := workflow.NewInterpreter(workflow.NewEnv(e.connector, block), cache, e.logger)
 	events := []*mgrpc.Event{}
 	for _, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
-		interpreter := workflow.New(workflow.NewEnv(e.connector, block))
 		md, err := workflow.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
 		if err != nil {
 			return err

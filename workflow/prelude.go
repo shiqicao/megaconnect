@@ -15,50 +15,48 @@ var (
 	ethNS = "Eth"
 
 	prelude = []*NamespaceDecl{
-		&NamespaceDecl{
-			name: ethNS,
-			funs: []*FuncDecl{
-				NewFuncDecl(
-					"GetBalance",
-					[]*ParamDecl{
-						NewParamDecl("addr", StrType),
-						NewParamDecl("height", IntType),
-					},
-					IntType,
-					func(env *Env, args map[string]Const) (Const, error) {
-						addrRaw, ok := args["addr"]
-						if !ok {
-							// This should be checked by type checker
-							return nil, &ErrMissingArg{ArgName: "addr", Func: "GetBalance"}
-						}
-						heightRaw, ok := args["height"]
-						if !ok {
-							return nil, &ErrMissingArg{ArgName: "height", Func: "GetBalance"}
-						}
-						addr, _ := addrRaw.(*StrConst)
-						height, _ := heightRaw.(*IntConst)
-						balance, err := env.chain.QueryAccountBalance(addr.Value(), height.Value())
-						if err != nil {
-							return nil, err
-						}
-						return NewIntConst(balance), nil
-					},
-				),
-				NewFuncDecl(
-					"GetBlock",
-					[]*ParamDecl{},
-					NewObjType(map[string]Type{
-						"height": IntType,
-					}),
-					func(env *Env, args map[string]Const) (Const, error) {
-						return NewObjConst(
-							map[string]Const{
-								"height": NewIntConst(env.CurrentBlock().Height()),
-							},
-						), nil
-					},
-				),
-			},
-		},
+		NewNamespaceDecl(ethNS).addFunc(
+			NewFuncDecl(
+				"GetBalance",
+				[]*ParamDecl{
+					NewParamDecl("addr", StrType),
+					NewParamDecl("height", IntType),
+				},
+				IntType,
+				func(env *Env, args map[string]Const) (Const, error) {
+					addrRaw, ok := args["addr"]
+					if !ok {
+						// This should be checked by type checker
+						return nil, &ErrMissingArg{ArgName: "addr", Func: "GetBalance"}
+					}
+					heightRaw, ok := args["height"]
+					if !ok {
+						return nil, &ErrMissingArg{ArgName: "height", Func: "GetBalance"}
+					}
+					addr, _ := addrRaw.(*StrConst)
+					height, _ := heightRaw.(*IntConst)
+					balance, err := env.chain.QueryAccountBalance(addr.Value(), height.Value())
+					if err != nil {
+						return nil, err
+					}
+					return NewIntConst(balance), nil
+				},
+			),
+		).addFunc(
+			NewFuncDecl(
+				"GetBlock",
+				[]*ParamDecl{},
+				NewObjType(map[string]Type{
+					"height": IntType,
+				}),
+				func(env *Env, args map[string]Const) (Const, error) {
+					return NewObjConst(
+						map[string]Const{
+							"height": NewIntConst(env.CurrentBlock().Height()),
+						},
+					), nil
+				},
+			),
+		),
 	}
 )

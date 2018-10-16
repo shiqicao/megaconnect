@@ -201,6 +201,15 @@ type ObjConst struct {
 // ObjFields represents a mapping from field name to value
 type ObjFields map[string]Const
 
+// Fields returns all fields
+func (o ObjFields) Fields() []string {
+	fields := make([]string, 0, len(o))
+	for f := range o {
+		fields = append(fields, f)
+	}
+	return fields
+}
+
 // Copy creates a new mapping
 func (o ObjFields) Copy() ObjFields {
 	if o == nil {
@@ -276,6 +285,11 @@ func (o *ObjConst) String() string {
 	}
 	buf.WriteString("}")
 	return buf.String()
+}
+
+// Fields returns a new object sorted by field name
+func (o *ObjConst) Fields() []string {
+	return o.Value().Fields()
 }
 
 // Equal checks whether x is equal current object.

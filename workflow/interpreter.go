@@ -14,6 +14,8 @@ import (
 	"errors"
 	"math/big"
 	"reflect"
+
+	"go.uber.org/zap"
 )
 
 // Interpreter executes a program or an expression with a given Env
@@ -21,14 +23,18 @@ type Interpreter struct {
 	env *Env
 
 	// interpreter only support single scope, variable must be unique. It does not support variable shadowing
-	vars map[string]Expr
+	vars   map[string]Expr
+	cache  Cache
+	logger *zap.Logger
 }
 
-// New creates an interpreter with an Env
-func New(env *Env) *Interpreter {
+// NewInterpreter creates an interpreter with an Env
+func NewInterpreter(env *Env, cache Cache, logger *zap.Logger) *Interpreter {
 	return &Interpreter{
-		env:  env,
-		vars: make(map[string]Expr),
+		env:    env,
+		vars:   make(map[string]Expr),
+		logger: logger,
+		cache:  cache,
 	}
 }
 
@@ -154,7 +160,8 @@ func (i *Interpreter) evalFuncCall(funcCall *FuncCall) (Const, error) {
 
 func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 	params := decl.Params()
-	evalatedParams := make(map[string]Const)
+	evalatedParams := make(map[string]Const, len(params))
+	paramList := make([]Const, len(params))
 	for j := 0; j < len(args); j++ {
 		result, err := i.evalExpr(args[j])
 		if err != nil {
@@ -165,6 +172,12 @@ func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 			return nil, &ErrArgTypeMismatch{FuncName: decl.Name(), ParamName: params[j].Name(), ParamType: params[j].Type(), ArgType: result.Type()}
 		}
 		evalatedParams[params[j].Name()] = result
+		paramList[j] = result
+	}
+	getter, setter := i.cache.funcCallCache(decl, paramList)
+	result := getter()
+	if result != nil {
+		return result, nil
 	}
 
 	result, err := decl.evaluator(i.env, evalatedParams)
@@ -176,6 +189,7 @@ func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 		return nil, &ErrFunRetTypeMismatch{FuncName: decl.Name(), ExpectedType: decl.RetType(), ActualType: result.Type()}
 	}
 
+	setter(result)
 	return result, nil
 }
 
