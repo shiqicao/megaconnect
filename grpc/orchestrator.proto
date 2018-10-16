@@ -66,7 +66,7 @@ message MonitorSet {
 // Monitor contains a list of encoded workflow expressions and a triggering condition 
 message Monitor {
     int64 id = 1;
-    
+
     // evaluations is a list of encoded workflow expressions, which will be evaluated if a monitor is triggered
     // the result will be passed back to flow manager as part of event. These expression results are intended for 
     // evaluating actions
