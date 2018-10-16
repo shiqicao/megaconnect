@@ -123,3 +123,21 @@ type ErrMissingArg struct {
 func (e *ErrMissingArg) Error() string {
 	return fmt.Sprintf("Expected argument %s is missing, function: %s", e.ArgName, e.Func)
 }
+
+// ErrVarNotFound is returned if a variable is not declared
+type ErrVarNotFound struct {
+	VarName string
+}
+
+func (e *ErrVarNotFound) Error() string {
+	return fmt.Sprintf("Variable %s is not declared", e.VarName)
+}
+
+// ErrVarDeclaredAlready is returned if same variable has been declared in the scope
+type ErrVarDeclaredAlready struct {
+	VarName string
+}
+
+func (e *ErrVarDeclaredAlready) Error() string {
+	return fmt.Sprintf("Variable %s is declared already", e.VarName)
+}

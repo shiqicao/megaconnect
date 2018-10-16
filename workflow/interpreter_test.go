@@ -256,7 +256,7 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	)
 
-	assertExpEvalWithPrelude(t, result, callFoo, prelude)
+	assertExpEvalWithPrelude(t, result, callFoo, prelude, nil)
 
 	callBar := NewFuncCall(NamespacePrefix{"TEST"}, "bar")
 	callFooBar := NewFuncCall(NamespacePrefix{"TEST"}, "foo", callBar)
@@ -268,13 +268,13 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	)
 
-	assertExpEvalWithPrelude(t, result, callFooBar, prelude)
+	assertExpEvalWithPrelude(t, result, callFooBar, prelude, nil)
 
 	callFoo = NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
 	assertExpEvalWithPrelude(t, NewStrConst("bar"), NewObjAccessor(
 		callFoo,
 		"text",
-	), prelude)
+	), prelude, nil)
 }
 
 func TestBooleanOps(t *testing.T) {
@@ -310,16 +310,49 @@ func TestIntOp(t *testing.T) {
 	assertExpEvalErr(t, NewBinOp(DivOp, NewIntConstFromI64(1), NewIntConstFromI64(0)))
 }
 
-func assertExpEval(t *testing.T, expected Const, expr Expr) {
-	assertExpEvalWithPrelude(t, expected, expr, nil)
+func TestVar(t *testing.T) {
+	assertExpEvalWithPrelude(t, TrueConst, NewVar("a"), nil, map[string]Expr{"a": TrueConst})
+	assertExpEvalWithPrelude(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("a")), nil, map[string]Expr{"a": TrueConst})
+	assertExpEvalWithPrelude(t, TrueConst, NewVar("b"), nil, map[string]Expr{"a": TrueConst, "b": NewVar("a")})
+	assertExpEvalWithPrelude(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("b")), nil, map[string]Expr{"a": TrueConst, "b": NewVar("a")})
 }
 
-func assertExpEvalWithPrelude(t *testing.T, expected Const, expr Expr, prelude []*NamespaceDecl) {
+func TestMonitor(t *testing.T) {
+	assertM := func(m *MonitorDecl, expected Const, expectedVarsResults map[string]Const) {
+		i := New(NewEnv(nil, nil))
+		r, v, err := i.EvalMonitor(m)
+		assert.NoError(t, err)
+		assert.NotNil(t, r)
+		assert.True(t, r.Equal(expected))
+		if r.Equal(TrueConst) {
+			assert.NotNil(t, v)
+			assert.Equal(t, len(m.Vars()), len(v))
+			assert.Nil(t, i.vars)
+			for varName, varValue := range v {
+				assert.Contains(t, expectedVarsResults, varName)
+				assert.True(t, varValue.Equal(expectedVarsResults[varName]))
+			}
+		}
+	}
+	assertM(NewMonitorDecl("A", TrueConst, nil), TrueConst, map[string]Const{})
+	assertM(NewMonitorDecl("A", FalseConst, nil), FalseConst, nil)
+	assertM(NewMonitorDecl("A", TrueConst, VarDecls{"a": NewBinOp(AndOp, TrueConst, FalseConst)}), TrueConst, map[string]Const{"a": FalseConst})
+	assertM(NewMonitorDecl("A", FalseConst, VarDecls{"a": NewBinOp(AndOp, TrueConst, FalseConst)}), FalseConst, nil)
+}
+
+func assertExpEval(t *testing.T, expected Const, expr Expr) {
+	assertExpEvalWithPrelude(t, expected, expr, nil, nil)
+}
+
+func assertExpEvalWithPrelude(t *testing.T, expected Const, expr Expr, prelude []*NamespaceDecl, vars map[string]Expr) {
 	env := NewEnv(nil, nil)
 	if prelude != nil {
 		env.prelude = prelude
 	}
 	i := New(env)
+	if vars != nil {
+		i.vars = vars
+	}
 	result, err := i.EvalExpr(expr)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

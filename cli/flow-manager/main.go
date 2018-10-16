@@ -133,8 +133,8 @@ func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file st
 	}
 
 	scanner := bufio.NewScanner(fs)
-	monitorDecls := []*wf.MonitorDecl{}
-	for scanner.Scan() {
+	monitors := make(map[flowmanager.MonitorID]*grpc.Monitor)
+	for i := int64(0); scanner.Scan(); i++ {
 		monitorRaw, err := hex.DecodeString(scanner.Text())
 		if err != nil {
 			return err
@@ -145,25 +145,14 @@ func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file st
 			return err
 		}
 		log.Debug("Adding monitor valuations", zap.Stringer("monitor", monitor))
-		monitorDecls = append(monitorDecls, monitor)
+		// TODO: monitor id should be unique cross different workflow
+		monitors[flowmanager.MonitorID(i)] = &grpc.Monitor{
+			Id:      int64(i),
+			Monitor: monitorRaw,
+		}
 	}
 	if scanner.Err() != nil {
 		return scanner.Err()
-	}
-
-	monitors := make(map[flowmanager.MonitorID]*grpc.Monitor)
-	for i, m := range monitorDecls {
-		cond, err := wf.EncodeExpr(m.Condition())
-		if err != nil {
-			log.Error("Failed to encode condition", zap.Stringer("condition", m.Condition()))
-			return err
-		}
-		monitors[flowmanager.MonitorID(i)] = &grpc.Monitor{
-			Id: int64(i),
-			// TODO: determine required expressions at chain manager
-			Evaluations: [][]byte{},
-			Condition:   cond,
-		}
 	}
 
 	fm.SetChainConfig(chain, monitors, nil)

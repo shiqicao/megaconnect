@@ -31,6 +31,7 @@ const (
 	exprKindUniOp       = 0x05
 	exprKindFuncCall    = 0x06
 	exprKindObjAccessor = 0x07
+	exprKindVar         = 0x08
 )
 
 // Encoder serializes workflow AST to binary format
@@ -45,6 +46,16 @@ func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
 	}
 	if err := e.EncodeExpr(md.Condition()); err != nil {
 		return err
+	}
+	vars := md.Vars()
+	e.encodeLengthI(len(vars))
+	for name, expr := range vars {
+		if err := e.encodeString(name); err != nil {
+			return err
+		}
+		if err := e.EncodeExpr(expr); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -122,6 +133,11 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 			return err
 		}
 		if err = e.encodeString(expr.Field()); err != nil {
+			return err
+		}
+		return nil
+	case *Var:
+		if err = e.encodeString(expr.Name()); err != nil {
 			return err
 		}
 		return nil
@@ -233,7 +249,23 @@ func (d *Decoder) DecodeMonitorDecl() (*MonitorDecl, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewMonitorDecl(string(name), cond), nil
+	len, err := d.decodeLength()
+	if err != nil {
+		return nil, err
+	}
+	vars := make(VarDecls, len)
+	for ; len > 0; len-- {
+		varName, err := d.decodeBytes()
+		if err != nil {
+			return nil, err
+		}
+		expr, err := d.DecodeExpr()
+		if err != nil {
+			return nil, err
+		}
+		vars[string(varName)] = expr
+	}
+	return NewMonitorDecl(string(name), cond, vars), nil
 }
 
 // DecodeExpr deserializes binary format to `Expr`
@@ -354,6 +386,12 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 			return nil, err
 		}
 		return NewObjAccessor(receiver, string(field)), nil
+	case exprKindVar:
+		name, err := d.decodeBytes()
+		if err != nil {
+			return nil, err
+		}
+		return NewVar(string(name)), nil
 	}
 	return nil, &ErrNotSupported{Name: string(kind)}
 }
@@ -403,6 +441,8 @@ func getExprKind(expr Expr) (uint8, error) {
 		return exprKindFuncCall, nil
 	case *ObjAccessor:
 		return exprKindObjAccessor, nil
+	case *Var:
+		return exprKindVar, nil
 	}
 	return math.MaxUint8, &ErrNotSupported{Name: reflect.TypeOf(expr).String()}
 }

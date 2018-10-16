@@ -136,8 +136,8 @@ func TestMonitorDeclEncoding(t *testing.T) {
 		assert.True(t, m.Equal(decoded))
 	}
 
-	check(NewMonitorDecl("a", GetBoolConst(true)))
-	check(NewMonitorDecl("b", NewBinOp(AndOp, GetBoolConst(true), GetBoolConst(false))))
+	check(NewMonitorDecl("a", GetBoolConst(true), VarDecls{"x": FalseConst}))
+	check(NewMonitorDecl("b", NewBinOp(AndOp, GetBoolConst(true), GetBoolConst(false)), VarDecls{"x": TrueConst}))
 }
 
 func assertExprEncoding(t *testing.T, expr Expr) {

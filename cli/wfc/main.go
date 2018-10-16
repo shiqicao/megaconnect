@@ -75,32 +75,32 @@ func compile(ctx *cli.Context) error {
 
 	addr := ctx.String("temporaryAddr")
 	// TODO: Read script file and parse it to AST
+	vars := wf.VarDecls{
+		"blockHeight": wf.NewObjAccessor(
+			wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
+			"height",
+		),
+	}
 	expr := wf.NewBinOp(
 		wf.NotEqualOp,
 		wf.NewFuncCall(
 			wf.NamespacePrefix{"Eth"},
 			"GetBalance",
 			wf.NewStrConst(addr),
-			wf.NewObjAccessor(
-				wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
-				"height",
-			),
+			wf.NewVar("blockHeight"),
 		),
 		wf.NewFuncCall(
 			wf.NamespacePrefix{"Eth"},
 			"GetBalance",
 			wf.NewStrConst(addr),
 			wf.NewBinOp(wf.MinusOp,
-				wf.NewObjAccessor(
-					wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
-					"height",
-				),
+				wf.NewVar("blockHeight"),
 				wf.NewIntConstFromI64(1),
 			),
 		),
 	)
 
-	monitor := wf.NewMonitorDecl("Test", expr)
+	monitor := wf.NewMonitorDecl("Test", expr, vars)
 
 	bin, err := wf.EncodeMonitorDecl(monitor)
 	if err != nil {
