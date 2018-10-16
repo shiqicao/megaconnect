@@ -33,6 +33,17 @@ After making changes to protobuf specs (`grpc/*.proto`), compile the new specs b
 make protos
 ```
 
+# Test
+To run tests with code coverage, run
+```
+make cov
+```
+
+To view code coverage results, run
+```
+make covhtml
+```
+
 # Run
 Several binaries are produced out of this repo.
 

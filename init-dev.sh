@@ -8,8 +8,9 @@
 dep ensure
 
 # Install all tools needed for megaconnect development.
-go get -u github.com/golang/lint/golint
+go get -u golang.org/x/lint/golint
 go get -u github.com/ashwch/precommit-vet-lint
+go get -u github.com/matryer/moq
 
 # Install local git hooks for linting.
 # Any new git hook scripts should be specified here.

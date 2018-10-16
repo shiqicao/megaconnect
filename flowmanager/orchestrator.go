@@ -31,8 +31,9 @@ const (
 // This type implements the mgrpc.OrchestratorServer interface.
 type Orchestrator struct {
 	// Static members.
-	flowManager *FlowManager
-	log         *zap.Logger
+	flowManager   *FlowManager
+	log           *zap.Logger
+	leaseDuration time.Duration
 
 	// Dynamic members.
 	leases       map[leaseID]*lease
@@ -72,10 +73,11 @@ type chainManagerProxy struct {
 // NewOrchestrator creates a new Orchestrator.
 func NewOrchestrator(fm *FlowManager, log *zap.Logger) *Orchestrator {
 	return &Orchestrator{
-		leases:       make(map[leaseID]*lease),
-		chainToLease: make(map[string]*lease),
-		flowManager:  fm,
-		log:          log,
+		leases:        make(map[leaseID]*lease),
+		chainToLease:  make(map[string]*lease),
+		flowManager:   fm,
+		log:           log,
+		leaseDuration: leaseDuration,
 	}
 }
 
@@ -285,11 +287,11 @@ func isNewerInstance(inst1 *mgrpc.InstanceId, inst2 *mgrpc.InstanceId) bool {
 func (o *Orchestrator) newLease(cm *chainManagerProxy) *lease {
 	l := &lease{
 		id:           leaseID(uuid.New()),
-		expiration:   time.Now().Add(leaseDuration),
+		expiration:   time.Now().Add(o.leaseDuration),
 		chainManager: cm,
 	}
 
-	l.timer = time.AfterFunc(leaseDuration, func() {
+	l.timer = time.AfterFunc(o.leaseDuration, func() {
 		o.log.Warn("Lease expired", zap.Stringer("id", l.id), zap.Time("expiration", l.expiration))
 		o.expireLease(l.id)
 	})
@@ -362,7 +364,7 @@ func (l *lease) close(closeCM bool) {
 func (o *Orchestrator) chainManagerEventLoop(cm *chainManagerProxy) {
 	defer cm.conn.Close()
 
-	for !cm.closed {
+	for {
 		select {
 		case <-cm.done:
 			return

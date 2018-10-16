@@ -1,9 +1,8 @@
 PROTOC = protoc
+COVERAGE_OUT = coverage.out
 
 
-.PHONY: all build install clean dep protos cleanprotos
-
-all: build
+.PHONY: build install clean test cov covhtml dep protos cleanprotos
 
 build:
 	go build ./...
@@ -13,6 +12,16 @@ install:
 
 clean:
 	go clean ./...
+	rm -f $(COVERAGE_OUT)
+
+test:
+	go test -race ./...
+
+cov $(COVERAGE_OUT): 
+	go test -race -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
+
+covhtml: $(COVERAGE_OUT)
+	go tool cover -html=$<
 
 dep:
 	dep ensure
