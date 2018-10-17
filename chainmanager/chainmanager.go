@@ -88,7 +88,7 @@ func (e *ChainManager) Start(listenPort int) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	if e.running {
-		return errors.New("event manage is already running")
+		return errors.New("ChainManager is already running")
 	}
 
 	e.logger.Debug("Connecting to Orchestrator", zap.String("orchAddr", e.orchAddr))
@@ -120,13 +120,13 @@ func (e *ChainManager) Start(listenPort int) error {
 		return err
 	}
 
-	e.monitorsVersion = resp.Monitors.Version
-	for _, m := range resp.Monitors.Monitors {
+	e.monitorsVersion = resp.Monitors.GetVersion()
+	for _, m := range resp.Monitors.GetMonitors() {
 		e.logger.Debug("Monitor received", zap.String("monitor", hex.EncodeToString(m.Monitor)))
 		e.monitors[m.Id] = m
 	}
 
-	resumeAfter, err := common.BytesToHash(resp.ResumeAfterBlockHash)
+	resumeAfter, err := convertBlockSpec(resp.ResumeAfter)
 	if err != nil {
 		return err
 	}
@@ -257,6 +257,24 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		events = append(events, &event)
 	}
 
+	err := e.reportBlockEventsWithLock(block, events)
+	if err != nil {
+		s, ok := status.FromError(err)
+		if !ok || s.Code() != codes.Aborted {
+			return err
+		}
+
+		// Aborted means the monitor set is stale. No need to take aggreviated actions just yet.
+		// Should simply wait to receive the new monitor set.
+		e.logger.Warn("Ignoring Aborted response when reporting block",
+			zap.Stringer("height", block.Height()), zap.Stringer("status", s.Proto()))
+		return nil
+	}
+
+	return nil
+}
+
+func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*mgrpc.Event) error {
 	stream, err := e.orchClient.ReportBlockEvents(e.ctx)
 	if err != nil {
 		return err
@@ -314,13 +332,27 @@ func (e *ChainManager) cacheBlockWithLock(block common.Block) {
 	e.blockCache.Value = block
 }
 
-func (e *ChainManager) findCachedBlockWithLock(hash *common.Hash) *ring.Ring {
-	// Traverse in reverse order.
-	for cache, i := e.blockCache, 0; cache.Value != nil && i < blockCacheSize; cache, i = cache.Prev(), i+1 {
-		if cache.Value.(common.Block).Hash() == *hash {
-			return cache
+func (e *ChainManager) findCachedBlockWithLock(bs *connector.BlockSpec) *ring.Ring {
+	// Find by hash first.
+	if bs.Hash != nil {
+		// Traverse in reverse order.
+		for cache, i := e.blockCache, 0; cache.Value != nil && i < blockCacheSize; cache, i = cache.Prev(), i+1 {
+			if cache.Value.(common.Block).Hash() == *bs.Hash {
+				return cache
+			}
 		}
 	}
+
+	// Now find by height.
+	if bs.Height != nil {
+		// Traverse in reverse order.
+		for cache, i := e.blockCache, 0; cache.Value != nil && i < blockCacheSize; cache, i = cache.Prev(), i+1 {
+			if cache.Value.(common.Block).Height().Cmp(bs.Height) <= 0 {
+				return cache
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -338,9 +370,9 @@ func (e *ChainManager) SetMonitors(stream mgrpc.ChainManager_SetMonitorsServer) 
 
 	e.logger.Debug("Received SetMonitorsRequest.Preflight", zap.Stringer("preflight", preflight))
 
-	resumeAfter, err := common.BytesToHash(preflight.ResumeAfterBlockHash)
+	resumeAfter, err := convertBlockSpec(preflight.ResumeAfter)
 	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "Invalid ResumeAfterBlockHash. %v", err)
+		return status.Errorf(codes.InvalidArgument, "Invalid ResumeAfter. %v", err)
 	}
 
 	e.lock.Lock()
@@ -400,9 +432,9 @@ func (e *ChainManager) UpdateMonitors(stream mgrpc.ChainManager_UpdateMonitorsSe
 
 	e.logger.Debug("Received UpdateMonitorsRequest.Preflight", zap.Stringer("preflight", preflight))
 
-	resumeAfter, err := common.BytesToHash(preflight.ResumeAfterBlockHash)
+	resumeAfter, err := convertBlockSpec(preflight.ResumeAfter)
 	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "Invalid ResumeAfterBlockHash. %v", err)
+		return status.Errorf(codes.InvalidArgument, "Invalid ResumeAfter. %v", err)
 	}
 
 	e.lock.Lock()
@@ -448,7 +480,7 @@ func (e *ChainManager) UpdateMonitors(stream mgrpc.ChainManager_UpdateMonitorsSe
 	return err
 }
 
-func (e *ChainManager) replayWithLock(resumeAfter *common.Hash) {
+func (e *ChainManager) replayWithLock(resumeAfter *connector.BlockSpec) {
 	if resumeAfter == nil {
 		return
 	}
@@ -472,4 +504,19 @@ func (e *ChainManager) replayWithLock(resumeAfter *common.Hash) {
 // Register registers itself as ChainManagerServer to the gRPC server.
 func (e *ChainManager) Register(server *grpc.Server) {
 	mgrpc.RegisterChainManagerServer(server, e)
+}
+
+func convertBlockSpec(bs *mgrpc.BlockSpec) (*connector.BlockSpec, error) {
+	if bs == nil {
+		return nil, nil
+	}
+	hash, err := common.BytesToHash(bs.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return &connector.BlockSpec{
+		Hash:   hash,
+		Height: bs.Height.BigInt(),
+	}, nil
 }

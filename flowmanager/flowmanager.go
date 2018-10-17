@@ -3,7 +3,6 @@ package flowmanager
 import (
 	"sync"
 
-	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/grpc"
 
 	"go.uber.org/zap"
@@ -38,16 +37,16 @@ func (fm *FlowManager) GetChainConfig(chainID string) *ChainConfig {
 func (fm *FlowManager) SetChainConfig(
 	chainID string,
 	monitors IndexedMonitors,
-	resumeAfterBlockHash *common.Hash,
+	resumeAfter *grpc.BlockSpec,
 ) *ChainConfig {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
 
 	old := fm.chainConfigs[chainID]
 	new := &ChainConfig{
-		Monitors:             monitors,
-		ResumeAfterBlockHash: resumeAfterBlockHash,
-		Outdated:             make(chan struct{}),
+		Monitors:    monitors,
+		ResumeAfter: resumeAfter,
+		Outdated:    make(chan struct{}),
 	}
 	fm.chainConfigs[chainID] = new
 
@@ -75,10 +74,10 @@ func (fm *FlowManager) ReportBlockEvents(
 }
 
 type ChainConfig struct {
-	Monitors             IndexedMonitors
-	MonitorsVersion      uint32
-	ResumeAfterBlockHash *common.Hash
-	Outdated             chan struct{}
+	Monitors        IndexedMonitors
+	MonitorsVersion uint32
+	ResumeAfter     *grpc.BlockSpec
+	Outdated        chan struct{}
 }
 
 // TODO - what should it be and how is it generated?
