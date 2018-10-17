@@ -1,5 +1,8 @@
 PROTOC = protoc
+
 COVERAGE_OUT = coverage.out
+# Keep adding to this list as we implement tests to target more packages
+COVERPKG = ./chainmanager/...,./common/...,./connector/...,./flowmanager/...,./workflow/...
 
 
 .PHONY: build install clean test cov covhtml dep protos cleanprotos
@@ -17,8 +20,9 @@ clean:
 test:
 	go test -race ./...
 
-cov $(COVERAGE_OUT): 
-	go test -race -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
+cov $(COVERAGE_OUT):
+	go test -race -coverprofile=$(COVERAGE_OUT) -coverpkg=$(COVERPKG) ./...
+	go tool cover -func=$(COVERAGE_OUT)
 
 covhtml: $(COVERAGE_OUT)
 	go tool cover -html=$<

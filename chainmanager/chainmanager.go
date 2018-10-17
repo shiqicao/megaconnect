@@ -36,7 +36,7 @@ import (
 const (
 	blockChanSize                    = 100
 	blockCacheSize                   = blockChanSize
-	leaseRenewalBuffer time.Duration = 5 * time.Second
+	LeaseRenewalBuffer time.Duration = 5 * time.Second
 )
 
 // ChainManager manages and interacts with a chain through connector.
@@ -182,7 +182,7 @@ func (e *ChainManager) stopWithLock() error {
 
 func (e *ChainManager) updateLeaseWithLock(lease *mgrpc.Lease) {
 	e.leaseID = lease.Id
-	timeout := time.Duration(lease.RemainingSeconds)*time.Second - leaseRenewalBuffer
+	timeout := time.Duration(lease.RemainingSeconds)*time.Second - LeaseRenewalBuffer
 	e.leaseRenewalTimer = time.AfterFunc(timeout, e.renewLease)
 }
 

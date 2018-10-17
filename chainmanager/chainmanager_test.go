@@ -1,16 +1,20 @@
-package chainmanager
+package chainmanager_test
 
 //go:generate moq -out mock_orchestratorserver_test.go -pkg chainmanager ../grpc OrchestratorServer
 
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"net"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
+	. "github.com/megaspacelab/megaconnect/chainmanager"
+	mcli "github.com/megaspacelab/megaconnect/chainmanager/cli"
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/connector/example"
@@ -23,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	cli "gopkg.in/urfave/cli.v2"
 )
 
 const blockInterval = 100 * time.Millisecond
@@ -292,7 +297,7 @@ func (s *ChainManagerSuite) TestUpdateMonitors() {
 }
 
 func (s *ChainManagerSuite) TestRenewLease() {
-	s.orch.leaseSeconds = uint32((leaseRenewalBuffer + time.Second).Seconds())
+	s.orch.leaseSeconds = uint32((LeaseRenewalBuffer + time.Second).Seconds())
 
 	err := s.cm.Start(s.listenAddr.Port)
 	s.Require().NoError(err)
@@ -304,6 +309,42 @@ func (s *ChainManagerSuite) TestRenewLease() {
 
 	s.Condition(func() bool { return s.orch.receivedBlocks > 0 })
 	s.Condition(func() bool { return s.orch.leaseRenewals > 0 })
+}
+
+func (s *ChainManagerSuite) TestRunner() {
+	runner := mcli.NewRunner(func(ctx *cli.Context, logger *zap.Logger) (connector.Connector, error) {
+		return example.New(logger, blockInterval)
+	})
+	runner.WithFlag(&cli.StringFlag{Name: "not-used"})
+
+	// Launch it in background
+	done := make(chan common.Nothing)
+	go func() {
+		(*cli.App)(runner).Run([]string{
+			"test-runner",
+			"--orch-addr", fmt.Sprintf("localhost:%d", s.listenAddr.Port),
+			"--listen-addr", "localhost:0", // Bind to localhost only. This prevents a nasty firewall popup on Mac.
+		})
+		close(done)
+	}()
+
+	time.Sleep(2 * time.Second)
+
+	// Signal the runner to stop
+	// TODO - this doesn't seem to work when debugging. why?
+	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		s.FailNow("Timeout waiting for runner")
+	}
+
+	s.Condition(func() bool {
+		s.orch.lock.Lock()
+		defer s.orch.lock.Unlock()
+		return s.orch.receivedBlocks > 0
+	})
 }
 
 func parseMonitor(id int64, hexStr string) (*mgrpc.Monitor, error) {
