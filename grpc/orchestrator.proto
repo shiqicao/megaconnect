@@ -37,10 +37,10 @@ message RegisterChainManagerResponse {
     // Lease indicates the validity period allocated to the requesting ChainManager.
     Lease lease = 1;
 
-    // ResumeAfterBlockHash indicates the last processed block by Orchestrator.
+    // ResumeAfter indicates the last processed block by Orchestrator.
     // If not nil, ChainManager is expected to start reporting from right after this block.
     // Otherwise, ChainManager can start reporting from the next new block.
-    bytes resume_after_block_hash = 2;
+    BlockSpec resume_after = 2;
 
     // Monitors contain all things to be monitored by the requesting ChainManager.
     MonitorSet monitors = 3;
@@ -53,6 +53,13 @@ message InstanceId {
 
     // Instance is a monotonically increasing sequence number, namespaced by Id.
     uint32 instance = 2;
+}
+
+// BlockSpec is used to specify a block to be looked up.
+// While Hash is the most accurate specification, when not available, Height can be used instead.
+message BlockSpec {
+    bytes hash = 1;
+    BigInt height = 2;
 }
 
 message MonitorSet {

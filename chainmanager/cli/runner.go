@@ -44,10 +44,10 @@ func NewRunner(
 		Usage: "Orchestrator address",
 		Value: "localhost:9000",
 	}
-	listenPortFlag := cli.IntFlag{
-		Name:  "listen-port",
-		Usage: "Listening port",
-		Value: 0,
+	listenAddrFlag := cli.StringFlag{
+		Name:  "listen-addr",
+		Usage: "Local addr to bind to for listening",
+		Value: ":0",
 	}
 
 	app := &Runner{
@@ -55,7 +55,7 @@ func NewRunner(
 			&mcli.DebugFlag,
 			&cmidFlag,
 			&orchAddrFlag,
-			&listenPortFlag,
+			&listenAddrFlag,
 		},
 		Action: func(ctx *cli.Context) error {
 			debug := ctx.Bool(mcli.DebugFlag.Name)
@@ -75,7 +75,7 @@ func NewRunner(
 			return Run(
 				ctx.String(cmidFlag.Name),
 				ctx.String(orchAddrFlag.Name),
-				ctx.Int(listenPortFlag.Name),
+				ctx.String(listenAddrFlag.Name),
 				conn,
 				logger,
 			)
@@ -100,19 +100,19 @@ func (r *Runner) WithFlag(flag cli.Flag) *Runner {
 func Run(
 	cmID string,
 	orchAddr string,
-	listenPort int,
+	listenAddr string,
 	conn connector.Connector,
 	logger *zap.Logger,
 ) error {
 	cm := chainmanager.New(cmID, orchAddr, conn, logger)
 
-	listenerAddr := make(chan net.Addr, 1)
+	actualListenAddr := make(chan net.Addr, 1)
 	serveErr := make(chan error, 1)
 	go func() {
-		serveErr <- grpc.Serve(fmt.Sprintf(":%d", listenPort), []grpc.RegisterFunc{cm.Register}, listenerAddr)
+		serveErr <- grpc.Serve(listenAddr, []grpc.RegisterFunc{cm.Register}, actualListenAddr)
 	}()
 
-	addr := <-listenerAddr
+	addr := <-actualListenAddr
 	if addr == nil {
 		err := <-serveErr
 		logger.Error("Serve failed", zap.Error(err))

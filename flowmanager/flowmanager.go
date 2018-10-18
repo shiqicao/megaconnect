@@ -3,7 +3,6 @@ package flowmanager
 import (
 	"sync"
 
-	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/grpc"
 
 	"go.uber.org/zap"
@@ -38,16 +37,16 @@ func (fm *FlowManager) GetChainConfig(chainID string) *ChainConfig {
 func (fm *FlowManager) SetChainConfig(
 	chainID string,
 	monitors IndexedMonitors,
-	resumeAfterBlockHash *common.Hash,
+	resumeAfter *grpc.BlockSpec,
 ) *ChainConfig {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
 
 	old := fm.chainConfigs[chainID]
 	new := &ChainConfig{
-		Monitors:             monitors,
-		ResumeAfterBlockHash: resumeAfterBlockHash,
-		Outdated:             make(chan struct{}),
+		Monitors:    monitors,
+		ResumeAfter: resumeAfter,
+		Outdated:    make(chan struct{}),
 	}
 	fm.chainConfigs[chainID] = new
 
@@ -74,17 +73,28 @@ func (fm *FlowManager) ReportBlockEvents(
 	)
 }
 
+// ChainConfig captures configs about a chain.
 type ChainConfig struct {
-	Monitors             IndexedMonitors
-	MonitorsVersion      uint32
-	ResumeAfterBlockHash *common.Hash
-	Outdated             chan struct{}
+	// Monitors are the active monitors for this chain.
+	Monitors IndexedMonitors
+
+	// MonitorsVersion is used for Orchestrator and ChainManager to agree on the set of active monitors.
+	MonitorsVersion uint32
+
+	// ResumeAfter specifies the LAST block BEFORE this ChainConfig became effective.
+	ResumeAfter *grpc.BlockSpec
+
+	// Outdated is closed when this ChainConfig becomes outdated.
+	Outdated chan struct{}
 }
 
 // TODO - what should it be and how is it generated?
 type MonitorID int64
+
+// IndexedMonitors is a bunch of monitors indexed by ID.
 type IndexedMonitors map[MonitorID]*grpc.Monitor
 
+// Monitors returns all monitors contained in this IndexedMonitors.
 func (im IndexedMonitors) Monitors() []*grpc.Monitor {
 	monitors := make([]*grpc.Monitor, 0, len(im))
 	for _, m := range im {

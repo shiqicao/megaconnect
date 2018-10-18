@@ -25,8 +25,10 @@ type Connector interface {
 	ChainName() string
 
 	// SubscribeBlock establishes blocks channel to accept new blocks.
-	// It supports "resume after" functionality by passing in the hash of the checkpoint block.
-	SubscribeBlock(resumeAfter *common.Hash, blocks chan<- common.Block) (Subscription, error)
+	// resumeAfter tells the connector to potentially rewind to an older block.
+	// When Hash is specified in resumeAfter, it should be used as the primary way of identifying the block.
+	// Height should be used only if Hash based lookup failed.
+	SubscribeBlock(resumeAfter *BlockSpec, blocks chan<- common.Block) (Subscription, error)
 
 	// Start starts the Connector, proper setup is done here.
 	Start() error
@@ -54,4 +56,27 @@ type Connector interface {
 type Subscription interface {
 	// Unsubscribe is called when subscription is closed.
 	Unsubscribe()
+}
+
+// BlockSpec is used to specify a block to be looked up.
+// While Hash is the most accurate specification, when not available, Height can be used instead.
+type BlockSpec struct {
+	Hash   *common.Hash
+	Height *big.Int
+}
+
+// GetHash returns Hash. It returns nil if this BlockSpec is nil.
+func (bs *BlockSpec) GetHash() *common.Hash {
+	if bs == nil {
+		return nil
+	}
+	return bs.Hash
+}
+
+// GetHeight returns Height. It returns nil if this BlockSpec is nil.
+func (bs *BlockSpec) GetHeight() *big.Int {
+	if bs == nil {
+		return nil
+	}
+	return bs.Height
 }

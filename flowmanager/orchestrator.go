@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/megaspacelab/megaconnect/common"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -165,9 +164,9 @@ func (o *Orchestrator) RegisterChainManager(
 		zap.Stringer("id", cm.id), zap.String("chainID", cm.chainID))
 
 	return &mgrpc.RegisterChainManagerResponse{
-		Lease:                lease.toRPCLease(),
-		ResumeAfterBlockHash: chainConfig.ResumeAfterBlockHash.Bytes(),
-		Monitors:             &mgrpc.MonitorSet{Monitors: cm.monitors.Monitors(), Version: cm.monitorsVersion},
+		Lease:       lease.toRPCLease(),
+		ResumeAfter: chainConfig.ResumeAfter,
+		Monitors:    &mgrpc.MonitorSet{Monitors: cm.monitors.Monitors(), Version: cm.monitorsVersion},
 	}, nil
 }
 
@@ -234,12 +233,12 @@ func (o *Orchestrator) ReportBlockEvents(stream mgrpc.Orchestrator_ReportBlockEv
 		return o.leases[lid]
 	}()
 	if lease == nil {
-		return status.Error(codes.Aborted, "Lease doesn't exist or has already expired")
+		return status.Error(codes.FailedPrecondition, "Lease doesn't exist or has already expired")
 	}
 
 	cm := lease.chainManager
 	if preflight.MonitorSetVersion != cm.monitorsVersion {
-		return status.Error(codes.FailedPrecondition, "Wrong MonitorSetVersion")
+		return status.Error(codes.Aborted, "Wrong MonitorSetVersion")
 	}
 
 	msg, err = stream.Recv()
@@ -380,7 +379,7 @@ func (o *Orchestrator) chainManagerEventLoop(cm *chainManagerProxy) {
 			err := cm.updateMonitors(
 				newConfig.Monitors,
 				newConfig.MonitorsVersion,
-				newConfig.ResumeAfterBlockHash,
+				newConfig.ResumeAfter,
 				o.log,
 			)
 			if err != nil {
@@ -404,7 +403,7 @@ func (cm *chainManagerProxy) close() {
 func (cm *chainManagerProxy) updateMonitors(
 	monitors IndexedMonitors,
 	version uint32,
-	resumeAfterBlockHash *common.Hash,
+	resumeAfter *mgrpc.BlockSpec,
 	log *zap.Logger,
 ) error {
 	if cm.closed {
@@ -443,7 +442,7 @@ func (cm *chainManagerProxy) updateMonitors(
 					SessionId:                 cm.sessionID,
 					PreviousMonitorSetVersion: oldVersion,
 					MonitorSetVersion:         cm.monitorsVersion,
-					ResumeAfterBlockHash:      resumeAfterBlockHash.Bytes(),
+					ResumeAfter:               resumeAfter,
 				},
 			},
 		})
@@ -500,9 +499,9 @@ func (cm *chainManagerProxy) updateMonitors(
 	err = stream.Send(&mgrpc.SetMonitorsRequest{
 		MsgType: &mgrpc.SetMonitorsRequest_Preflight_{
 			Preflight: &mgrpc.SetMonitorsRequest_Preflight{
-				SessionId:            cm.sessionID,
-				MonitorSetVersion:    version,
-				ResumeAfterBlockHash: resumeAfterBlockHash.Bytes(),
+				SessionId:         cm.sessionID,
+				MonitorSetVersion: version,
+				ResumeAfter:       resumeAfter,
 			},
 		},
 	})

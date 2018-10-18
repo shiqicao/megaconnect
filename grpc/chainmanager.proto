@@ -28,10 +28,10 @@ message SetMonitorsRequest {
         // It must be greater than ChainManager's local version.
         uint32 monitor_set_version = 2;
 
-        // ResumeAfterBlockHash identifies the block after which the new MonitorSet should be applied.
+        // ResumeAfter identifies the block after which the new MonitorSet should be applied.
         // If this is a known block (in the past), ChainManager should do a rewind and start reporting again.
         // Otherwise, ChainManager should apply the MonitorSet to the next incoming block.
-        bytes resume_after_block_hash = 3;
+        BlockSpec resume_after = 3;
     }
 
     oneof msg_type {
@@ -53,10 +53,10 @@ message UpdateMonitorsRequest {
         // It must be greater than PreviousMonitorSetVersion.
         uint32 monitor_set_version = 3;
 
-        // ResumeAfterBlockHash identifies the block after which the new MonitorSet should be applied.
+        // ResumeAfter identifies the block after which the new MonitorSet should be applied.
         // If this is a known block (in the past), ChainManager should do a rewind and start reporting again.
         // Otherwise, ChainManager should apply the MonitorSet to the next incoming block.
-        bytes resume_after_block_hash = 4;
+        BlockSpec resume_after = 4;
     }
 
     message AddMonitor {
