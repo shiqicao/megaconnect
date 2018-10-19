@@ -160,7 +160,7 @@ func (i *Interpreter) evalFuncCall(funcCall *FuncCall) (Const, error) {
 
 func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 	params := decl.Params()
-	evalatedParams := make(map[string]Const, len(params))
+	evaluatedParams := make(map[string]Const, len(params))
 	paramList := make([]Const, len(params))
 	for j := 0; j < len(args); j++ {
 		result, err := i.evalExpr(args[j])
@@ -171,26 +171,19 @@ func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 			// This error should be already caught in type checker
 			return nil, &ErrArgTypeMismatch{FuncName: decl.Name(), ParamName: params[j].Name(), ParamType: params[j].Type(), ArgType: result.Type()}
 		}
-		evalatedParams[params[j].Name()] = result
+		evaluatedParams[params[j].Name()] = result
 		paramList[j] = result
 	}
-	getter, setter := i.cache.funcCallCache(decl, paramList)
-	result := getter()
-	if result != nil {
+	return i.cache.getFuncCallResult(decl, paramList, func() (Const, error) {
+		result, err := decl.evaluator(i.env, evaluatedParams)
+		if err != nil {
+			return nil, err
+		}
+		if !result.Type().Equal(decl.RetType()) {
+			return nil, &ErrFunRetTypeMismatch{FuncName: decl.Name(), ExpectedType: decl.RetType(), ActualType: result.Type()}
+		}
 		return result, nil
-	}
-
-	result, err := decl.evaluator(i.env, evalatedParams)
-	if err != nil {
-		return nil, err
-	}
-
-	if !result.Type().Equal(decl.RetType()) {
-		return nil, &ErrFunRetTypeMismatch{FuncName: decl.Name(), ExpectedType: decl.RetType(), ActualType: result.Type()}
-	}
-
-	setter(result)
-	return result, nil
+	})
 }
 
 func (i *Interpreter) evalBinOp(expr *BinOp) (Const, error) {

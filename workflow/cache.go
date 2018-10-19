@@ -12,6 +12,7 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/hashicorp/golang-lru/simplelru"
 )
@@ -22,7 +23,7 @@ const (
 
 // Cache is a component for caching evaluation results
 type Cache interface {
-	funcCallCache(fun *FuncDecl, args []Const) (getter func() Const, setter func(Const))
+	getFuncCallResult(*FuncDecl, []Const, func() (Const, error)) (Const, error)
 }
 
 // FuncCallCache provides API caching
@@ -31,8 +32,8 @@ type FuncCallCache struct {
 }
 
 // NewFuncCallCache creates a new instace of APICache
-func NewFuncCallCache() (*FuncCallCache, error) {
-	cache, err := simplelru.NewLRU(apiCacheSize, nil)
+func NewFuncCallCache(size int) (*FuncCallCache, error) {
+	cache, err := simplelru.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -41,26 +42,31 @@ func NewFuncCallCache() (*FuncCallCache, error) {
 	}, nil
 }
 
-func (a *FuncCallCache) funcCallCache(fun *FuncDecl, args []Const) (func() Const, func(Const)) {
+func (a *FuncCallCache) getFuncCallResult(
+	fun *FuncDecl,
+	args []Const,
+	compute func() (Const, error),
+) (Const, error) {
 	if a == nil {
-		return noopGetter, noopSetter
+		return compute()
 	}
 	key, err := buildApiCacheKey(fun, args)
 	if err != nil {
-		return noopGetter, noopSetter
+		return nil, err
 	}
-	getter := func() Const {
-		if value, _ := a.cache.Get(key); value != nil {
-			return value.(Const)
+	if value, found := a.cache.Get(key); found {
+		if value == nil {
+			return nil, fmt.Errorf("Cache returns <nil> from %s with func: %#v, args: %#v ", key, fun, args)
 		}
-		return nil
+		return value.(Const), nil
 	}
-	setter := func(value Const) { a.cache.Add(key, value) }
-	return getter, setter
+	value, err := compute()
+	if err != nil {
+		return nil, err
+	}
+	a.cache.Add(key, value)
+	return value, nil
 }
-
-func noopGetter() Const  { return nil }
-func noopSetter(_ Const) { return }
 
 func buildApiCacheKey(funcDecl *FuncDecl, args []Const) (string, error) {
 	var buf bytes.Buffer

@@ -11,6 +11,7 @@
 package workflow
 
 import (
+	"fmt"
 	"testing"
 
 	"go.uber.org/zap"
@@ -345,12 +346,20 @@ func TestMonitor(t *testing.T) {
 }
 
 type MockCache struct {
-	getResult Const
-	setResult Const
+	callCount int
+	result    Const
+	err       error
 }
 
-func (m *MockCache) funcCallCache(fun *FuncDecl, args []Const) (func() Const, func(Const)) {
-	return func() Const { return m.getResult }, func(x Const) { m.setResult = x }
+func (m *MockCache) getFuncCallResult(funcDecl *FuncDecl, args []Const, compute func() (Const, error)) (Const, error) {
+	m.callCount++
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.result != nil {
+		return m.result, nil
+	}
+	return compute()
 }
 
 func TestCache(t *testing.T) {
@@ -374,11 +383,16 @@ func TestCache(t *testing.T) {
 
 	cache := &MockCache{}
 	ib.withCache(cache).assertExpEval(t, NewIntConstFromI64(12), funcCall)
-	assert.Equal(t, NewIntConstFromI64(12), cache.setResult)
+	assert.Equal(t, 1, cache.callCount)
 
-	cache = &MockCache{getResult: NewIntConstFromI64(11)}
+	cache = &MockCache{result: NewIntConstFromI64(11)}
 	ib.withCache(cache).assertExpEval(t, NewIntConstFromI64(11), funcCall)
-	assert.Nil(t, cache.setResult)
+	assert.Equal(t, 1, cache.callCount)
+
+	errStr := "MOCK ERROR"
+	cache = &MockCache{err: fmt.Errorf(errStr)}
+	ib.withCache(cache).assertExpEvalEqualErr(t, funcCall, errStr)
+	assert.Equal(t, 1, cache.callCount)
 }
 
 func assertExpEval(t *testing.T, expected Const, expr Expr) {
@@ -431,6 +445,13 @@ func (ib interpreterBuilder) assertExpEvalErr(t *testing.T, expr Expr) {
 	i := ib()
 	result, err := i.EvalExpr(expr)
 	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func (ib interpreterBuilder) assertExpEvalEqualErr(t *testing.T, expr Expr, errStr string) {
+	i := ib()
+	result, err := i.EvalExpr(expr)
+	assert.EqualError(t, err, errStr)
 	assert.Nil(t, result)
 }
 
