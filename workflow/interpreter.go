@@ -32,7 +32,7 @@ type Interpreter struct {
 func NewInterpreter(env *Env, cache Cache, logger *zap.Logger) *Interpreter {
 	return &Interpreter{
 		env:    env,
-		vars:   make(map[string]Expr),
+		vars:   nil,
 		logger: logger,
 		cache:  cache,
 	}
@@ -43,6 +43,7 @@ func NewInterpreter(env *Env, cache Cache, logger *zap.Logger) *Interpreter {
 // to caller.
 func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (Const, map[string]Const, error) {
 	// push variable declarations
+	i.vars = make(map[string]Expr, len(monitor.vars))
 	for v, expr := range monitor.vars {
 		if _, ok := i.vars[v]; ok {
 			return nil, nil, &ErrVarDeclaredAlready{VarName: v}
