@@ -30,6 +30,7 @@ func (p Params) Copy() Params {
 // FuncDecl is function declaration which represents a function definition.
 // With `evaluator`, FuncDecl is only for build-in functions.
 type FuncDecl struct {
+	parent  *NamespaceDecl
 	name    string
 	params  Params
 	retType Type
@@ -57,6 +58,9 @@ func (f *FuncDecl) Params() Params { return f.params.Copy() }
 // RetType returns Type of return value
 func (f *FuncDecl) RetType() Type { return f.retType }
 
+// Parent returns containing namespace or nil if current is top level
+func (f *FuncDecl) Parent() *NamespaceDecl { return f.parent }
+
 // ParamDecl stores parameter name and its type
 type ParamDecl struct {
 	name string
@@ -79,6 +83,7 @@ func (p *ParamDecl) Type() Type { return p.ty }
 
 // NamespaceDecl captures namespace declaraion, it includes function declaraion and child namespace
 type NamespaceDecl struct {
+	parent   *NamespaceDecl
 	name     string
 	children []*NamespaceDecl
 	funs     FuncDecls
@@ -86,6 +91,26 @@ type NamespaceDecl struct {
 
 // FuncDecls is a list of function declarations
 type FuncDecls []*FuncDecl
+
+// NewNamespaceDecl creates a new instance of NamespaceDecl
+func NewNamespaceDecl(name string) *NamespaceDecl {
+	return &NamespaceDecl{
+		name: name,
+		funs: FuncDecls{},
+	}
+}
+
+// Parent returns parent namespace
+func (n *NamespaceDecl) Parent() *NamespaceDecl { return n.parent }
+
+// Name returns identifier of this namespace
+func (n *NamespaceDecl) Name() string { return n.name }
+
+func (n *NamespaceDecl) addFunc(funcDecl *FuncDecl) *NamespaceDecl {
+	funcDecl.parent = n
+	n.funs = append(n.funs, funcDecl)
+	return n
+}
 
 func (f FuncDecls) find(name string) *FuncDecl {
 	for _, x := range f {

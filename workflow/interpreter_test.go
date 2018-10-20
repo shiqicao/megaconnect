@@ -11,7 +11,10 @@
 package workflow
 
 import (
+	"fmt"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -255,8 +258,8 @@ func TestSymbolResolve(t *testing.T) {
 			"text": NewStrConst("bar"),
 		},
 	)
-
-	assertExpEvalWithPrelude(t, result, callFoo, prelude, nil)
+	ib := newInterpreterBuilder()
+	ib.withPrelude(prelude).assertExpEval(t, result, callFoo)
 
 	callBar := NewFuncCall(NamespacePrefix{"TEST"}, "bar")
 	callFooBar := NewFuncCall(NamespacePrefix{"TEST"}, "foo", callBar)
@@ -268,13 +271,13 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	)
 
-	assertExpEvalWithPrelude(t, result, callFooBar, prelude, nil)
+	ib.withPrelude(prelude).assertExpEval(t, result, callFooBar)
 
 	callFoo = NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
-	assertExpEvalWithPrelude(t, NewStrConst("bar"), NewObjAccessor(
+	ib.withPrelude(prelude).assertExpEval(t, NewStrConst("bar"), NewObjAccessor(
 		callFoo,
 		"text",
-	), prelude, nil)
+	))
 }
 
 func TestBooleanOps(t *testing.T) {
@@ -311,15 +314,17 @@ func TestIntOp(t *testing.T) {
 }
 
 func TestVar(t *testing.T) {
-	assertExpEvalWithPrelude(t, TrueConst, NewVar("a"), nil, map[string]Expr{"a": TrueConst})
-	assertExpEvalWithPrelude(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("a")), nil, map[string]Expr{"a": TrueConst})
-	assertExpEvalWithPrelude(t, TrueConst, NewVar("b"), nil, map[string]Expr{"a": TrueConst, "b": NewVar("a")})
-	assertExpEvalWithPrelude(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("b")), nil, map[string]Expr{"a": TrueConst, "b": NewVar("a")})
+	ib := newInterpreterBuilder()
+	ib.withVars(map[string]Expr{"a": TrueConst}).assertExpEval(t, TrueConst, NewVar("a"))
+	ib.withVars(map[string]Expr{"a": TrueConst}).assertExpEval(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("a")))
+	ib.withVars(map[string]Expr{"a": TrueConst, "b": NewVar("a")}).assertExpEval(t, TrueConst, NewVar("b"))
+	ib.withVars(map[string]Expr{"a": TrueConst, "b": NewVar("a")}).assertExpEval(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("b")))
 }
 
 func TestMonitor(t *testing.T) {
 	assertM := func(m *MonitorDecl, expected Const, expectedVarsResults map[string]Const) {
-		i := New(NewEnv(nil, nil))
+		var cache *FuncCallCache
+		i := NewInterpreter(NewEnv(nil, nil), cache, zap.NewNop())
 		r, v, err := i.EvalMonitor(m)
 		assert.NoError(t, err)
 		assert.NotNil(t, r)
@@ -340,20 +345,95 @@ func TestMonitor(t *testing.T) {
 	assertM(NewMonitorDecl("A", FalseConst, VarDecls{"a": NewBinOp(AndOp, TrueConst, FalseConst)}), FalseConst, nil)
 }
 
-func assertExpEval(t *testing.T, expected Const, expr Expr) {
-	assertExpEvalWithPrelude(t, expected, expr, nil, nil)
+type MockCache struct {
+	callCount int
+	result    Const
+	err       error
 }
 
-func assertExpEvalWithPrelude(t *testing.T, expected Const, expr Expr, prelude []*NamespaceDecl, vars map[string]Expr) {
-	env := NewEnv(nil, nil)
-	if prelude != nil {
-		env.prelude = prelude
+func (m *MockCache) getFuncCallResult(funcDecl *FuncDecl, args []Const, compute func() (Const, error)) (Const, error) {
+	m.callCount++
+	if m.err != nil {
+		return nil, m.err
 	}
-	i := New(env)
-	if vars != nil {
+	if m.result != nil {
+		return m.result, nil
+	}
+	return compute()
+}
+
+func TestCache(t *testing.T) {
+	prelude = []*NamespaceDecl{
+		&NamespaceDecl{
+			name: "TEST",
+			funs: []*FuncDecl{
+				NewFuncDecl(
+					"foo",
+					[]*ParamDecl{},
+					IntType,
+					func(env *Env, args map[string]Const) (Const, error) {
+						return NewIntConstFromI64(12), nil
+					},
+				),
+			},
+		},
+	}
+	funcCall := NewFuncCall(NamespacePrefix{"TEST"}, "foo")
+	ib := newInterpreterBuilder().withPrelude(prelude)
+
+	cache := &MockCache{}
+	ib.withCache(cache).assertExpEval(t, NewIntConstFromI64(12), funcCall)
+	assert.Equal(t, 1, cache.callCount)
+
+	cache = &MockCache{result: NewIntConstFromI64(11)}
+	ib.withCache(cache).assertExpEval(t, NewIntConstFromI64(11), funcCall)
+	assert.Equal(t, 1, cache.callCount)
+
+	errStr := "MOCK ERROR"
+	cache = &MockCache{err: fmt.Errorf(errStr)}
+	ib.withCache(cache).assertExpEvalEqualErr(t, funcCall, errStr)
+	assert.Equal(t, 1, cache.callCount)
+}
+
+func assertExpEval(t *testing.T, expected Const, expr Expr) {
+	newInterpreterBuilder().assertExpEval(t, expected, expr)
+}
+
+type interpreterBuilder func() *Interpreter
+
+func newInterpreterBuilder() interpreterBuilder {
+	var cache *FuncCallCache
+	return func() *Interpreter {
+		return NewInterpreter(NewEnv(nil, nil), cache, zap.NewNop())
+	}
+}
+
+func (ib interpreterBuilder) withPrelude(prelude []*NamespaceDecl) interpreterBuilder {
+	return func() *Interpreter {
+		i := ib()
+		i.env.prelude = prelude
+		return i
+	}
+}
+
+func (ib interpreterBuilder) withVars(vars map[string]Expr) interpreterBuilder {
+	return func() *Interpreter {
+		i := ib()
 		i.vars = vars
+		return i
 	}
-	result, err := i.EvalExpr(expr)
+}
+
+func (ib interpreterBuilder) withCache(cache Cache) interpreterBuilder {
+	return func() *Interpreter {
+		i := ib()
+		i.cache = cache
+		return i
+	}
+}
+
+func (ib interpreterBuilder) assertExpEval(t *testing.T, expected Const, expr Expr) {
+	result, err := ib().EvalExpr(expr)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotNil(t, result.Type())
@@ -361,11 +441,22 @@ func assertExpEvalWithPrelude(t *testing.T, expected Const, expr Expr, prelude [
 	assert.True(t, result.Equal(expected))
 }
 
-func assertExpEvalErr(t *testing.T, expr Expr) {
-	i := New(NewEnv(nil, nil))
+func (ib interpreterBuilder) assertExpEvalErr(t *testing.T, expr Expr) {
+	i := ib()
 	result, err := i.EvalExpr(expr)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func (ib interpreterBuilder) assertExpEvalEqualErr(t *testing.T, expr Expr, errStr string) {
+	i := ib()
+	result, err := i.EvalExpr(expr)
+	assert.EqualError(t, err, errStr)
+	assert.Nil(t, result)
+}
+
+func assertExpEvalErr(t *testing.T, expr Expr) {
+	newInterpreterBuilder().assertExpEvalErr(t, expr)
 }
 
 func ordTest(t *testing.T, lessThan bool, equalTo bool) {

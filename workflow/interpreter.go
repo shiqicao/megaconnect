@@ -14,6 +14,8 @@ import (
 	"errors"
 	"math/big"
 	"reflect"
+
+	"go.uber.org/zap"
 )
 
 // Interpreter executes a program or an expression with a given Env
@@ -21,14 +23,18 @@ type Interpreter struct {
 	env *Env
 
 	// interpreter only support single scope, variable must be unique. It does not support variable shadowing
-	vars map[string]Expr
+	vars   map[string]Expr
+	cache  Cache
+	logger *zap.Logger
 }
 
-// New creates an interpreter with an Env
-func New(env *Env) *Interpreter {
+// NewInterpreter creates an interpreter with an Env
+func NewInterpreter(env *Env, cache Cache, logger *zap.Logger) *Interpreter {
 	return &Interpreter{
-		env:  env,
-		vars: make(map[string]Expr),
+		env:    env,
+		vars:   nil,
+		logger: logger,
+		cache:  cache,
 	}
 }
 
@@ -37,6 +43,7 @@ func New(env *Env) *Interpreter {
 // to caller.
 func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (Const, map[string]Const, error) {
 	// push variable declarations
+	i.vars = make(map[string]Expr, len(monitor.vars))
 	for v, expr := range monitor.vars {
 		if _, ok := i.vars[v]; ok {
 			return nil, nil, &ErrVarDeclaredAlready{VarName: v}
@@ -154,7 +161,8 @@ func (i *Interpreter) evalFuncCall(funcCall *FuncCall) (Const, error) {
 
 func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 	params := decl.Params()
-	evalatedParams := make(map[string]Const)
+	evaluatedParams := make(map[string]Const, len(params))
+	paramList := make([]Const, len(params))
 	for j := 0; j < len(args); j++ {
 		result, err := i.evalExpr(args[j])
 		if err != nil {
@@ -164,19 +172,19 @@ func (i *Interpreter) evalFuncDecl(decl *FuncDecl, args []Expr) (Const, error) {
 			// This error should be already caught in type checker
 			return nil, &ErrArgTypeMismatch{FuncName: decl.Name(), ParamName: params[j].Name(), ParamType: params[j].Type(), ArgType: result.Type()}
 		}
-		evalatedParams[params[j].Name()] = result
+		evaluatedParams[params[j].Name()] = result
+		paramList[j] = result
 	}
-
-	result, err := decl.evaluator(i.env, evalatedParams)
-	if err != nil {
-		return nil, err
-	}
-
-	if !result.Type().Equal(decl.RetType()) {
-		return nil, &ErrFunRetTypeMismatch{FuncName: decl.Name(), ExpectedType: decl.RetType(), ActualType: result.Type()}
-	}
-
-	return result, nil
+	return i.cache.getFuncCallResult(decl, paramList, func() (Const, error) {
+		result, err := decl.evaluator(i.env, evaluatedParams)
+		if err != nil {
+			return nil, err
+		}
+		if !result.Type().Equal(decl.RetType()) {
+			return nil, &ErrFunRetTypeMismatch{FuncName: decl.Name(), ExpectedType: decl.RetType(), ActualType: result.Type()}
+		}
+		return result, nil
+	})
 }
 
 func (i *Interpreter) evalBinOp(expr *BinOp) (Const, error) {

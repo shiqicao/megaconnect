@@ -34,9 +34,10 @@ import (
 )
 
 const (
-	blockChanSize                    = 100
-	blockCacheSize                   = blockChanSize
-	LeaseRenewalBuffer time.Duration = 5 * time.Second
+	blockChanSize                      = 100
+	blockCacheSize                     = blockChanSize
+	LeaseRenewalBuffer   time.Duration = 5 * time.Second
+	interpreterCacheSize               = 1000
 )
 
 // ChainManager manages and interacts with a chain through connector.
@@ -223,10 +224,14 @@ func (e *ChainManager) processNewBlock(block common.Block) error {
 func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	e.logger.Debug("Processing block", zap.Stringer("height", block.Height()))
 
+	cache, err := workflow.NewFuncCallCache(interpreterCacheSize)
+	if err != nil {
+		e.logger.Error("Cache creation failed", zap.Error(err))
+	}
+	interpreter := workflow.NewInterpreter(workflow.NewEnv(e.connector, block), cache, e.logger)
 	events := []*mgrpc.Event{}
 	for _, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
-		interpreter := workflow.New(workflow.NewEnv(e.connector, block))
 		md, err := workflow.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
 		if err != nil {
 			return err
@@ -257,7 +262,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		events = append(events, &event)
 	}
 
-	err := e.reportBlockEventsWithLock(block, events)
+	err = e.reportBlockEventsWithLock(block, events)
 	if err != nil {
 		s, ok := status.FromError(err)
 		if !ok || s.Code() != codes.Aborted {

@@ -18,6 +18,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"sort"
 )
 
 // TODO - document binary format
@@ -36,7 +37,16 @@ const (
 
 // Encoder serializes workflow AST to binary format
 type Encoder struct {
-	writer io.Writer
+	writer     io.Writer
+	sortObjKey bool
+}
+
+// NewEncoder creates a new instance of Encoder
+func NewEncoder(w io.Writer, sortObjKey bool) *Encoder {
+	return &Encoder{
+		writer:     w,
+		sortObjKey: sortObjKey,
+	}
 }
 
 // EncodeMonitorDecl serializes a monitor declaration to binary format
@@ -84,13 +94,17 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		}
 		return e.encodeBytes(expr.Value().Bytes())
 	case *ObjConst:
+		keys := expr.Fields()
+		if e.sortObjKey {
+			sort.Strings(keys)
+		}
 		fields := expr.Value()
 		e.encodeLengthI(len(fields))
-		for name, value := range fields {
-			if err := e.encodeString(name); err != nil {
+		for _, key := range keys {
+			if err = e.encodeString(key); err != nil {
 				return err
 			}
-			if err := e.EncodeExpr(value); err != nil {
+			if err = e.EncodeExpr(fields[key]); err != nil {
 				return err
 			}
 		}
