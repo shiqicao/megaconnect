@@ -41,6 +41,7 @@ type Encoder struct {
 	sortObjKey bool
 }
 
+// NewEncoder creates a new instance of Encoder
 func NewEncoder(w io.Writer, sortObjKey bool) *Encoder {
 	return &Encoder{
 		writer:     w,
@@ -100,10 +101,10 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		fields := expr.Value()
 		e.encodeLengthI(len(fields))
 		for _, key := range keys {
-			if err := e.encodeString(key); err != nil {
+			if err = e.encodeString(key); err != nil {
 				return err
 			}
-			if err := e.EncodeExpr(fields[key]); err != nil {
+			if err = e.EncodeExpr(fields[key]); err != nil {
 				return err
 			}
 		}

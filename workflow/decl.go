@@ -58,6 +58,7 @@ func (f *FuncDecl) Params() Params { return f.params.Copy() }
 // RetType returns Type of return value
 func (f *FuncDecl) RetType() Type { return f.retType }
 
+// Parent returns containing namespace or nil if current is top level
 func (f *FuncDecl) Parent() *NamespaceDecl { return f.parent }
 
 // ParamDecl stores parameter name and its type
