@@ -131,18 +131,30 @@ func (e *ChainManager) Start(listenPort int) error {
 		return err
 	}
 
-	blocks := make(chan common.Block, blockChanSize)
-	_, err = e.connector.SubscribeBlock(resumeAfter, blocks)
+	sub, err := e.connector.SubscribeBlock(resumeAfter)
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		for block := range blocks {
-			err := e.processNewBlock(block)
-			if err != nil {
-				e.logger.Fatal("Failed to process block", zap.Error(err))
-				panic(err)
+		defer e.logger.Info("Block subscription stopped")
+		for {
+			select {
+			case block, ok := <-sub.Blocks():
+				if !ok {
+					return
+				}
+				err := e.processNewBlock(block)
+				if err != nil {
+					e.logger.Fatal("Failed to process block", zap.Error(err))
+					panic(err)
+				}
+			case err := <-sub.Err():
+				if err != nil {
+					e.logger.Fatal("Block subscription failed", zap.Error(err))
+					panic(err)
+				}
+				return
 			}
 		}
 	}()
