@@ -24,17 +24,18 @@ type Connector interface {
 	// ChainName returns the name of the blockchain, eg., Bitcoin, Ethereum, Stella.
 	ChainName() string
 
+	// Start starts the Connector, proper setup is done here.
+	Start() error
+
+	// Stop stops the Connector and its subscription.
+	Stop() error
+
 	// SubscribeBlock establishes blocks channel to accept new blocks.
 	// resumeAfter tells the connector to potentially rewind to an older block.
 	// When Hash is specified in resumeAfter, it should be used as the primary way of identifying the block.
 	// Height should be used only if Hash based lookup failed.
-	SubscribeBlock(resumeAfter *BlockSpec, blocks chan<- common.Block) (Subscription, error)
-
-	// Start starts the Connector, proper setup is done here.
-	Start() error
-
-	// Stop stops the Connector and calls Unsubscribe on subscription channels.
-	Stop() error
+	// It is an error to call SubscribeBlock multiple times on a connector.
+	SubscribeBlock(resumeAfter *BlockSpec) (Subscription, error)
 
 	// QueryAccountBalance gets account balance of given height on demand.
 	// addr is the string representation of the address, height is the block height
@@ -54,8 +55,13 @@ type Connector interface {
 
 // Subscription defines the shared structure for each connector's new block subscription.
 type Subscription interface {
-	// Unsubscribe is called when subscription is closed.
-	Unsubscribe()
+	// Blocks returns the block subscription channel to be consumed from.
+	// It'll be closed upon subscription failure or connector stopping.
+	Blocks() <-chan common.Block
+
+	// Err channel will receive an error if subscription failed.
+	// It'll be closed upon subscription failure or connector stopping.
+	Err() <-chan error
 }
 
 // BlockSpec is used to specify a block to be looked up.
