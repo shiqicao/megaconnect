@@ -4,6 +4,7 @@ COVERAGE_OUT = coverage.out
 # Keep adding to this list as we implement tests to target more packages
 COVERPKG = ./chainmanager/...,./common/...,./connector/...,./flowmanager/...,./workflow/...
 
+GOCC = gocc
 
 .PHONY: build install clean test cov covhtml dep protos cleanprotos
 
@@ -35,3 +36,9 @@ protos:
 
 cleanprotos:
 	rm -f grpc/*.pb.go .protos
+
+parser:
+	$(GOCC) -a -zip -debug_lexer=true -debug_parser=true  -o workflow/parser/goccgen -p github.com/megaspacelab/megaconnect/workflow/parser/goccgen workflow/parser/lang.bnf
+
+cleanparser: 
+	rm -f workflow/parser/goccgen
