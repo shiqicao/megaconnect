@@ -1,0 +1,69 @@
+// LEXICAL
+
+// Whitespace
+!_whitespace : ' ' | '\t' | '\r' | '\n' ;
+
+// keywords 
+kdMonitor : 'm' 'o' 'n' 'i' 't' 'o' 'r' ;
+kdEvent : 'e' 'v' 'e' 'n' 't' ;
+kdAction : 'a' 'c' 't' 'i' 'o' 'n' ;
+kdChain : 'c' 'h' 'a' 'i' 'n' ;
+kdCondition : 'c' 'o' 'n' 'd' 'i' 't' 'i' 'o' 'n' ;
+kdVar : 'v' 'a' 'r' ;
+
+// letter and digit
+_digit : '0' - '9' ;
+_letter : 'a' - 'z' | 'A' - 'Z' ;
+
+boolLit : 't' 'r' 'u' 'e' | 'f' 'a' 'l' 's' 'e' ;
+
+// comment
+!comment : '/' '/' {.} ;
+
+// identifier 
+id : _letter {_letter | _digit} ;
+
+// SYNTAX
+<<
+import (
+    pa "github.com/megaspacelab/megaconnect/workflow/parser/utils"
+    wf "github.com/megaspacelab/megaconnect/workflow"    
+)
+>>
+
+Monitor : 
+  kdMonitor id 
+    kdChain id 
+    kdCondition Expr 
+    kdVar "{" 
+      VarDecls
+    "}"
+  <<pa.MonitorAction($1, $3, $5, $8)>>;
+
+VarDecl : id "=" Expr <<pa.VarDeclAction($0, $2)>>;
+
+VarDecls
+  : VarDecl
+  | VarDecls VarDecl <<pa.VarDeclsAction($0, $1)>>
+  ;
+   
+MonitorProperty 
+  : kdChain ":" id
+  | kdCondition ":" Expr  
+  ;
+
+MonitorProperties 
+  : MonitorProperty 
+  | MonitorProperty MonitorProperties
+  ;
+
+Expr
+  : Expr "==" Term  <<wf.NewBinOp(wf.EqualOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
+  | Expr "!=" Term  <<wf.NewBinOp(wf.NotEqualOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
+  | Term 
+  ;
+
+Term 
+  : boolLit    <<pa.TermBoolLitAction($0)>>
+  | "(" Expr ")"
+  ;
