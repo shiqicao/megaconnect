@@ -277,6 +277,7 @@ func (e *Encoder) encodeBytes(bytes []byte) error {
 	return err
 }
 
+// EncodeExpr encode an expression to binary format
 func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 	// encode magic number "mega"
 	if err := e.encodeBigEndian(magic); err != nil {
@@ -301,7 +302,6 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 			if err = e.EncodeMonitorDecl(decl); err != nil {
 				return err
 			}
-			continue
 		case *ActionDecl:
 			if err = e.encodeString(decl.name); err != nil {
 				return err
@@ -316,7 +316,6 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 					return err
 				}
 			}
-			continue
 		case *EventDecl:
 			if err = e.encodeString(decl.name); err != nil {
 				return err
@@ -324,7 +323,6 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 			if err = e.encodeObjType(decl.ty); err != nil {
 				return err
 			}
-			continue
 		default:
 			return ErrNotSupportedByType(child)
 		}

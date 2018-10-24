@@ -16,12 +16,14 @@ type Stmt interface {
 
 type Stmts []Stmt
 
+// Copy returns a new instance of Stmts
 func (s Stmts) Copy() Stmts {
 	r := make(Stmts, len(s))
 	copy(r, s)
 	return r
 }
 
+// Equal returns true if x is the equivalent stmts
 func (s Stmts) Equal(x Stmts) bool {
 	if len(s) != len(x) {
 		return false

@@ -216,7 +216,9 @@ type decl struct {
 }
 
 func (d *decl) setParent(w *WorkflowDecl) { d.parent = w }
-func (d *decl) Parent() *WorkflowDecl     { return d.parent }
+
+// Parent returns the containing workflow declaration
+func (d *decl) Parent() *WorkflowDecl { return d.parent }
 
 // EventDecl represents an event declaration
 type EventDecl struct {
@@ -258,6 +260,7 @@ func NewWorkflowDecl(name string, version uint32) *WorkflowDecl {
 	}
 }
 
+// Equal returns true if `x` is the same workflow declaration
 func (w *WorkflowDecl) Equal(x *WorkflowDecl) bool {
 	if len(w.children) != len(x.children) {
 		return false
