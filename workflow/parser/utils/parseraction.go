@@ -28,6 +28,11 @@ func TermBoolLitAction(t interface{}) (*wf.BoolConst, error) {
 }
 
 func MonitorAction(name interface{}, chain interface{}, expr interface{}, varDecls interface{}) (*wf.MonitorDecl, error) {
+	if varDecls == nil {
+		varDecls = wf.VarDecls{}
+	} else {
+		varDecls = varDecls.(wf.VarDecls)
+	}
 	md := wf.NewMonitorDecl(string(name.(*token.Token).Lit), expr.(wf.Expr), varDecls.(wf.VarDecls))
 	return md, nil
 }
@@ -41,8 +46,11 @@ func VarDeclAction(nameRaw interface{}, exprRaw interface{}) (wf.VarDecls, error
 }
 
 func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecls, error) {
-	varDecl := varDeclRaw.(wf.VarDecls)
 	varDecls := varDeclsRaw.(wf.VarDecls)
+	if varDeclRaw == nil {
+		return varDecls, nil
+	}
+	varDecl := varDeclRaw.(wf.VarDecls)
 	// varDecl should only contain only one item
 	for name, expr := range varDecl {
 		if _, found := varDecls[name]; found {
