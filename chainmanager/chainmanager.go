@@ -64,7 +64,6 @@ type ChainManager struct {
 
 	// Concurrency control.
 	running bool
-	lock    sync.Mutex
 	// Lock for lease.
 	leaseLock    sync.Mutex
 	// Lock for general use.
