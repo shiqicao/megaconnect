@@ -12,6 +12,7 @@ package workflow
 
 import (
 	"fmt"
+	"reflect"
 )
 
 // TODO: Add an error base struct for storing (row, col) after parsing supported
@@ -43,6 +44,11 @@ type ErrNotSupported struct{ Name string }
 
 func (e *ErrNotSupported) Error() string {
 	return fmt.Sprintf("%s is not supported", e.Name)
+}
+
+// ErrNotSupportedByType creates an ErrNotSupported and reports type of x is not supported
+func ErrNotSupportedByType(x interface{}) *ErrNotSupported {
+	return &ErrNotSupported{Name: reflect.TypeOf(x).String()}
 }
 
 // ErrFunRetTypeMismatch is returned if return type does not match signature

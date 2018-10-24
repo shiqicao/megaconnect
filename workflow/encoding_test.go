@@ -107,6 +107,17 @@ func TestConstEncoding(t *testing.T) {
 	assertExprEncoding(t, NewIntConstFromI64(-1))
 }
 
+func TestVarEncoding(t *testing.T) {
+	assertExprEncoding(t, NewVar("a"))
+	assertExprEncoding(t, NewVar("abc"))
+}
+
+func TestObjLitEncoding(t *testing.T) {
+	assertExprEncoding(t, NewObjLit(VarDecls{"a": NewIntConstFromI64(1)}))
+	assertExprEncoding(t, NewObjLit(VarDecls{"a": TrueConst, "b": FalseConst}))
+	assertExprEncoding(t, NewObjLit(VarDecls{"a": NewObjLit(VarDecls{"a": NewStrConst("x")})}))
+}
+
 func TestBinExpEncoding(t *testing.T) {
 	assertExprEncoding(t, NewBinOp(EqualOp, GetBoolConst(true), GetBoolConst(false)))
 	assertExprEncoding(t, NewBinOp(EqualOp, NewUniOp(NotOp, GetBoolConst(true)), GetBoolConst(false)))
@@ -138,6 +149,39 @@ func TestMonitorDeclEncoding(t *testing.T) {
 
 	check(NewMonitorDecl("a", GetBoolConst(true), VarDecls{"x": FalseConst}))
 	check(NewMonitorDecl("b", NewBinOp(AndOp, GetBoolConst(true), GetBoolConst(false)), VarDecls{"x": TrueConst}))
+}
+
+func TestWorkflowEncoding(t *testing.T) {
+	check := func(w *WorkflowDecl) {
+		var b bytes.Buffer
+		e := Encoder{writer: &b}
+		d := Decoder{reader: &b}
+
+		err := e.EncodeWorkflow(w)
+		assert.NoError(t, err)
+		decoded, err := d.DecodeWorkflow()
+		assert.NoError(t, err)
+		assert.True(t, w.Equal(decoded))
+	}
+
+	check(NewWorkflowDecl("a", 1).AddChildren(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})))
+	check(NewWorkflowDecl("a", 1).
+		AddChildren(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
+		AddChildren(NewMonitorDecl("c", GetBoolConst(true), VarDecls{"x": FalseConst})),
+	)
+
+	check(NewWorkflowDecl("a", 1).AddChildren(NewActionDecl("b", GetBoolConst(true), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
+	check(NewWorkflowDecl("a", 1).
+		AddChildren(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
+		AddChildren(NewActionDecl("c", GetBoolConst(true), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
+	)
+
+	check(NewWorkflowDecl("a", 1).AddChildren(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": IntType}))))
+	check(NewWorkflowDecl("a", 1).AddChildren(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": NewObjType(ObjFieldTypes{"a": StrType})}))))
+	check(NewWorkflowDecl("a", 1).
+		AddChildren(NewActionDecl("c", GetBoolConst(true), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
+		AddChildren(NewEventDecl("b", NewObjType(ObjFieldTypes{"b": BoolType, "a": NewObjType(ObjFieldTypes{"a": StrType})}))),
+	)
 }
 
 func assertExprEncoding(t *testing.T, expr Expr) {

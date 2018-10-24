@@ -17,10 +17,6 @@ import (
 	"github.com/hashicorp/golang-lru/simplelru"
 )
 
-const (
-	apiCacheSize = 1000
-)
-
 // Cache is a component for caching evaluation results
 type Cache interface {
 	getFuncCallResult(*FuncDecl, []Const, func() (Const, error)) (Const, error)
