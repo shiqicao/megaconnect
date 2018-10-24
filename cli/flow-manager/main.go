@@ -122,6 +122,9 @@ func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file st
 	log.Info("Reloading monitors", zap.String("chain", chain), zap.String("file", file))
 
 	fs, err := os.Open(file)
+	if err != nil {
+		return err
+	}
 	defer fs.Close()
 
 	if _, ok := err.(*os.PathError); ok {

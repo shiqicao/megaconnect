@@ -392,3 +392,41 @@ func (v *Var) Equal(expr Expr) bool {
 // Name returns variable name
 func (v *Var) Name() string   { return v.name }
 func (v *Var) String() string { return v.name }
+
+// ObjLit represents an object literal,
+// for example, {a: 1 + 1, b: "bar"}
+type ObjLit struct {
+	fields VarDecls
+}
+
+// NewObjLit creates an instance of ObjLit
+func NewObjLit(fields VarDecls) *ObjLit {
+	return &ObjLit{
+		fields: fields.Copy(),
+	}
+}
+
+func (o *ObjLit) Equal(expr Expr) bool {
+	y, ok := expr.(*ObjLit)
+	return ok && y.fields.Equal(o.fields)
+}
+
+// Fields returns a copy of field declaration
+func (o *ObjLit) Fields() VarDecls { return o.fields.Copy() }
+
+func (o *ObjLit) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("{")
+	len := len(o.fields)
+	for field, expr := range o.fields {
+		buf.WriteString(field)
+		buf.WriteString(":")
+		buf.WriteString(expr.String())
+		if len > 1 {
+			buf.WriteString(",")
+		}
+		len--
+	}
+	buf.WriteString("}")
+	return buf.String()
+}

@@ -321,6 +321,14 @@ func TestVar(t *testing.T) {
 	ib.withVars(map[string]Expr{"a": TrueConst, "b": NewVar("a")}).assertExpEval(t, TrueConst, NewBinOp(AndOp, NewVar("a"), NewVar("b")))
 }
 
+func TestObjLit(t *testing.T) {
+	ib := newInterpreterBuilder()
+	ib.assertExpEval(t,
+		NewObjConst(ObjFields{"a": TrueConst}),
+		NewObjLit(VarDecls{"a": NewBinOp(EqualOp, FalseConst, FalseConst)}),
+	)
+}
+
 func TestMonitor(t *testing.T) {
 	assertM := func(m *MonitorDecl, expected Const, expectedVarsResults map[string]Const) {
 		var cache *FuncCallCache

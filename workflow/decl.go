@@ -161,6 +161,7 @@ func (v VarDecls) Copy() VarDecls {
 
 // MonitorDecl represents a monitor unit in workflow lang
 type MonitorDecl struct {
+	decl
 	name string
 	cond Expr
 	vars VarDecls
@@ -185,8 +186,9 @@ func (m *MonitorDecl) Condition() Expr { return m.cond }
 func (m *MonitorDecl) Vars() VarDecls { return m.vars.Copy() }
 
 // Equal returns true if two monitor declaraions are the same
-func (m *MonitorDecl) Equal(x *MonitorDecl) bool {
-	return m.Name() == x.Name() && m.Condition().Equal(x.Condition()) && m.vars.Equal(x.vars)
+func (m *MonitorDecl) Equal(x Decl) bool {
+	y, ok := x.(*MonitorDecl)
+	return ok && m.Name() == x.Name() && m.Condition().Equal(y.Condition()) && m.vars.Equal(y.vars)
 }
 
 func (m *MonitorDecl) String() string {
@@ -200,3 +202,119 @@ func (m *MonitorDecl) String() string {
 	buf.WriteString("}")
 	return buf.String()
 }
+
+// Decl is an interface for all declarations in a workflow
+type Decl interface {
+	Name() string
+	Parent() *WorkflowDecl
+	setParent(*WorkflowDecl)
+	Equal(Decl) bool
+}
+
+type decl struct {
+	parent *WorkflowDecl
+}
+
+func (d *decl) setParent(w *WorkflowDecl) { d.parent = w }
+
+// Parent returns the containing workflow declaration
+func (d *decl) Parent() *WorkflowDecl { return d.parent }
+
+// EventDecl represents an event declaration
+type EventDecl struct {
+	decl
+	name string
+	ty   *ObjType
+}
+
+// NewEventDecl creates an instance of EventDecl
+func NewEventDecl(name string, ty *ObjType) *EventDecl {
+	return &EventDecl{
+		name: name,
+		ty:   ty,
+	}
+}
+
+// Equal returns true if x is the same event declaration
+func (e *EventDecl) Equal(x Decl) bool {
+	y, ok := x.(*EventDecl)
+	return ok && y.name == e.name && y.ty.Equal(e.ty)
+}
+
+// Name returns event name
+func (e *EventDecl) Name() string { return e.name }
+
+// WorkflowDecl represents a workflow declaration
+type WorkflowDecl struct {
+	version  uint32
+	name     string
+	children []Decl
+}
+
+// NewWorkflowDecl creates a new instance of WorkflowDecl
+func NewWorkflowDecl(name string, version uint32) *WorkflowDecl {
+	return &WorkflowDecl{
+		version:  version,
+		name:     name,
+		children: make([]Decl, 0),
+	}
+}
+
+// Equal returns true if `x` is the same workflow declaration
+func (w *WorkflowDecl) Equal(x *WorkflowDecl) bool {
+	if len(w.children) != len(x.children) {
+		return false
+	}
+	// declaration order of action declaration implies execution order
+	for i := len(w.children) - 1; i >= 0; i-- {
+		if !w.children[i].Equal(x.children[i]) {
+			return false
+		}
+	}
+	return w.version == x.version && w.name == x.name
+}
+
+// Version returns workflow lang version
+func (w *WorkflowDecl) Version() uint32 { return w.version }
+
+// Name returns workflow name
+func (w *WorkflowDecl) Name() string { return w.name }
+
+// AddChildren adds a child declaraion
+func (w *WorkflowDecl) AddChildren(child Decl) *WorkflowDecl {
+	w.children = append(w.children, child)
+	child.setParent(w)
+	return w
+}
+
+// ActionDecl represents an action declaration
+type ActionDecl struct {
+	decl
+	name    string
+	trigger Expr
+	run     Stmts
+}
+
+// NewActionDecl creates an instance of ActionDecl
+func NewActionDecl(name string, trigger Expr, run Stmts) *ActionDecl {
+	return &ActionDecl{
+		name:    name,
+		trigger: trigger,
+		run:     run.Copy(),
+	}
+}
+
+// Equal returns true if x is the same action declaration
+func (a *ActionDecl) Equal(x Decl) bool {
+	y, ok := x.(*ActionDecl)
+	return ok && a.name == y.name && a.trigger.Equal(y.trigger) && a.run.Equal(y.run)
+}
+
+// Name returns action name
+func (a *ActionDecl) Name() string { return a.name }
+
+// Trigger returns action trigger
+func (a *ActionDecl) Trigger() Expr { return a.trigger }
+
+// RunStmt returns action run statement
+func (a *ActionDecl) RunStmt() Stmts { return a.run.Copy() }

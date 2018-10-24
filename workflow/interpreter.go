@@ -117,9 +117,23 @@ func (i *Interpreter) evalExpr(expr Expr) (Const, error) {
 		return i.evalFuncCall(e)
 	case *ObjAccessor:
 		return i.evalObjAccessor(e)
+	case *ObjLit:
+		return i.evalObjLit(e)
 	}
 
 	return nil, &ErrNotSupported{Name: reflect.TypeOf(expr).String()}
+}
+
+func (i *Interpreter) evalObjLit(objLit *ObjLit) (*ObjConst, error) {
+	result := make(ObjFields, len(objLit.fields))
+	for field, expr := range objLit.fields {
+		value, err := i.evalExpr(expr)
+		if err != nil {
+			return nil, err
+		}
+		result[field] = value
+	}
+	return NewObjConst(result), nil
 }
 
 func (i *Interpreter) evalUniOp(expr *UniOp) (Const, error) {
@@ -394,6 +408,12 @@ func (i *Interpreter) resolveExpr(expr Expr) error {
 			}
 		}
 		return i.resolveFun(e)
+	case *ObjLit:
+		for _, expr := range e.fields {
+			if err := i.resolveExpr(expr); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
