@@ -65,6 +65,10 @@ type ChainManager struct {
 	// Concurrency control.
 	running bool
 	lock    sync.Mutex
+	// Lock for lease.
+	leaseLock    sync.Mutex
+	// Lock for general use.
+	lock    sync.Mutex
 }
 
 // New constructs an instance of ChainManager.
@@ -200,8 +204,8 @@ func (e *ChainManager) updateLeaseWithLock(lease *mgrpc.Lease) {
 }
 
 func (e *ChainManager) renewLease() {
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.leaseLock.Lock()
+	defer e.leaseLock.Unlock()
 	if !e.running {
 		e.logger.Warn("Skipping lease renewal on stopped ChainManager")
 		return
