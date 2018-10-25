@@ -147,3 +147,10 @@ type ErrVarDeclaredAlready struct {
 func (e *ErrVarDeclaredAlready) Error() string {
 	return fmt.Sprintf("Variable %s is declared already", e.VarName)
 }
+
+// ErrEventExprNotSupport is returned if interpreter can not evaluate event expression
+type ErrEventExprNotSupport struct{}
+
+func (e *ErrEventExprNotSupport) Error() string {
+	return fmt.Sprintf("Event expression evaluation not supported")
+}

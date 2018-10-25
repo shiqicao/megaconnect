@@ -21,6 +21,9 @@ import (
 // Interpreter executes a program or an expression with a given Env
 type Interpreter struct {
 	env *Env
+	// TODO: move resolver out of Interpreter, it will be used for static compiling as well.
+	// Interpreter assume that any expression/action/workflow is sound.
+	resolver *Resolver
 
 	// interpreter only support single scope, variable must be unique. It does not support variable shadowing
 	vars   map[string]Expr
@@ -29,12 +32,13 @@ type Interpreter struct {
 }
 
 // NewInterpreter creates an interpreter with an Env
-func NewInterpreter(env *Env, cache Cache, logger *zap.Logger) *Interpreter {
+func NewInterpreter(env *Env, cache Cache, resolver *Resolver, logger *zap.Logger) *Interpreter {
 	return &Interpreter{
-		env:    env,
-		vars:   nil,
-		logger: logger,
-		cache:  cache,
+		env:      env,
+		vars:     nil,
+		logger:   logger,
+		resolver: resolver,
+		cache:    cache,
 	}
 }
 
@@ -48,14 +52,14 @@ func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (Const, map[string]Const
 		if _, ok := i.vars[v]; ok {
 			return nil, nil, &ErrVarDeclaredAlready{VarName: v}
 		}
-		if err := i.resolveExpr(expr); err != nil {
+		if err := i.resolver.resolveExpr(expr); err != nil {
 			return nil, nil, err
 		}
 		i.vars[v] = expr
 	}
 	defer func() { i.vars = nil }()
 
-	if err := i.resolveExpr(monitor.Condition()); err != nil {
+	if err := i.resolver.resolveExpr(monitor.Condition()); err != nil {
 		return nil, nil, err
 	}
 	result, err := i.evalExpr(monitor.Condition())
@@ -93,10 +97,88 @@ func (i *Interpreter) lookup(v *Var) (Const, error) {
 	return value, nil
 }
 
+func (i *Interpreter) lookupEvent(name string) (bool, error) {
+	if i.env.eventStore == nil {
+		return false, &ErrEventExprNotSupport{}
+	}
+	return i.env.eventStore.Occurs(name), nil
+}
+
+func (i *Interpreter) evalEventExpr(eexpr EventExpr) (bool, error) {
+	switch e := eexpr.(type) {
+	case *EBinOp:
+		l, err := i.evalEventExpr(e.left)
+		if err != nil {
+			return false, err
+		}
+		r, err := i.evalEventExpr(e.right)
+		if err != nil {
+			return false, err
+		}
+
+		if e.op == AndEOp {
+			return l && r, nil
+		} else if e.op == OrEOp {
+			return l || r, nil
+		} else {
+			return false, &ErrNotSupported{Name: string(e.op)}
+		}
+	case *EVar:
+		return i.lookupEvent(e.name)
+	default:
+		return false, ErrNotSupportedByType(e)
+	}
+}
+
+// EvalAction evaluates an action
+func (i *Interpreter) EvalAction(action *ActionDecl) ([]StmtResult, error) {
+	if err := i.resolver.resolveAction(action); err != nil {
+		return nil, err
+	}
+	return i.evalAction(action)
+}
+
+func (i *Interpreter) evalAction(action *ActionDecl) ([]StmtResult, error) {
+	triggered, err := i.evalEventExpr(action.trigger)
+	if err != nil {
+		return nil, err
+	}
+	if !triggered {
+		return nil, nil
+	}
+	results := make([]StmtResult, 0)
+	for _, stmt := range action.run {
+		r, err := i.evalStmt(stmt)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+func (i *Interpreter) evalStmt(stmt Stmt) (StmtResult, error) {
+	switch stmt := stmt.(type) {
+	case *Fire:
+		result, err := i.evalExpr(stmt.eventObj)
+		if err != nil {
+			return nil, err
+		}
+		obj, ok := result.(*ObjConst)
+		if !ok {
+			// Type checker should catch mismatched type error already
+			return nil, &ErrTypeMismatch{ExpectedType: stmt.eventDecl.ty, ActualType: obj.Type()}
+		}
+		return NewFireEvent(stmt.eventName, obj), nil
+	default:
+		return nil, ErrNotSupportedByType(stmt)
+	}
+}
+
 // EvalExpr evaluates an unbound expression. Unbound expression contains symbols(like function names) unresolved.
 // It will resolve and type check before execution. It should not used for a bound expression, it will try to bind symbols again.
 func (i *Interpreter) EvalExpr(expr Expr) (Const, error) {
-	err := i.resolveExpr(expr)
+	err := i.resolver.resolveExpr(expr)
 	if err != nil {
 		return nil, err
 	}
@@ -379,79 +461,4 @@ func (i *Interpreter) evalLessThan(left Expr, right Expr) (*BoolConst, error) {
 		return nil, &ErrTypeMismatch{ExpectedType: BoolType, ActualType: result.Type()}
 	}
 	return boolResult, nil
-}
-
-func (i *Interpreter) resolveExpr(expr Expr) error {
-	switch e := expr.(type) {
-	case *BinOp:
-		err := i.resolveExpr(e.Left())
-		if err != nil {
-			return err
-		}
-		err = i.resolveExpr(e.Right())
-		if err != nil {
-			return err
-		}
-	case *UniOp:
-		err := i.resolveExpr(e.Operant())
-		if err != nil {
-			return err
-		}
-	case *ObjAccessor:
-		if err := i.resolveExpr(e.Receiver()); err != nil {
-			return err
-		}
-	case *FuncCall:
-		for _, arg := range e.Args() {
-			if err := i.resolveExpr(arg); err != nil {
-				return err
-			}
-		}
-		return i.resolveFun(e)
-	case *ObjLit:
-		for _, expr := range e.fields {
-			if err := i.resolveExpr(expr); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (i *Interpreter) resolveFun(fun *FuncCall) error {
-	decl := resolveFun(i.env.prelude, fun.Name(), fun.NamespacePrefix())
-	if decl == nil {
-		return &ErrSymbolNotResolved{Symbol: fun.Name()}
-	}
-	fun.SetDecl(decl)
-	return nil
-}
-
-func resolveFun(nss []*NamespaceDecl, name string, prefix NamespacePrefix) *FuncDecl {
-	if len(prefix) == 0 {
-		return nil
-	}
-
-	cur := prefix[0]
-	var ns *NamespaceDecl
-	for _, n := range nss {
-		if cur == n.name {
-			ns = n
-			break
-		}
-	}
-	if ns == nil {
-		return nil
-	}
-
-	if len(prefix) > 1 {
-		return resolveFun(ns.children, name, prefix[1:])
-	}
-
-	for _, fun := range ns.funs {
-		if fun.Name() == name {
-			return fun
-		}
-	}
-	return nil
 }

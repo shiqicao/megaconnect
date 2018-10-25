@@ -280,8 +280,38 @@ func (w *WorkflowDecl) Version() uint32 { return w.version }
 // Name returns workflow name
 func (w *WorkflowDecl) Name() string { return w.name }
 
-// AddChildren adds a child declaraion
-func (w *WorkflowDecl) AddChildren(child Decl) *WorkflowDecl {
+// EventDecls returns all event declarations
+func (w *WorkflowDecl) EventDecls() (events []*EventDecl) {
+	for _, d := range w.children {
+		if e, ok := d.(*EventDecl); ok {
+			events = append(events, e)
+		}
+	}
+	return
+}
+
+// ActionDecls returns all event declarations
+func (w *WorkflowDecl) ActionDecls() (actions []*ActionDecl) {
+	for _, d := range w.children {
+		if e, ok := d.(*ActionDecl); ok {
+			actions = append(actions, e)
+		}
+	}
+	return
+}
+
+// MonitorDecls returns all monitor declarations in order
+func (w *WorkflowDecl) MonitorDecls() (monitors []*MonitorDecl) {
+	for _, d := range w.children {
+		if e, ok := d.(*MonitorDecl); ok {
+			monitors = append(monitors, e)
+		}
+	}
+	return
+}
+
+// AddChild adds a child declaraion
+func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
 	w.children = append(w.children, child)
 	child.setParent(w)
 	return w
@@ -291,12 +321,12 @@ func (w *WorkflowDecl) AddChildren(child Decl) *WorkflowDecl {
 type ActionDecl struct {
 	decl
 	name    string
-	trigger Expr
+	trigger EventExpr
 	run     Stmts
 }
 
 // NewActionDecl creates an instance of ActionDecl
-func NewActionDecl(name string, trigger Expr, run Stmts) *ActionDecl {
+func NewActionDecl(name string, trigger EventExpr, run Stmts) *ActionDecl {
 	return &ActionDecl{
 		name:    name,
 		trigger: trigger,
@@ -314,7 +344,7 @@ func (a *ActionDecl) Equal(x Decl) bool {
 func (a *ActionDecl) Name() string { return a.name }
 
 // Trigger returns action trigger
-func (a *ActionDecl) Trigger() Expr { return a.trigger }
+func (a *ActionDecl) Trigger() EventExpr { return a.trigger }
 
 // RunStmt returns action run statement
 func (a *ActionDecl) RunStmt() Stmts { return a.run.Copy() }

@@ -57,6 +57,11 @@ const (
 	typeKindObj     uint8 = 0x03
 )
 
+const (
+	eexprKindVar   uint8 = 0x00
+	eexprKindBinOp uint8 = 0x01
+)
+
 // Encoder serializes workflow AST to binary format
 type Encoder struct {
 	writer     io.Writer
@@ -80,6 +85,28 @@ func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
 		return err
 	}
 	return e.encodeVarDecls(md.vars)
+}
+
+func (e *Encoder) encodeEventExpr(eexpr EventExpr) error {
+	kind, err := getEExprKind(eexpr)
+	if err != nil {
+		return err
+	}
+	e.encodeBigEndian(kind)
+	switch eexpr := eexpr.(type) {
+	case *EVar:
+		return e.encodeString(eexpr.name)
+	case *EBinOp:
+		if err := e.encodeBigEndian(uint8(eexpr.op)); err != nil {
+			return err
+		}
+		if err := e.encodeEventExpr(eexpr.left); err != nil {
+			return err
+		}
+		return e.encodeEventExpr(eexpr.right)
+	default:
+		return ErrNotSupportedByType(eexpr)
+	}
 }
 
 // EncodeExpr serializes `Expr` to binary format
@@ -277,7 +304,7 @@ func (e *Encoder) encodeBytes(bytes []byte) error {
 	return err
 }
 
-// EncodeExpr encode an expression to binary format
+// EncodeWorkflow encode an expression to binary format
 func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 	// encode magic number "mega"
 	if err := e.encodeBigEndian(magic); err != nil {
@@ -306,7 +333,7 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 			if err = e.encodeString(decl.name); err != nil {
 				return err
 			}
-			if err = e.EncodeExpr(decl.trigger); err != nil {
+			if err = e.encodeEventExpr(decl.trigger); err != nil {
 				return err
 			}
 			len := len(decl.run)
@@ -414,14 +441,14 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 			if err != nil {
 				return nil, err
 			}
-			wf.AddChildren(m)
+			wf.AddChild(m)
 			continue
 		case declKindAction:
 			name, err := d.decodeBytes()
 			if err != nil {
 				return nil, err
 			}
-			expr, err := d.DecodeExpr()
+			expr, err := d.decodeEventExpr()
 			if err != nil {
 				return nil, err
 			}
@@ -436,7 +463,7 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 					return nil, err
 				}
 			}
-			wf.AddChildren(NewActionDecl(string(name), expr, stmts))
+			wf.AddChild(NewActionDecl(string(name), expr, stmts))
 			continue
 		case declKindEvent:
 			name, err := d.decodeBytes()
@@ -447,7 +474,7 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 			if err != nil {
 				return nil, err
 			}
-			wf.AddChildren(NewEventDecl(string(name), objTy))
+			wf.AddChild(NewEventDecl(string(name), objTy))
 			continue
 		default:
 			return nil, &ErrNotSupported{Name: string(kind)}
@@ -471,6 +498,37 @@ func (d *Decoder) DecodeMonitorDecl() (*MonitorDecl, error) {
 		return nil, err
 	}
 	return NewMonitorDecl(string(name), cond, vars), nil
+}
+
+func (d *Decoder) decodeEventExpr() (EventExpr, error) {
+	kind, err := d.decodeUint8()
+	if err != nil {
+		return nil, err
+	}
+	switch kind {
+	case eexprKindVar:
+		name, err := d.decodeBytes()
+		if err != nil {
+			return nil, err
+		}
+		return NewEVar(string(name)), nil
+	case eexprKindBinOp:
+		op, err := d.decodeUint8()
+		if err != nil {
+			return nil, err
+		}
+		l, err := d.decodeEventExpr()
+		if err != nil {
+			return nil, err
+		}
+		r, err := d.decodeEventExpr()
+		if err != nil {
+			return nil, err
+		}
+		return NewEBinOp(EOperator(op), l, r), nil
+	default:
+		return nil, &ErrNotSupported{Name: string(kind)}
+	}
 }
 
 // DecodeExpr deserializes binary format to `Expr`
@@ -768,5 +826,17 @@ func getStmtKind(stmt Stmt) (uint8, error) {
 		return stmtKindFire, nil
 	default:
 		return math.MaxUint8, &ErrNotSupported{Name: reflect.TypeOf(stmt).String()}
+	}
+}
+
+// getEExprKind returns event expr kind according to event expr type
+func getEExprKind(eexpr EventExpr) (uint8, error) {
+	switch eexpr.(type) {
+	case *EVar:
+		return eexprKindVar, nil
+	case *EBinOp:
+		return eexprKindBinOp, nil
+	default:
+		return math.MaxUint8, ErrNotSupportedByType(eexpr)
 	}
 }
