@@ -170,16 +170,16 @@ func TestWorkflowEncoding(t *testing.T) {
 		AddChild(NewMonitorDecl("c", GetBoolConst(true), VarDecls{"x": FalseConst})),
 	)
 
-	check(NewWorkflowDecl("a", 1).AddChild(NewActionDecl("b", NewEVar("a"), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
+	check(NewWorkflowDecl("a", 1).AddChild(NewActionDecl("b", EV("a"), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
 	check(NewWorkflowDecl("a", 1).
 		AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
-		AddChild(NewActionDecl("c", NewEBinOp(AndEOp, NewEVar("a"), NewEVar("b")), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
+		AddChild(NewActionDecl("c", NewEBinOp(AndEOp, EV("a"), EV("b")), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
 	)
 
 	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": IntType}))))
 	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": NewObjType(ObjFieldTypes{"a": StrType})}))))
 	check(NewWorkflowDecl("a", 1).
-		AddChild(NewActionDecl("c", NewEBinOp(OrEOp, NewEVar("a"), NewEBinOp(AndEOp, NewEVar("a"), NewEVar("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
+		AddChild(NewActionDecl("c", NewEBinOp(OrEOp, EV("a"), EAND(EV("a"), EV("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
 		AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"b": BoolType, "a": NewObjType(ObjFieldTypes{"a": StrType})}))),
 	)
 }

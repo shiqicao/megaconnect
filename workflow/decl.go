@@ -13,7 +13,7 @@ package workflow
 import (
 	"bytes"
 
-	"github.com/fatih/set"
+	"github.com/megaspacelab/megaconnect/common"
 )
 
 type evaluator func(*Env, map[string]Const) (Const, error)
@@ -326,22 +326,22 @@ type ActionDecl struct {
 	decl
 	name    string
 	trigger EventExpr
-	run     Stmts
+	body    Stmts
 }
 
 // NewActionDecl creates an instance of ActionDecl
-func NewActionDecl(name string, trigger EventExpr, run Stmts) *ActionDecl {
+func NewActionDecl(name string, trigger EventExpr, body Stmts) *ActionDecl {
 	return &ActionDecl{
 		name:    name,
 		trigger: trigger,
-		run:     run.Copy(),
+		body:    body.Copy(),
 	}
 }
 
 // Equal returns true if x is the same action declaration
 func (a *ActionDecl) Equal(x Decl) bool {
 	y, ok := x.(*ActionDecl)
-	return ok && a.name == y.name && a.trigger.Equal(y.trigger) && a.run.Equal(y.run)
+	return ok && a.name == y.name && a.trigger.Equal(y.trigger) && a.body.Equal(y.body)
 }
 
 // Name returns action name
@@ -351,17 +351,23 @@ func (a *ActionDecl) Name() string { return a.name }
 func (a *ActionDecl) Trigger() EventExpr { return a.trigger }
 
 // RunStmt returns action run statement
-func (a *ActionDecl) RunStmt() Stmts { return a.run.Copy() }
+func (a *ActionDecl) Body() Stmts { return a.body.Copy() }
 
 // TriggerEvents returns a set of all events used in trigger
 func (a *ActionDecl) TriggerEvents() []string {
-	events := set.New(set.NonThreadSafe)
+	events := make(map[string]common.Nothing)
 	visitor := EventExprVisitor{
 		VisitVar: func(v *EVar) interface{} {
-			events.Add(v.name)
+			if _, ok := events[v.name]; !ok {
+				events[v.name] = struct{}{}
+			}
 			return nil
 		},
 	}
 	visitor.Visit(a.trigger)
-	return set.StringSlice(events)
+	result := make([]string, 0, len(events))
+	for e := range events {
+		result = append(result, e)
+	}
+	return result
 }

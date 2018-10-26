@@ -336,9 +336,9 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 			if err = e.encodeEventExpr(decl.trigger); err != nil {
 				return err
 			}
-			len := len(decl.run)
+			len := len(decl.body)
 			e.encodeLengthI(len)
-			for _, stmt := range decl.run {
+			for _, stmt := range decl.body {
 				if err = e.encodeStmt(stmt); err != nil {
 					return err
 				}
@@ -525,7 +525,7 @@ func (d *Decoder) decodeEventExpr() (EventExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewEBinOp(EOperator(op), l, r), nil
+		return NewEBinOp(EventExprOperator(op), l, r), nil
 	default:
 		return nil, &ErrNotSupported{Name: string(kind)}
 	}

@@ -147,7 +147,7 @@ func (i *Interpreter) evalAction(action *ActionDecl) ([]StmtResult, error) {
 		return nil, nil
 	}
 	results := make([]StmtResult, 0)
-	for _, stmt := range action.run {
+	for _, stmt := range action.body {
 		r, err := i.evalStmt(stmt)
 		if err != nil {
 			return nil, err

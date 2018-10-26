@@ -15,12 +15,12 @@ type EventExpr interface {
 	Equal(EventExpr) bool
 }
 
-// EOperator represents operator of event expression
-type EOperator uint8
+// EventExprOperator represents operator of event expression
+type EventExprOperator uint8
 
 const (
 	// AndEOp represents logical AND for event expressions
-	AndEOp EOperator = iota
+	AndEOp EventExprOperator = iota
 
 	// OrEOp represents logical OR for event expressions
 	OrEOp
@@ -28,13 +28,13 @@ const (
 
 // EBinOp represents binary operators for event expression
 type EBinOp struct {
-	op    EOperator
+	op    EventExprOperator
 	left  EventExpr
 	right EventExpr
 }
 
 // NewEBinOp creates a new instance of EBinOp
-func NewEBinOp(op EOperator, left EventExpr, right EventExpr) *EBinOp {
+func NewEBinOp(op EventExprOperator, left EventExpr, right EventExpr) *EBinOp {
 	return &EBinOp{
 		op:    op,
 		left:  left,

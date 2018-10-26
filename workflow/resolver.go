@@ -26,7 +26,7 @@ func NewResolver(wf *WorkflowDecl, libs []*NamespaceDecl) *Resolver {
 
 // resolveAction resolves all symbols in action declaration
 func (r *Resolver) resolveAction(action *ActionDecl) error {
-	for _, s := range action.run {
+	for _, s := range action.body {
 		if err := r.resolveStmt(s); err != nil {
 			return err
 		}
