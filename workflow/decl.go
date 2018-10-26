@@ -10,7 +10,11 @@
 
 package workflow
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/fatih/set"
+)
 
 type evaluator func(*Env, map[string]Const) (Const, error)
 
@@ -348,3 +352,16 @@ func (a *ActionDecl) Trigger() EventExpr { return a.trigger }
 
 // RunStmt returns action run statement
 func (a *ActionDecl) RunStmt() Stmts { return a.run.Copy() }
+
+// TriggerEvents returns a set of all events used in trigger
+func (a *ActionDecl) TriggerEvents() []string {
+	events := set.New(set.NonThreadSafe)
+	visitor := EventExprVisitor{
+		VisitVar: func(v *EVar) interface{} {
+			events.Add(v.name)
+			return nil
+		},
+	}
+	visitor.Visit(a.trigger)
+	return set.StringSlice(events)
+}

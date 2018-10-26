@@ -250,7 +250,7 @@ func (i *Interpreter) evalFuncCall(funcCall *FuncCall) (Const, error) {
 	args := funcCall.Args()
 	params := decl.Params()
 	if len(args) != len(params) {
-		return nil, nil
+		return nil, &ErrArgLenMismatch{FuncName: funcCall.Name(), ArgLen: len(args), ParamLen: len(params)}
 	}
 	return i.evalFuncDecl(decl, args)
 }

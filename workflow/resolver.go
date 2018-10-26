@@ -64,19 +64,11 @@ func (r *Resolver) resolveExpr(expr Expr) error {
 		if err != nil {
 			return err
 		}
-		err = r.resolveExpr(e.Right())
-		if err != nil {
-			return err
-		}
+		return r.resolveExpr(e.Right())
 	case *UniOp:
-		err := r.resolveExpr(e.Operant())
-		if err != nil {
-			return err
-		}
+		return r.resolveExpr(e.Operant())
 	case *ObjAccessor:
-		if err := r.resolveExpr(e.Receiver()); err != nil {
-			return err
-		}
+		return r.resolveExpr(e.Receiver())
 	case *FuncCall:
 		for _, arg := range e.Args() {
 			if err := r.resolveExpr(arg); err != nil {
