@@ -64,7 +64,7 @@ message UpdateMonitorsRequest {
     }
 
     message RemoveMonitor {
-        int64 monitor_id = 1;
+        bytes monitor_id = 1;
     }
 
     oneof msg_type {

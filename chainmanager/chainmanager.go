@@ -57,7 +57,7 @@ type ChainManager struct {
 	instance          uint32
 	leaseID           []byte
 	leaseRenewalTimer *time.Timer
-	monitors          map[int64]*mgrpc.Monitor
+	monitors          map[string]*mgrpc.Monitor
 	monitorsVersion   uint32
 	blockCache        *ring.Ring
 
@@ -93,7 +93,7 @@ func New(
 		orchAddr:   orchAddr,
 		connector:  conn,
 		logger:     logger,
-		monitors:   make(map[int64]*mgrpc.Monitor),
+		monitors:   make(map[string]*mgrpc.Monitor),
 		blockCache: ring.New(blockCacheSize),
 	}
 }
@@ -174,7 +174,7 @@ func (e *ChainManager) Start(listenPort int) error {
 	e.monitorsVersion = resp.Monitors.GetVersion()
 	for _, m := range resp.Monitors.GetMonitors() {
 		e.logger.Debug("Monitor received", zap.String("monitor", hex.EncodeToString(m.Monitor)))
-		e.monitors[m.Id] = m
+		e.monitors[string(m.Id)] = m
 	}
 
 	resumeAfter, err := convertBlockSpec(resp.ResumeAfter)
@@ -518,7 +518,7 @@ func (e *ChainManager) SetMonitors(stream mgrpc.ChainManager_SetMonitorsServer) 
 		return status.Error(codes.Aborted, "MonitorSetVersion too low")
 	}
 
-	monitors := make(map[int64]*mgrpc.Monitor)
+	monitors := make(map[string]*mgrpc.Monitor)
 
 	for {
 		msg, err = stream.Recv()
@@ -535,7 +535,7 @@ func (e *ChainManager) SetMonitors(stream mgrpc.ChainManager_SetMonitorsServer) 
 		}
 
 		e.logger.Debug("Received SetMonitorsRequest.Monitor", zap.Stringer("monitor", monitor))
-		monitors[monitor.Id] = monitor
+		monitors[string(monitor.Id)] = monitor
 	}
 
 	e.monitors = monitors
@@ -592,10 +592,10 @@ func (e *ChainManager) UpdateMonitors(stream mgrpc.ChainManager_UpdateMonitorsSe
 		switch m := msg.MsgType.(type) {
 		case *mgrpc.UpdateMonitorsRequest_AddMonitor_:
 			e.logger.Debug("Received UpdateMonitorsRequest.AddMonitor", zap.Stringer("m", m.AddMonitor))
-			e.monitors[m.AddMonitor.Monitor.Id] = m.AddMonitor.Monitor
+			e.monitors[string(m.AddMonitor.Monitor.Id)] = m.AddMonitor.Monitor
 		case *mgrpc.UpdateMonitorsRequest_RemoveMonitor_:
 			e.logger.Debug("Received UpdateMonitorsRequest.RemoveMonitor", zap.Stringer("m", m.RemoveMonitor))
-			delete(e.monitors, m.RemoveMonitor.MonitorId)
+			delete(e.monitors, string(m.RemoveMonitor.MonitorId))
 		default:
 			return status.Error(codes.InvalidArgument, "Wrong message type. Expecting AddMonitor or RemoveMonitor")
 		}

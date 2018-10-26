@@ -440,7 +440,7 @@ func (cm *chainManagerProxy) updateMonitors(
 		}
 	}
 
-	var removals []MonitorID
+	var removals []string
 	for id := range cm.monitors {
 		if monitors[id] == nil {
 			removals = append(removals, id)
@@ -490,7 +490,7 @@ func (cm *chainManagerProxy) updateMonitors(
 			err = stream.Send(&mgrpc.UpdateMonitorsRequest{
 				MsgType: &mgrpc.UpdateMonitorsRequest_RemoveMonitor_{
 					RemoveMonitor: &mgrpc.UpdateMonitorsRequest_RemoveMonitor{
-						MonitorId: int64(m),
+						MonitorId: []byte(m),
 					},
 				},
 			})

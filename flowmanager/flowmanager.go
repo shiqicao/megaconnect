@@ -88,11 +88,8 @@ type ChainConfig struct {
 	Outdated chan struct{}
 }
 
-// TODO - what should it be and how is it generated?
-type MonitorID int64
-
 // IndexedMonitors is a bunch of monitors indexed by ID.
-type IndexedMonitors map[MonitorID]*grpc.Monitor
+type IndexedMonitors map[string]*grpc.Monitor
 
 // Monitors returns all monitors contained in this IndexedMonitors.
 func (im IndexedMonitors) Monitors() []*grpc.Monitor {

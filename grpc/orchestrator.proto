@@ -84,7 +84,7 @@ message MonitorSet {
 
 // Monitor contains a list of encoded workflow expressions and a triggering condition 
 message Monitor {
-    int64 id = 1;
+    bytes id = 1;
 
     // evaluations is a list of encoded workflow expressions, which will be evaluated if a monitor is triggered
     // the result will be passed back to flow manager as part of event. These expression results are intended for 
@@ -137,9 +137,9 @@ message BigInt {
 // Event describes a fired Monitor.
 message Event {
     // MonitorId identifies the Monitor being fired.
-    int64 monitor_id = 1;
+    bytes monitor_id = 1;
 
     // Context contains a list of evalutaion result of expressions in Monitor, the order of list is 
-    // the same the order of list in Monitor
+    // the same as the order of list in Monitor
     repeated bytes evaluations_results = 2;
 }
