@@ -299,7 +299,7 @@ func TestEvalAction(t *testing.T) {
 	i := ib.withWF(wf).withEM(&mockEventStore{occurred: []string{"a"}})()
 
 	r, err := i.EvalAction(
-		NewActionDecl("B", NewEVar("a"), Stmts{NewFire("B", NewObjLit(VarDecls{"x": TrueConst}))}),
+		NewActionDecl("B", EV("a"), Stmts{NewFire("B", NewObjLit(VarDecls{"x": TrueConst}))}),
 	)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(r))
@@ -318,20 +318,26 @@ func TestEvalEExpr(t *testing.T) {
 		assert.Equal(t, expected, r)
 	}
 
-	check(false, NewEBinOp(AndEOp, NewEVar("a"), NewEVar("b")))
-	check(false, NewEBinOp(OrEOp, NewEVar("a"), NewEVar("b")))
+	check(false, EAND(EV("a"), EV("b")))
+	check(false, EOR(EV("a"), EV("b")))
 
 	em.occurred = []string{"a"}
-	check(false, NewEBinOp(AndEOp, NewEVar("a"), NewEVar("b")))
-	check(true, NewEBinOp(OrEOp, NewEVar("a"), NewEVar("b")))
+	check(false, EAND(EV("a"), EV("b")))
+	check(true, EOR(EV("a"), EV("b")))
 
 	em.occurred = []string{"b"}
-	check(false, NewEBinOp(AndEOp, NewEVar("a"), NewEVar("b")))
-	check(true, NewEBinOp(OrEOp, NewEVar("a"), NewEVar("b")))
+	check(false, EAND(EV("a"), EV("b")))
+	check(true, EOR(EV("a"), EV("b")))
 
 	em.occurred = []string{"a", "b"}
-	check(true, NewEBinOp(AndEOp, NewEVar("a"), NewEVar("b")))
-	check(true, NewEBinOp(OrEOp, NewEVar("a"), NewEVar("b")))
+	check(true, EAND(EV("a"), EV("b")))
+	check(true, EOR(EV("a"), EV("b")))
+
+	em.occurred = []string{"a"}
+	check(false, EAND(
+		EOR(EV("a"), EV("b")),
+		EAND(EV("b"), EV("a")),
+	))
 }
 
 func TestBooleanOps(t *testing.T) {
