@@ -61,18 +61,18 @@ type ChainManager struct {
 	monitors          map[int64]*mgrpc.Monitor
 	monitorsVersion   uint32
 	blockCache        *ring.Ring
-	running bool
+	running           bool
 
 	// Locks for concurrency control.
-    // When acquiring lock, should always follow sequence:
-    // 1, lock 
-    // 2, leaseLock
+	// When acquiring lock, should always follow sequence:
+	// 1, lock
+	// 2, leaseLock
 
 	// Lock guarding general stuffs like
-    // running, blockCache, monitors, etc.
-	lock    sync.Mutex
+	// running, blockCache, monitors, etc.
+	lock sync.Mutex
 	// Lock guarding lease.
-	leaseLock    sync.Mutex
+	leaseLock sync.Mutex
 }
 
 // New constructs an instance of ChainManager.
@@ -122,9 +122,9 @@ func (e *ChainManager) Start(listenPort int) error {
 	}
 
 	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
-    e.leaseLock.Lock()
+	e.leaseLock.Lock()
 	e.updateLeaseWithLeaseLock(resp.Lease)
-    e.leaseLock.Unlock()
+	e.leaseLock.Unlock()
 
 	err = e.connector.Start()
 	if err != nil {
@@ -176,8 +176,8 @@ func (e *ChainManager) Start(listenPort int) error {
 
 // Stop would stop an ChainManager loop
 func (e *ChainManager) Stop() error {
-    e.lock.Lock()
-    defer e.lock.Unlock()
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	return e.stopWithLock()
 }
 
@@ -335,7 +335,7 @@ func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*m
 		return err
 	}
 
-    e.leaseLock.Lock()
+	e.leaseLock.Lock()
 	err = stream.Send(&mgrpc.ReportBlockEventsRequest{
 		MsgType: &mgrpc.ReportBlockEventsRequest_Preflight_{
 			Preflight: &mgrpc.ReportBlockEventsRequest_Preflight{

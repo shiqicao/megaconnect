@@ -35,15 +35,15 @@ const blockInterval = 100 * time.Millisecond
 var badHash = common.Hash{1}
 
 type TestConnector struct {
-    connector.Connector
+	connector.Connector
 
-    // How long we want QueryAccountBalance to take, in seconds
-    queryAccountBalanceMinDuration time.Duration
+	// How long we want QueryAccountBalance to take, in seconds
+	queryAccountBalanceMinDuration time.Duration
 }
 
 func (t *TestConnector) QueryAccountBalance(addr string, height *big.Int) (*big.Int, error) {
-    time.Sleep(t.queryAccountBalanceMinDuration)
-    return t.Connector.QueryAccountBalance(addr, height)
+	time.Sleep(t.queryAccountBalanceMinDuration)
+	return t.Connector.QueryAccountBalance(addr, height)
 }
 
 type ChainManagerSuite struct {
@@ -165,13 +165,13 @@ func (s *ChainManagerSuite) SetupTest() {
 	}
 	mgrpc.RegisterOrchestratorServer(s.server, s.orch)
 
-    exampleConnector, err := example.New(s.log, blockInterval)
+	exampleConnector, err := example.New(s.log, blockInterval)
 	s.Require().NoError(err)
 
-    s.connector = &TestConnector {
-        Connector: exampleConnector,
-        queryAccountBalanceMinDuration: 0,
-    }
+	s.connector = &TestConnector{
+		Connector:                      exampleConnector,
+		queryAccountBalanceMinDuration: 0,
+	}
 
 	s.cm = New(
 		"test-cm",
@@ -334,7 +334,7 @@ func (s *ChainManagerSuite) TestRenewLeaseWhileProcessingBlock() {
 	err := s.cm.Start(s.listenAddr.Port)
 	s.Require().NoError(err)
 
-    s.connector.queryAccountBalanceMinDuration = 2 * time.Second
+	s.connector.queryAccountBalanceMinDuration = 2 * time.Second
 
 	time.Sleep(2 * time.Second)
 
