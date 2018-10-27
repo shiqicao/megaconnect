@@ -34,6 +34,18 @@ const blockInterval = 100 * time.Millisecond
 
 var badHash = common.Hash{1}
 
+type TestConnector struct {
+    connector.Connector
+
+    // How long we want QueryAccountBalance to take, in seconds
+    queryAccountBalanceMinDuration time.Duration
+}
+
+func (t *TestConnector) QueryAccountBalance(addr string, height *big.Int) (*big.Int, error) {
+    time.Sleep(t.queryAccountBalanceMinDuration)
+    return t.Connector.QueryAccountBalance(addr, height)
+}
+
 type ChainManagerSuite struct {
 	suite.Suite
 
@@ -46,7 +58,7 @@ type ChainManagerSuite struct {
 	listenAddr *net.TCPAddr
 
 	orch      *fakeOrchestrator
-	connector connector.Connector
+	connector *TestConnector
 	cm        *ChainManager
 	cmClient  mgrpc.ChainManagerClient
 }
@@ -153,8 +165,13 @@ func (s *ChainManagerSuite) SetupTest() {
 	}
 	mgrpc.RegisterOrchestratorServer(s.server, s.orch)
 
-	s.connector, err = example.New(s.log, blockInterval)
+    exampleConnector, err := example.New(s.log, blockInterval)
 	s.Require().NoError(err)
+
+    s.connector = &TestConnector {
+        Connector: exampleConnector,
+        queryAccountBalanceMinDuration: 0,
+    }
 
 	s.cm = New(
 		"test-cm",
@@ -301,6 +318,23 @@ func (s *ChainManagerSuite) TestRenewLease() {
 
 	err := s.cm.Start(s.listenAddr.Port)
 	s.Require().NoError(err)
+
+	time.Sleep(2 * time.Second)
+
+	err = s.cm.Stop()
+	s.NoError(err)
+
+	s.Condition(func() bool { return s.orch.receivedBlocks > 0 })
+	s.Condition(func() bool { return s.orch.leaseRenewals > 0 })
+}
+
+func (s *ChainManagerSuite) TestRenewLeaseWhileProcessingBlock() {
+	s.orch.leaseSeconds = uint32((LeaseRenewalBuffer + time.Second).Seconds())
+
+	err := s.cm.Start(s.listenAddr.Port)
+	s.Require().NoError(err)
+
+    s.connector.queryAccountBalanceMinDuration = 2 * time.Second
 
 	time.Sleep(2 * time.Second)
 
