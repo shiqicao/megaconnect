@@ -341,8 +341,7 @@ func (s *ChainManagerSuite) TestRenewLeaseWhileProcessingBlock() {
 	err = s.cm.Stop()
 	s.NoError(err)
 
-	s.Condition(func() bool { return s.orch.receivedBlocks > 0 })
-	s.Condition(func() bool { return s.orch.leaseRenewals > 0 })
+	s.Condition(func() bool { return s.orch.leaseRenewals > 1 })
 }
 
 func (s *ChainManagerSuite) TestRunner() {
