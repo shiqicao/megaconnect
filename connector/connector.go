@@ -12,17 +12,15 @@ package connector
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/megaspacelab/megaconnect/common"
 )
 
 // Connector defines the shared structure for each chain-specific connector.
 type Connector interface {
-	// Name returns the name of the Connector, specific to the client implementation.
-	Name() string
-
-	// ChainName returns the name of the blockchain, eg., Bitcoin, Ethereum, Stella.
-	ChainName() string
+	// Metadata returns the metadata of connected blockchain and the connector.
+	Metadata() *Metadata
 
 	// Start starts the Connector, proper setup is done here.
 	Start() error
@@ -51,6 +49,14 @@ type Connector interface {
 	// IsValidAddress checks if the string could represent a valid address on
 	// the connected blockchain
 	IsValidAddress(addr string) bool
+}
+
+// Metadata has information of connector and the connected blockchain
+type Metadata struct {
+	ConnectorID            string        // The name of the Connector, specific to the client implementation.
+	ChainID                string        // The name of the blockchain, eg., Bitcoin, Ethereum, Stella.
+	HealthCheckInterval    time.Duration // How often health check is performed.
+	HealthCheckGracePeriod time.Duration // Length of health check grace period before changing state.
 }
 
 // Subscription defines the shared structure for each connector's new block subscription.

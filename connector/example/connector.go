@@ -14,12 +14,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
-
 	"go.uber.org/zap"
 )
 
@@ -38,26 +38,32 @@ type Connector struct {
 	running bool
 
 	done chan common.Nothing
+
+	// test params
+	lock    sync.Mutex
+	healthy bool
 }
 
 // New creates a new example connector.
 func New(logger *zap.Logger, blockInterval time.Duration) (connector.Connector, error) {
-	return &Connector{logger: logger, blockInterval: blockInterval}, nil
+	return &Connector{logger: logger, blockInterval: blockInterval, healthy: true}, nil
 }
 
-// IsHealthy always returns true for example connector
+// Metadata returns the metadata of this connector.
+func (c *Connector) Metadata() *connector.Metadata {
+	return &connector.Metadata{
+		ConnectorID:            "Example Connector",
+		ChainID:                "Example Chain(EXC)",
+		HealthCheckInterval:    100 * time.Millisecond,
+		HealthCheckGracePeriod: 2 * time.Second,
+	}
+}
+
+// IsHealthy always returns true for example connector.
 func (c *Connector) IsHealthy() (bool, error) {
-	return true, nil
-}
-
-// Name returns the name of this connector.
-func (c *Connector) Name() string {
-	return "ExampleConnector"
-}
-
-// ChainName returns the name of the blockchain backing this connector.
-func (c *Connector) ChainName() string {
-	return "Example"
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.healthy, nil
 }
 
 // Start starts this connector.
@@ -68,22 +74,21 @@ func (c *Connector) Start() error {
 
 	c.done = make(chan common.Nothing)
 	c.running = true
-	c.logger.Info("Connector started", zap.String("name", c.Name()))
+	c.logger.Info("Connector started", zap.String("name", c.Metadata().ConnectorID))
 	return nil
 }
 
 // Stop cancels all subscriptions and stops the connector.
 func (c *Connector) Stop() error {
 	if !c.running {
-		c.logger.Warn("Connector is not running", zap.String("name", c.Name()))
-		return nil
+		return errors.New("Connector is not running")
 	}
 
 	close(c.done)
 	c.done = nil
 	c.sub = nil
 	c.running = false
-	c.logger.Info("Connector stopped", zap.String("name", c.Name()))
+	c.logger.Info("Connector stopped", zap.String("name", c.Metadata().ConnectorID))
 	return nil
 }
 
@@ -172,3 +177,10 @@ type subscription struct {
 
 func (s *subscription) Blocks() <-chan common.Block { return s.blocks }
 func (s *subscription) Err() <-chan error           { return s.err }
+
+// SetHealthy is a test helper function
+func (c *Connector) SetHealthy(value bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.healthy = value
+}

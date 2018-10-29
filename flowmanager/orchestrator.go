@@ -10,10 +10,9 @@ import (
 	"sync"
 	"time"
 
-	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -168,6 +167,30 @@ func (o *Orchestrator) RegisterChainManager(
 		ResumeAfter: chainConfig.ResumeAfter,
 		Monitors:    &mgrpc.MonitorSet{Monitors: cm.monitors.Monitors(), Version: cm.monitorsVersion},
 	}, nil
+}
+
+// UnregsiterChainManager is invoked by ChainManagers to register themselves with this Orchestrator.
+func (o *Orchestrator) UnregsiterChainManager(
+	ctx context.Context,
+	req *mgrpc.UnregisterChainManagerRequest,
+) (*empty.Empty, error) {
+	o.log.Debug("Received UnregisterChainManager request", zap.Stringer("req", req))
+
+	if req.ChainId == "" {
+		return nil, status.Error(codes.InvalidArgument, "Missing ChainId")
+	}
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
+	lease := o.chainToLease[req.ChainId]
+	if lease == nil {
+		return nil, status.Error(codes.Aborted, "Lease doesn't exist or has already expired")
+	}
+
+	// expires lease and shutdown chain manager
+	o.expireLeaseWithLock(lease)
+
+	return &empty.Empty{}, nil
 }
 
 // RenewLease renews the lease between a ChainManager and this Orchestrator.

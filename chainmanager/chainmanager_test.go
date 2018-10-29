@@ -1,3 +1,12 @@
+// Copyright 2018 @ MegaSpace
+
+// The MegaSpace source code is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+
+// You should have received a copy of the GNU Lesser General Public License
+// along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 package chainmanager_test
 
 //go:generate moq -out mock_orchestratorserver_test.go -pkg chainmanager ../grpc OrchestratorServer
@@ -13,15 +22,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	. "github.com/megaspacelab/megaconnect/chainmanager"
 	mcli "github.com/megaspacelab/megaconnect/chainmanager/cli"
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/connector/example"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -30,7 +38,10 @@ import (
 	cli "gopkg.in/urfave/cli.v2"
 )
 
-const blockInterval = 100 * time.Millisecond
+const (
+	blockInterval      = 100 * time.Millisecond
+	leaseRenewalBuffer = 5 * time.Second
+)
 
 var badHash = common.Hash{1}
 
@@ -88,6 +99,7 @@ func (s *ChainManagerSuite) SetupTest() {
 				s.orch.sessionID = req.SessionId
 				leaseID := uuid.New()
 				s.orch.leaseID = &leaseID
+				s.orch.chainManagerRunning = true
 				return &mgrpc.RegisterChainManagerResponse{
 					Lease: &mgrpc.Lease{
 						Id:               leaseID[:],
@@ -97,6 +109,19 @@ func (s *ChainManagerSuite) SetupTest() {
 						Monitors: s.monitors[:1], // include one monitor by default
 					},
 				}, nil
+			},
+			UnregsiterChainManagerFunc: func(
+				in1 context.Context,
+				in2 *mgrpc.UnregisterChainManagerRequest,
+			) (*empty.Empty, error) {
+				if in2.ChainId == "" {
+					return nil, status.Error(codes.InvalidArgument, "Missing ChainId")
+				}
+				s.orch.lock.Lock()
+				defer s.orch.lock.Unlock()
+				s.orch.chainManagerRunning = false
+				s.log.Debug("Unregistered Chain Manager")
+				return &empty.Empty{}, nil
 			},
 			ReportBlockEventsFunc: func(stream mgrpc.Orchestrator_ReportBlockEventsServer) error {
 				msg, err := stream.Recv()
@@ -297,7 +322,7 @@ func (s *ChainManagerSuite) TestUpdateMonitors() {
 }
 
 func (s *ChainManagerSuite) TestRenewLease() {
-	s.orch.leaseSeconds = uint32((LeaseRenewalBuffer + time.Second).Seconds())
+	s.orch.leaseSeconds = uint32((leaseRenewalBuffer + time.Second).Seconds())
 
 	err := s.cm.Start(s.listenAddr.Port)
 	s.Require().NoError(err)
@@ -309,6 +334,77 @@ func (s *ChainManagerSuite) TestRenewLease() {
 
 	s.Condition(func() bool { return s.orch.receivedBlocks > 0 })
 	s.Condition(func() bool { return s.orch.leaseRenewals > 0 })
+}
+
+func (s *ChainManagerSuite) TestHealth() {
+	// set connector to be not healthy to begin with and launching the chain manager would fail
+	connector := s.connector.(*example.Connector)
+	connector.SetHealthy(false)
+	err := s.cm.Start(s.listenAddr.Port)
+	s.EqualError(err, "Initialization error, not healthy")
+	err = s.cm.Stop()
+	s.NoError(err)
+
+	// launch it again, this time, set the health to be healthy 0.5 seconds after start is called,
+	// chain manager should start just fine
+	connector.SetHealthy(false)
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		connector.SetHealthy(true)
+	}()
+	err = s.cm.Start(s.listenAddr.Port)
+	s.NoError(err)
+	err = s.cm.Stop()
+	s.NoError(err)
+
+	// launch chain manager with a healthy connector, after it is running, make connector go bad
+	// then within grace period, make it be good again, things should run just fine.
+	connector.SetHealthy(true)
+	err = s.cm.Start(s.listenAddr.Port)
+	s.NoError(err)
+	time.Sleep(200 * time.Millisecond)
+
+	go func() {
+		connector.SetHealthy(false) // setting the health to be false
+		time.Sleep(s.connector.Metadata().HealthCheckGracePeriod / 2)
+		connector.SetHealthy(true) // within grace period, set the health back to true
+	}()
+
+	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod) // sleep for a little over grace period
+	time.Sleep(2 * time.Second)
+
+	s.True(s.orch.chainManagerRunning) // should still be running
+	err = s.cm.Stop()                  // calling stop on connector, it should be closed without error
+	s.NoError(err)
+}
+
+func (s *ChainManagerSuite) TestHealthPanic() {
+	// launch chain manager with a healthy connector, after it is running, make connector go bad
+	// chain manager should call UnregisterChainManager with orch and removes itself gracefully
+	/*
+		defer func() {
+			if r := recover(); r == nil {
+				s.Fail("ChainManager did not panic")
+			}
+		}()
+	*/
+
+	connector := s.connector.(*example.Connector)
+	connector.SetHealthy(true)
+	err := s.cm.Start(s.listenAddr.Port)
+	s.NoError(err)
+	time.Sleep(200 * time.Millisecond)
+
+	go func() { // setting the health to be false
+		connector.SetHealthy(false)
+	}()
+
+	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod) // sleep for a little over grace period
+	time.Sleep(time.Second)
+
+	s.orch.lock.Lock()
+	s.False(s.orch.chainManagerRunning) // chain manager should be closed and not running
+	s.orch.lock.Unlock()
 }
 
 func (s *ChainManagerSuite) TestRunner() {
@@ -361,13 +457,14 @@ func parseMonitor(id int64, hexStr string) (*mgrpc.Monitor, error) {
 type fakeOrchestrator struct {
 	OrchestratorServerMock
 
-	leaseSeconds    uint32
-	sessionID       []byte
-	leaseID         *uuid.UUID
-	monitorsVersion uint32
-	receivedBlocks  int
-	blockHeight     *big.Int
-	leaseRenewals   int
+	leaseSeconds        uint32
+	sessionID           []byte
+	leaseID             *uuid.UUID
+	monitorsVersion     uint32
+	receivedBlocks      int
+	blockHeight         *big.Int
+	leaseRenewals       int
+	chainManagerRunning bool
 
 	lock sync.Mutex
 }
