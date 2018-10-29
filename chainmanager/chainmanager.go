@@ -61,10 +61,18 @@ type ChainManager struct {
 	monitors          map[int64]*mgrpc.Monitor
 	monitorsVersion   uint32
 	blockCache        *ring.Ring
+	running           bool
 
-	// Concurrency control.
-	running bool
-	lock    sync.Mutex
+	// Locks for concurrency control.
+	// When acquiring lock, should always follow sequence:
+	// 1, lock
+	// 2, leaseLock
+
+	// Lock guarding general stuffs like
+	// running, blockCache, monitors, etc.
+	lock sync.Mutex
+	// Lock guarding lease.
+	leaseLock sync.Mutex
 }
 
 // New constructs an instance of ChainManager.
@@ -114,7 +122,9 @@ func (e *ChainManager) Start(listenPort int) error {
 	}
 
 	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
-	e.updateLeaseWithLock(resp.Lease)
+	e.leaseLock.Lock()
+	e.updateLeaseWithLeaseLock(resp.Lease)
+	e.leaseLock.Unlock()
 
 	err = e.connector.Start()
 	if err != nil {
@@ -182,7 +192,10 @@ func (e *ChainManager) stopWithLock() error {
 		e.logger.Error("connect stop with err", zap.Error(err))
 	}
 
+	e.leaseLock.Lock()
 	e.leaseRenewalTimer.Stop()
+	e.leaseLock.Unlock()
+
 	e.cancel()
 
 	err = e.orchConn.Close()
@@ -193,15 +206,40 @@ func (e *ChainManager) stopWithLock() error {
 	return nil
 }
 
-func (e *ChainManager) updateLeaseWithLock(lease *mgrpc.Lease) {
+func (e *ChainManager) stopWithLeaseLock() error {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	if !e.running {
+		return errors.New("event manager is not running")
+	}
+	e.running = false
+
+	err := e.connector.Stop()
+	if err != nil {
+		e.logger.Error("connect stop with err", zap.Error(err))
+	}
+
+	e.leaseRenewalTimer.Stop()
+
+	e.cancel()
+
+	err = e.orchConn.Close()
+	if err != nil {
+		e.logger.Error("orchConn closed with err", zap.Error(err))
+	}
+
+	return nil
+}
+
+func (e *ChainManager) updateLeaseWithLeaseLock(lease *mgrpc.Lease) {
 	e.leaseID = lease.Id
 	timeout := time.Duration(lease.RemainingSeconds)*time.Second - LeaseRenewalBuffer
 	e.leaseRenewalTimer = time.AfterFunc(timeout, e.renewLease)
 }
 
 func (e *ChainManager) renewLease() {
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.leaseLock.Lock()
+	defer e.leaseLock.Unlock()
 	if !e.running {
 		e.logger.Warn("Skipping lease renewal on stopped ChainManager")
 		return
@@ -212,11 +250,11 @@ func (e *ChainManager) renewLease() {
 	})
 	if err != nil {
 		e.logger.Fatal("Failed to renew lease. Shutting down")
-		e.stopWithLock()
+		e.stopWithLeaseLock()
 		panic("Failed to renew lease")
 	}
 
-	e.updateLeaseWithLock(resp)
+	e.updateLeaseWithLeaseLock(resp)
 }
 
 func (e *ChainManager) processNewBlock(block common.Block) error {
@@ -297,6 +335,7 @@ func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*m
 		return err
 	}
 
+	e.leaseLock.Lock()
 	err = stream.Send(&mgrpc.ReportBlockEventsRequest{
 		MsgType: &mgrpc.ReportBlockEventsRequest_Preflight_{
 			Preflight: &mgrpc.ReportBlockEventsRequest_Preflight{
@@ -305,6 +344,7 @@ func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*m
 			},
 		},
 	})
+	e.leaseLock.Unlock()
 	if err != nil {
 		return err
 	}
