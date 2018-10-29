@@ -10,7 +10,11 @@
 
 package workflow
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/megaspacelab/megaconnect/common"
+)
 
 type evaluator func(*Env, map[string]Const) (Const, error)
 
@@ -280,8 +284,38 @@ func (w *WorkflowDecl) Version() uint32 { return w.version }
 // Name returns workflow name
 func (w *WorkflowDecl) Name() string { return w.name }
 
-// AddChildren adds a child declaraion
-func (w *WorkflowDecl) AddChildren(child Decl) *WorkflowDecl {
+// EventDecls returns all event declarations
+func (w *WorkflowDecl) EventDecls() (events []*EventDecl) {
+	for _, d := range w.children {
+		if e, ok := d.(*EventDecl); ok {
+			events = append(events, e)
+		}
+	}
+	return
+}
+
+// ActionDecls returns all event declarations
+func (w *WorkflowDecl) ActionDecls() (actions []*ActionDecl) {
+	for _, d := range w.children {
+		if e, ok := d.(*ActionDecl); ok {
+			actions = append(actions, e)
+		}
+	}
+	return
+}
+
+// MonitorDecls returns all monitor declarations in order
+func (w *WorkflowDecl) MonitorDecls() (monitors []*MonitorDecl) {
+	for _, d := range w.children {
+		if e, ok := d.(*MonitorDecl); ok {
+			monitors = append(monitors, e)
+		}
+	}
+	return
+}
+
+// AddChild adds a child declaraion
+func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
 	w.children = append(w.children, child)
 	child.setParent(w)
 	return w
@@ -291,30 +325,49 @@ func (w *WorkflowDecl) AddChildren(child Decl) *WorkflowDecl {
 type ActionDecl struct {
 	decl
 	name    string
-	trigger Expr
-	run     Stmts
+	trigger EventExpr
+	body    Stmts
 }
 
 // NewActionDecl creates an instance of ActionDecl
-func NewActionDecl(name string, trigger Expr, run Stmts) *ActionDecl {
+func NewActionDecl(name string, trigger EventExpr, body Stmts) *ActionDecl {
 	return &ActionDecl{
 		name:    name,
 		trigger: trigger,
-		run:     run.Copy(),
+		body:    body.Copy(),
 	}
 }
 
 // Equal returns true if x is the same action declaration
 func (a *ActionDecl) Equal(x Decl) bool {
 	y, ok := x.(*ActionDecl)
-	return ok && a.name == y.name && a.trigger.Equal(y.trigger) && a.run.Equal(y.run)
+	return ok && a.name == y.name && a.trigger.Equal(y.trigger) && a.body.Equal(y.body)
 }
 
 // Name returns action name
 func (a *ActionDecl) Name() string { return a.name }
 
 // Trigger returns action trigger
-func (a *ActionDecl) Trigger() Expr { return a.trigger }
+func (a *ActionDecl) Trigger() EventExpr { return a.trigger }
 
 // RunStmt returns action run statement
-func (a *ActionDecl) RunStmt() Stmts { return a.run.Copy() }
+func (a *ActionDecl) Body() Stmts { return a.body.Copy() }
+
+// TriggerEvents returns a set of all events used in trigger
+func (a *ActionDecl) TriggerEvents() []string {
+	events := make(map[string]common.Nothing)
+	visitor := EventExprVisitor{
+		VisitVar: func(v *EVar) interface{} {
+			if _, ok := events[v.name]; !ok {
+				events[v.name] = struct{}{}
+			}
+			return nil
+		},
+	}
+	visitor.Visit(a.trigger)
+	result := make([]string, 0, len(events))
+	for e := range events {
+		result = append(result, e)
+	}
+	return result
+}

@@ -147,3 +147,21 @@ type ErrVarDeclaredAlready struct {
 func (e *ErrVarDeclaredAlready) Error() string {
 	return fmt.Sprintf("Variable %s is declared already", e.VarName)
 }
+
+// ErrEventExprNotSupport is returned if interpreter can not evaluate event expression
+type ErrEventExprNotSupport struct{}
+
+func (e *ErrEventExprNotSupport) Error() string {
+	return fmt.Sprintf("Event expression evaluation not supported")
+}
+
+// ErrArgLenMismatch is returned if supplied arguments len does not match expected parameters len
+type ErrArgLenMismatch struct {
+	FuncName string
+	ArgLen   int
+	ParamLen int
+}
+
+func (e *ErrArgLenMismatch) Error() string {
+	return fmt.Sprintf("Number of arguments mismatch, %d arguments expected from function %s, only %d given", e.ParamLen, e.FuncName, e.ArgLen)
+}

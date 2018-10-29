@@ -50,7 +50,7 @@ func (o *ObjType) Fields() ObjFieldTypes { return o.fields.Copy() }
 // Methods returns nil, ObjType current does not support method
 func (o *ObjType) Methods() FuncDecls { return nil }
 
-func (o ObjType) String() string {
+func (o *ObjType) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("{")
 	i := len(o.fields)
@@ -68,7 +68,7 @@ func (o ObjType) String() string {
 }
 
 // Equal compares whether `ty` is equal current type
-func (o ObjType) Equal(ty Type) bool {
+func (o *ObjType) Equal(ty Type) bool {
 	oty, ok := ty.(*ObjType)
 	if !ok {
 		return false

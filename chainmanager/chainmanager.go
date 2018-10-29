@@ -23,7 +23,7 @@ import (
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-	"github.com/megaspacelab/megaconnect/workflow"
+	wf "github.com/megaspacelab/megaconnect/workflow"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
@@ -236,15 +236,15 @@ func (e *ChainManager) processNewBlock(block common.Block) error {
 func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	e.logger.Debug("Processing block", zap.Stringer("height", block.Height()))
 
-	cache, err := workflow.NewFuncCallCache(interpreterCacheSize)
+	cache, err := wf.NewFuncCallCache(interpreterCacheSize)
 	if err != nil {
 		e.logger.Error("Cache creation failed", zap.Error(err))
 	}
-	interpreter := workflow.NewInterpreter(workflow.NewEnv(e.connector, block), cache, e.logger)
+	interpreter := wf.NewInterpreter(wf.NewEnv(e.connector, block, nil), cache, wf.NewResolver(nil, wf.Libs), e.logger)
 	events := []*mgrpc.Event{}
 	for _, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
-		md, err := workflow.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
+		md, err := wf.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
 		if err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 			return err
 		}
 		e.logger.Debug("Evaluated condition", zap.Stringer("height", block.Height()), zap.Stringer("condition", result))
-		if result.Equal(workflow.FalseConst) {
+		if result.Equal(wf.FalseConst) {
 			continue
 		}
 
@@ -264,7 +264,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		event.EvaluationsResults = make([][]byte, 0, len(vars))
 		for varName, value := range vars {
 			e.logger.Debug("Packing var", zap.Stringer(varName, value))
-			encoded, err := workflow.EncodeExpr(result)
+			encoded, err := wf.EncodeExpr(result)
 			if err != nil {
 				e.logger.Error("Failed to encode result", zap.Error(err))
 				return err

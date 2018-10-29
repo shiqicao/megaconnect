@@ -214,7 +214,7 @@ func TestObjAccessor(t *testing.T) {
 }
 
 func TestSymbolResolve(t *testing.T) {
-	prelude = []*NamespaceDecl{
+	prelude := []*NamespaceDecl{
 		&NamespaceDecl{
 			name: "TEST",
 			funs: []*FuncDecl{
@@ -259,7 +259,7 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	)
 	ib := newInterpreterBuilder()
-	ib.withPrelude(prelude).assertExpEval(t, result, callFoo)
+	ib.withLibs(prelude).assertExpEval(t, result, callFoo)
 
 	callBar := NewFuncCall(NamespacePrefix{"TEST"}, "bar")
 	callFooBar := NewFuncCall(NamespacePrefix{"TEST"}, "foo", callBar)
@@ -271,12 +271,72 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	)
 
-	ib.withPrelude(prelude).assertExpEval(t, result, callFooBar)
+	ib.withLibs(prelude).assertExpEval(t, result, callFooBar)
 
 	callFoo = NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
-	ib.withPrelude(prelude).assertExpEval(t, NewStrConst("bar"), NewObjAccessor(
+	ib.withLibs(prelude).assertExpEval(t, NewStrConst("bar"), NewObjAccessor(
 		callFoo,
 		"text",
+	))
+}
+
+type mockEventStore struct {
+	occurred []string
+}
+
+func (m *mockEventStore) Occurs(name string) bool {
+	for _, o := range m.occurred {
+		if o == name {
+			return true
+		}
+	}
+	return false
+}
+
+func TestEvalAction(t *testing.T) {
+	wf := NewWorkflowDecl("A", 0).AddChild(NewEventDecl("B", NewObjType(ObjFieldTypes{"a": IntType})))
+	ib := newInterpreterBuilder()
+	i := ib.withWF(wf).withEM(&mockEventStore{occurred: []string{"a"}})()
+
+	r, err := i.EvalAction(
+		NewActionDecl("B", EV("a"), Stmts{NewFire("B", NewObjLit(VarDecls{"x": TrueConst}))}),
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(r))
+	fireResult := r[0].(*FireEvent)
+	assert.NotNil(t, fireResult)
+	assert.Equal(t, fireResult.eventName, "B")
+	assert.True(t, NewObjConst(ObjFields{"x": TrueConst}).Equal(fireResult.payload))
+}
+
+func TestEvalEExpr(t *testing.T) {
+	em := &mockEventStore{}
+	i := newInterpreterBuilder().withEM(em)()
+	check := func(expected bool, eexpr EventExpr) {
+		r, err := i.evalEventExpr(eexpr)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, r)
+	}
+
+	check(false, EAND(EV("a"), EV("b")))
+	check(false, EOR(EV("a"), EV("b")))
+
+	em.occurred = []string{"a"}
+	check(false, EAND(EV("a"), EV("b")))
+	check(true, EOR(EV("a"), EV("b")))
+
+	em.occurred = []string{"b"}
+	check(false, EAND(EV("a"), EV("b")))
+	check(true, EOR(EV("a"), EV("b")))
+
+	em.occurred = []string{"a", "b"}
+	check(true, EAND(EV("a"), EV("b")))
+	check(true, EOR(EV("a"), EV("b")))
+
+	em.occurred = []string{"a"}
+	check(false, EAND(
+		EOR(EV("a"), EV("b")),
+		EAND(EV("b"), EV("a")),
 	))
 }
 
@@ -332,7 +392,7 @@ func TestObjLit(t *testing.T) {
 func TestMonitor(t *testing.T) {
 	assertM := func(m *MonitorDecl, expected Const, expectedVarsResults map[string]Const) {
 		var cache *FuncCallCache
-		i := NewInterpreter(NewEnv(nil, nil), cache, zap.NewNop())
+		i := NewInterpreter(NewEnv(nil, nil, nil), cache, nil, zap.NewNop())
 		r, v, err := i.EvalMonitor(m)
 		assert.NoError(t, err)
 		assert.NotNil(t, r)
@@ -371,7 +431,7 @@ func (m *MockCache) getFuncCallResult(funcDecl *FuncDecl, args []Const, compute 
 }
 
 func TestCache(t *testing.T) {
-	prelude = []*NamespaceDecl{
+	prelude := []*NamespaceDecl{
 		&NamespaceDecl{
 			name: "TEST",
 			funs: []*FuncDecl{
@@ -387,7 +447,7 @@ func TestCache(t *testing.T) {
 		},
 	}
 	funcCall := NewFuncCall(NamespacePrefix{"TEST"}, "foo")
-	ib := newInterpreterBuilder().withPrelude(prelude)
+	ib := newInterpreterBuilder().withLibs(prelude)
 
 	cache := &MockCache{}
 	ib.withCache(cache).assertExpEval(t, NewIntConstFromI64(12), funcCall)
@@ -412,14 +472,25 @@ type interpreterBuilder func() *Interpreter
 func newInterpreterBuilder() interpreterBuilder {
 	var cache *FuncCallCache
 	return func() *Interpreter {
-		return NewInterpreter(NewEnv(nil, nil), cache, zap.NewNop())
+		return NewInterpreter(NewEnv(nil, nil, nil), cache, nil, zap.NewNop())
 	}
 }
 
-func (ib interpreterBuilder) withPrelude(prelude []*NamespaceDecl) interpreterBuilder {
+func (ib interpreterBuilder) withLibs(libs []*NamespaceDecl) interpreterBuilder {
 	return func() *Interpreter {
 		i := ib()
-		i.env.prelude = prelude
+		if i.resolver == nil {
+			i.resolver = NewResolver(nil, nil)
+		}
+		i.resolver.libs = libs
+		return i
+	}
+}
+
+func (ib interpreterBuilder) withEM(em eventStore) interpreterBuilder {
+	return func() *Interpreter {
+		i := ib()
+		i.env.eventStore = em
 		return i
 	}
 }
@@ -428,6 +499,17 @@ func (ib interpreterBuilder) withVars(vars map[string]Expr) interpreterBuilder {
 	return func() *Interpreter {
 		i := ib()
 		i.vars = vars
+		return i
+	}
+}
+
+func (ib interpreterBuilder) withWF(wf *WorkflowDecl) interpreterBuilder {
+	return func() *Interpreter {
+		i := ib()
+		if i.resolver == nil {
+			i.resolver = NewResolver(nil, nil)
+		}
+		i.resolver.wf = wf
 		return i
 	}
 }
@@ -461,6 +543,12 @@ func (ib interpreterBuilder) assertExpEvalEqualErr(t *testing.T, expr Expr, errS
 	result, err := i.EvalExpr(expr)
 	assert.EqualError(t, err, errStr)
 	assert.Nil(t, result)
+}
+
+func (ib interpreterBuilder) assertEExprEval(t *testing.T, expected bool, eexpr EventExpr) {
+	result, err := ib().evalEventExpr(eexpr)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
 }
 
 func assertExpEvalErr(t *testing.T, expr Expr) {

@@ -20,21 +20,26 @@ import (
 // analyzer does symbol resolving and type checking but not execution.
 // TODO: this env is specificity for ChainManager
 type Env struct {
-	prelude      []*NamespaceDecl
 	chain        chain
 	currentBlock common.Block
+	eventStore   eventStore
 }
 
 type chain interface {
 	QueryAccountBalance(addr string, height *big.Int) (*big.Int, error)
 }
 
+type eventStore interface {
+	// Occurs returns true if an event occurs in this evaluation session
+	Occurs(eventName string) bool
+}
+
 // NewEnv creates a new Env
-func NewEnv(chain chain, currentBlock common.Block) *Env {
+func NewEnv(chain chain, currentBlock common.Block, eventStore eventStore) *Env {
 	return &Env{
-		prelude:      prelude,
 		chain:        chain,
 		currentBlock: currentBlock,
+		eventStore:   eventStore,
 	}
 }
 

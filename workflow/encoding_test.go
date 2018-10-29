@@ -164,23 +164,23 @@ func TestWorkflowEncoding(t *testing.T) {
 		assert.True(t, w.Equal(decoded))
 	}
 
-	check(NewWorkflowDecl("a", 1).AddChildren(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})))
+	check(NewWorkflowDecl("a", 1).AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})))
 	check(NewWorkflowDecl("a", 1).
-		AddChildren(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
-		AddChildren(NewMonitorDecl("c", GetBoolConst(true), VarDecls{"x": FalseConst})),
+		AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
+		AddChild(NewMonitorDecl("c", GetBoolConst(true), VarDecls{"x": FalseConst})),
 	)
 
-	check(NewWorkflowDecl("a", 1).AddChildren(NewActionDecl("b", GetBoolConst(true), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
+	check(NewWorkflowDecl("a", 1).AddChild(NewActionDecl("b", EV("a"), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
 	check(NewWorkflowDecl("a", 1).
-		AddChildren(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
-		AddChildren(NewActionDecl("c", GetBoolConst(true), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
+		AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
+		AddChild(NewActionDecl("c", NewEBinOp(AndEOp, EV("a"), EV("b")), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
 	)
 
-	check(NewWorkflowDecl("a", 1).AddChildren(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": IntType}))))
-	check(NewWorkflowDecl("a", 1).AddChildren(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": NewObjType(ObjFieldTypes{"a": StrType})}))))
+	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": IntType}))))
+	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": NewObjType(ObjFieldTypes{"a": StrType})}))))
 	check(NewWorkflowDecl("a", 1).
-		AddChildren(NewActionDecl("c", GetBoolConst(true), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
-		AddChildren(NewEventDecl("b", NewObjType(ObjFieldTypes{"b": BoolType, "a": NewObjType(ObjFieldTypes{"a": StrType})}))),
+		AddChild(NewActionDecl("c", NewEBinOp(OrEOp, EV("a"), EAND(EV("a"), EV("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
+		AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"b": BoolType, "a": NewObjType(ObjFieldTypes{"a": StrType})}))),
 	)
 }
 

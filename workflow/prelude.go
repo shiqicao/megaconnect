@@ -14,7 +14,7 @@ package workflow
 var (
 	ethNS = "Eth"
 
-	prelude = []*NamespaceDecl{
+	Libs = []*NamespaceDecl{
 		NewNamespaceDecl(ethNS).addFunc(
 			NewFuncDecl(
 				"GetBalance",

@@ -46,7 +46,7 @@ const (
 )
 
 // Equal compares whether `ty` is the same primitive as the current one
-func (p PrimitiveType) Equal(ty Type) bool {
+func (p *PrimitiveType) Equal(ty Type) bool {
 	pty, ok := ty.(*PrimitiveType)
 	if !ok {
 		return false
