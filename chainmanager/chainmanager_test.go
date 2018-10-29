@@ -99,7 +99,6 @@ func (s *ChainManagerSuite) SetupTest() {
 				s.orch.sessionID = req.SessionId
 				leaseID := uuid.New()
 				s.orch.leaseID = &leaseID
-				s.orch.chainManagerRunning = true
 				return &mgrpc.RegisterChainManagerResponse{
 					Lease: &mgrpc.Lease{
 						Id:               leaseID[:],
@@ -119,7 +118,7 @@ func (s *ChainManagerSuite) SetupTest() {
 				}
 				s.orch.lock.Lock()
 				defer s.orch.lock.Unlock()
-				s.orch.chainManagerRunning = false
+				s.orch.unregisterCallCount++
 				s.log.Debug("Unregistered Chain Manager")
 				return &empty.Empty{}, nil
 			},
@@ -360,6 +359,7 @@ func (s *ChainManagerSuite) TestHealth() {
 	// launch chain manager with a healthy connector, after it is running, make connector go bad
 	// then within grace period, make it be good again, things should run just fine.
 	connector.SetHealthy(true)
+	prevCallCount := s.orch.unregisterCallCount
 	err = s.cm.Start(s.listenAddr.Port)
 	s.NoError(err)
 	time.Sleep(200 * time.Millisecond)
@@ -373,8 +373,8 @@ func (s *ChainManagerSuite) TestHealth() {
 	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod) // sleep for a little over grace period
 	time.Sleep(2 * time.Second)
 
-	s.True(s.orch.chainManagerRunning) // should still be running
-	err = s.cm.Stop()                  // calling stop on connector, it should be closed without error
+	s.True(s.orch.unregisterCallCount-prevCallCount == 0) // unregister should never been called
+	err = s.cm.Stop()                                     // calling stop on connector, it should be closed without error
 	s.NoError(err)
 }
 
@@ -390,6 +390,7 @@ func (s *ChainManagerSuite) TestHealthPanic() {
 	*/
 
 	connector := s.connector.(*example.Connector)
+	prevCallCount := s.orch.unregisterCallCount
 	connector.SetHealthy(true)
 	err := s.cm.Start(s.listenAddr.Port)
 	s.NoError(err)
@@ -403,7 +404,7 @@ func (s *ChainManagerSuite) TestHealthPanic() {
 	time.Sleep(time.Second)
 
 	s.orch.lock.Lock()
-	s.False(s.orch.chainManagerRunning) // chain manager should be closed and not running
+	s.True(s.orch.unregisterCallCount-prevCallCount == 1) // unregister should have been called
 	s.orch.lock.Unlock()
 }
 
@@ -464,7 +465,7 @@ type fakeOrchestrator struct {
 	receivedBlocks      int
 	blockHeight         *big.Int
 	leaseRenewals       int
-	chainManagerRunning bool
+	unregisterCallCount int
 
 	lock sync.Mutex
 }
