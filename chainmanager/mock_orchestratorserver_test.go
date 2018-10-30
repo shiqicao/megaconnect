@@ -5,14 +5,16 @@ package chainmanager
 
 import (
 	"context"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/megaspacelab/megaconnect/grpc"
 	"sync"
 )
 
 var (
-	lockOrchestratorServerMockRegisterChainManager sync.RWMutex
-	lockOrchestratorServerMockRenewLease           sync.RWMutex
-	lockOrchestratorServerMockReportBlockEvents    sync.RWMutex
+	lockOrchestratorServerMockRegisterChainManager   sync.RWMutex
+	lockOrchestratorServerMockRenewLease             sync.RWMutex
+	lockOrchestratorServerMockReportBlockEvents      sync.RWMutex
+	lockOrchestratorServerMockUnregsiterChainManager sync.RWMutex
 )
 
 // OrchestratorServerMock is a mock implementation of OrchestratorServer.
@@ -30,6 +32,9 @@ var (
 //             ReportBlockEventsFunc: func(in1 grpc.Orchestrator_ReportBlockEventsServer) error {
 // 	               panic("TODO: mock out the ReportBlockEvents method")
 //             },
+//             UnregsiterChainManagerFunc: func(in1 context.Context, in2 *grpc.UnregisterChainManagerRequest) (*empty.Empty, error) {
+// 	               panic("TODO: mock out the UnregsiterChainManager method")
+//             },
 //         }
 //
 //         // TODO: use mockedOrchestratorServer in code that requires OrchestratorServer
@@ -45,6 +50,9 @@ type OrchestratorServerMock struct {
 
 	// ReportBlockEventsFunc mocks the ReportBlockEvents method.
 	ReportBlockEventsFunc func(in1 grpc.Orchestrator_ReportBlockEventsServer) error
+
+	// UnregsiterChainManagerFunc mocks the UnregsiterChainManager method.
+	UnregsiterChainManagerFunc func(in1 context.Context, in2 *grpc.UnregisterChainManagerRequest) (*empty.Empty, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -66,6 +74,13 @@ type OrchestratorServerMock struct {
 		ReportBlockEvents []struct {
 			// In1 is the in1 argument value.
 			In1 grpc.Orchestrator_ReportBlockEventsServer
+		}
+		// UnregsiterChainManager holds details about calls to the UnregsiterChainManager method.
+		UnregsiterChainManager []struct {
+			// In1 is the in1 argument value.
+			In1 context.Context
+			// In2 is the in2 argument value.
+			In2 *grpc.UnregisterChainManagerRequest
 		}
 	}
 }
@@ -168,5 +183,40 @@ func (mock *OrchestratorServerMock) ReportBlockEventsCalls() []struct {
 	lockOrchestratorServerMockReportBlockEvents.RLock()
 	calls = mock.calls.ReportBlockEvents
 	lockOrchestratorServerMockReportBlockEvents.RUnlock()
+	return calls
+}
+
+// UnregsiterChainManager calls UnregsiterChainManagerFunc.
+func (mock *OrchestratorServerMock) UnregsiterChainManager(in1 context.Context, in2 *grpc.UnregisterChainManagerRequest) (*empty.Empty, error) {
+	if mock.UnregsiterChainManagerFunc == nil {
+		panic("OrchestratorServerMock.UnregsiterChainManagerFunc: method is nil but OrchestratorServer.UnregsiterChainManager was just called")
+	}
+	callInfo := struct {
+		In1 context.Context
+		In2 *grpc.UnregisterChainManagerRequest
+	}{
+		In1: in1,
+		In2: in2,
+	}
+	lockOrchestratorServerMockUnregsiterChainManager.Lock()
+	mock.calls.UnregsiterChainManager = append(mock.calls.UnregsiterChainManager, callInfo)
+	lockOrchestratorServerMockUnregsiterChainManager.Unlock()
+	return mock.UnregsiterChainManagerFunc(in1, in2)
+}
+
+// UnregsiterChainManagerCalls gets all the calls that were made to UnregsiterChainManager.
+// Check the length with:
+//     len(mockedOrchestratorServer.UnregsiterChainManagerCalls())
+func (mock *OrchestratorServerMock) UnregsiterChainManagerCalls() []struct {
+	In1 context.Context
+	In2 *grpc.UnregisterChainManagerRequest
+} {
+	var calls []struct {
+		In1 context.Context
+		In2 *grpc.UnregisterChainManagerRequest
+	}
+	lockOrchestratorServerMockUnregsiterChainManager.RLock()
+	calls = mock.calls.UnregsiterChainManager
+	lockOrchestratorServerMockUnregsiterChainManager.RUnlock()
 	return calls
 }

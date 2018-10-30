@@ -1,3 +1,13 @@
+// Copyright 2018 @ MegaSpace
+
+// The MegaSpace source code is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+
+// You should have received a copy of the GNU Lesser General Public License
+// along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
+
 package chainmanager_test
 
 //go:generate moq -out mock_orchestratorserver_test.go -pkg chainmanager ../grpc OrchestratorServer
@@ -13,15 +23,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	. "github.com/megaspacelab/megaconnect/chainmanager"
 	mcli "github.com/megaspacelab/megaconnect/chainmanager/cli"
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/connector/example"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -30,7 +39,10 @@ import (
 	cli "gopkg.in/urfave/cli.v2"
 )
 
-const blockInterval = 100 * time.Millisecond
+const (
+	blockInterval      = 100 * time.Millisecond
+	leaseRenewalBuffer = 5 * time.Second
+)
 
 var badHash = common.Hash{1}
 
@@ -39,11 +51,37 @@ type TestConnector struct {
 
 	// How long we want QueryAccountBalance to take, in seconds
 	queryAccountBalanceMinDuration time.Duration
+
+	// set healthy state for test connector
+	healthy bool
+
+	// concurrency
+	lock sync.Mutex
 }
 
 func (t *TestConnector) QueryAccountBalance(addr string, height *big.Int) (*big.Int, error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
 	time.Sleep(t.queryAccountBalanceMinDuration)
 	return t.Connector.QueryAccountBalance(addr, height)
+}
+
+func (t *TestConnector) SetAccountBalanceMinDuration(value time.Duration) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.queryAccountBalanceMinDuration = value
+}
+
+func (t *TestConnector) IsHealthy() (bool, error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.healthy, nil
+}
+
+func (t *TestConnector) SetHealthy(value bool) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.healthy = value
 }
 
 type ChainManagerSuite struct {
@@ -110,6 +148,19 @@ func (s *ChainManagerSuite) SetupTest() {
 					},
 				}, nil
 			},
+			UnregsiterChainManagerFunc: func(
+				in1 context.Context,
+				in2 *mgrpc.UnregisterChainManagerRequest,
+			) (*empty.Empty, error) {
+				if in2.ChainId == "" {
+					return nil, status.Error(codes.InvalidArgument, "Missing ChainId")
+				}
+				s.orch.lock.Lock()
+				defer s.orch.lock.Unlock()
+				s.orch.unregisterCallCount++
+				s.log.Debug("Unregistered Chain Manager")
+				return &empty.Empty{}, nil
+			},
 			ReportBlockEventsFunc: func(stream mgrpc.Orchestrator_ReportBlockEventsServer) error {
 				msg, err := stream.Recv()
 				s.Require().NoError(err)
@@ -171,6 +222,7 @@ func (s *ChainManagerSuite) SetupTest() {
 	s.connector = &TestConnector{
 		Connector:                      exampleConnector,
 		queryAccountBalanceMinDuration: 0,
+		healthy:                        true,
 	}
 
 	s.cm = New(
@@ -314,7 +366,7 @@ func (s *ChainManagerSuite) TestUpdateMonitors() {
 }
 
 func (s *ChainManagerSuite) TestRenewLease() {
-	s.orch.leaseSeconds = uint32((LeaseRenewalBuffer + time.Second).Seconds())
+	s.orch.leaseSeconds = uint32((leaseRenewalBuffer + time.Second).Seconds())
 
 	err := s.cm.Start(s.listenAddr.Port)
 	s.Require().NoError(err)
@@ -328,13 +380,77 @@ func (s *ChainManagerSuite) TestRenewLease() {
 	s.Condition(func() bool { return s.orch.leaseRenewals > 0 })
 }
 
+func (s *ChainManagerSuite) TestHealth() {
+	// set connector to be not healthy to begin with and launching the chain manager would fail
+	s.connector.SetHealthy(false)
+	err := s.cm.Start(s.listenAddr.Port)
+	s.EqualError(err, "Initialization error, not healthy")
+	err = s.cm.Stop()
+	s.NoError(err)
+
+	// launch it again, this time, set the health to be healthy 0.2 seconds after start is called,
+	// chain manager should start just fine
+	s.connector.SetHealthy(false)
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		s.connector.SetHealthy(true)
+	}()
+	err = s.cm.Start(s.listenAddr.Port)
+	s.NoError(err)
+	err = s.cm.Stop()
+	s.NoError(err)
+
+	// launch chain manager with a healthy connector, after it is running, make connector go bad
+	// then within grace period, make it be good again, things should run just fine.
+	s.connector.SetHealthy(true)
+	prevCallCount := s.orch.unregisterCallCount
+	err = s.cm.Start(s.listenAddr.Port)
+	s.NoError(err)
+	time.Sleep(200 * time.Millisecond)
+
+	go func() {
+		s.connector.SetHealthy(false) // setting the health to be false
+		time.Sleep(s.connector.Metadata().HealthCheckGracePeriod / 2)
+		s.connector.SetHealthy(true) // within grace period, set the health back to true
+	}()
+
+	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod) // sleep for a little over grace period
+	time.Sleep(2 * time.Second)
+
+	s.True(s.orch.unregisterCallCount-prevCallCount == 0) // unregister should never been called
+	err = s.cm.Stop()                                     // calling stop on connector, it should be closed without error
+	s.NoError(err)
+
+}
+
+func (s *ChainManagerSuite) TestHealthFail() {
+	// launch chain manager with a healthy connector, after it is running, make connector go bad
+	// chain manager should call UnregisterChainManager with orch and removes itself gracefully
+	prevCallCount := s.orch.unregisterCallCount
+	s.connector.SetHealthy(true)
+	err := s.cm.Start(s.listenAddr.Port)
+	s.NoError(err)
+	time.Sleep(200 * time.Millisecond)
+
+	go func() { // setting the health to be false
+		s.connector.SetHealthy(false)
+	}()
+
+	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod) // sleep for a little over grace period
+	time.Sleep(time.Second)
+
+	s.orch.lock.Lock()
+	s.True(s.orch.unregisterCallCount-prevCallCount == 1) // unregister should have been called
+	s.orch.lock.Unlock()
+}
+
 func (s *ChainManagerSuite) TestRenewLeaseWhileProcessingBlock() {
-	s.orch.leaseSeconds = uint32((LeaseRenewalBuffer + time.Second).Seconds())
+	s.orch.leaseSeconds = uint32((leaseRenewalBuffer + time.Second).Seconds())
 
 	err := s.cm.Start(s.listenAddr.Port)
 	s.Require().NoError(err)
 
-	s.connector.queryAccountBalanceMinDuration = 2 * time.Second
+	s.connector.SetAccountBalanceMinDuration(2 * time.Second)
 
 	time.Sleep(2 * time.Second)
 
@@ -394,13 +510,14 @@ func parseMonitor(id int64, hexStr string) (*mgrpc.Monitor, error) {
 type fakeOrchestrator struct {
 	OrchestratorServerMock
 
-	leaseSeconds    uint32
-	sessionID       []byte
-	leaseID         *uuid.UUID
-	monitorsVersion uint32
-	receivedBlocks  int
-	blockHeight     *big.Int
-	leaseRenewals   int
+	leaseSeconds        uint32
+	sessionID           []byte
+	leaseID             *uuid.UUID
+	monitorsVersion     uint32
+	receivedBlocks      int
+	blockHeight         *big.Int
+	leaseRenewals       int
+	unregisterCallCount int
 
 	lock sync.Mutex
 }

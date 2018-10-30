@@ -20,13 +20,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	wf "github.com/megaspacelab/megaconnect/workflow"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -34,10 +33,10 @@ import (
 )
 
 const (
-	blockChanSize                      = 100
-	blockCacheSize                     = blockChanSize
-	LeaseRenewalBuffer   time.Duration = 5 * time.Second
-	interpreterCacheSize               = 1000
+	blockChanSize        = 100
+	blockCacheSize       = blockChanSize
+	leaseRenewalBuffer   = 5 * time.Second
+	interpreterCacheSize = 1000
 )
 
 // ChainManager manages and interacts with a chain through connector.
@@ -61,7 +60,13 @@ type ChainManager struct {
 	monitors          map[int64]*mgrpc.Monitor
 	monitorsVersion   uint32
 	blockCache        *ring.Ring
-	running           bool
+
+	healthCheckTimer  *time.Timer // timer to check health of connector
+	healthLastUpdated time.Time   // last known time of the connector health condition change
+	healthLastState   bool        // last state of connector, true is healthy, false is not healthy
+
+	// Concurrency control.
+	running bool
 
 	// Locks for concurrency control.
 	// When acquiring lock, should always follow sequence:
@@ -71,6 +76,7 @@ type ChainManager struct {
 	// Lock guarding general stuffs like
 	// running, blockCache, monitors, etc.
 	lock sync.Mutex
+
 	// Lock guarding lease.
 	leaseLock sync.Mutex
 }
@@ -111,8 +117,9 @@ func (e *ChainManager) Start(listenPort int) error {
 	e.sessionID = uuid.New()
 	e.instance++
 
+	metadata := e.connector.Metadata()
 	resp, err := e.orchClient.RegisterChainManager(e.ctx, &mgrpc.RegisterChainManagerRequest{
-		ChainId:        e.connector.ChainName(),
+		ChainId:        metadata.ChainID,
 		ChainManagerId: &mgrpc.InstanceId{Id: []byte(e.id), Instance: e.instance},
 		ListenPort:     int32(listenPort),
 		SessionId:      e.sessionID[:],
@@ -121,15 +128,43 @@ func (e *ChainManager) Start(listenPort int) error {
 		return err
 	}
 
-	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
-	e.leaseLock.Lock()
-	e.updateLeaseWithLeaseLock(resp.Lease)
-	e.leaseLock.Unlock()
-
 	err = e.connector.Start()
 	if err != nil {
 		return err
 	}
+
+	// initial health check, wait till connector is healthy, if not healthy within grace period, terminate
+	e.logger.Debug("Start monitoring health of connected blockchain", zap.String("name", metadata.ConnectorID))
+	e.healthLastState, err = e.connector.IsHealthy()
+
+	if !e.healthLastState || err != nil {
+		e.logger.Info("Connector is not healthy, waiting for it to turn healthy")
+		timeout := time.Now().Add(metadata.HealthCheckGracePeriod)
+		for {
+			if time.Now().After(timeout) {
+				message := "Initialization error, not healthy"
+				e.logger.Error(message)
+				return errors.New(message)
+			}
+			if e.healthLastState && err == nil {
+				break
+			}
+			time.Sleep(metadata.HealthCheckInterval)
+			e.healthLastState, err = e.connector.IsHealthy()
+			if err != nil {
+				e.logger.Debug("health check error", zap.Error(err))
+			}
+		}
+	}
+
+	// health check is finished and connector is healthy, start monitoring health repeatedly
+	e.checkHealthWithLock()
+
+	// register with orchestrator
+	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
+	e.leaseLock.Lock()
+	e.updateLeaseWithLeaseLock(resp.Lease)
+	e.leaseLock.Unlock()
 
 	e.monitorsVersion = resp.Monitors.GetVersion()
 	for _, m := range resp.Monitors.GetMonitors() {
@@ -182,9 +217,6 @@ func (e *ChainManager) Stop() error {
 }
 
 func (e *ChainManager) stopWithLock() error {
-	if !e.running {
-		return errors.New("event manager is not running")
-	}
 	e.running = false
 
 	err := e.connector.Stop()
@@ -192,8 +224,14 @@ func (e *ChainManager) stopWithLock() error {
 		e.logger.Error("connect stop with err", zap.Error(err))
 	}
 
+	if e.healthCheckTimer != nil {
+		e.healthCheckTimer.Stop()
+	}
+
 	e.leaseLock.Lock()
-	e.leaseRenewalTimer.Stop()
+	if e.leaseRenewalTimer != nil {
+		e.leaseRenewalTimer.Stop()
+	}
 	e.leaseLock.Unlock()
 
 	e.cancel()
@@ -219,21 +257,26 @@ func (e *ChainManager) stopWithLeaseLock() error {
 		e.logger.Error("connect stop with err", zap.Error(err))
 	}
 
-	e.leaseRenewalTimer.Stop()
+	if e.leaseRenewalTimer != nil {
+		e.leaseRenewalTimer.Stop()
+	}
 
 	e.cancel()
 
-	err = e.orchConn.Close()
-	if err != nil {
-		e.logger.Error("orchConn closed with err", zap.Error(err))
+	if e.orchConn != nil {
+		err = e.orchConn.Close()
+		if err != nil {
+			e.logger.Error("orchConn closed with err", zap.Error(err))
+		}
 	}
 
+	e.logger.Info("ChainManager stopped", zap.String("ConnectorID", e.connector.Metadata().ConnectorID))
 	return nil
 }
 
 func (e *ChainManager) updateLeaseWithLeaseLock(lease *mgrpc.Lease) {
 	e.leaseID = lease.Id
-	timeout := time.Duration(lease.RemainingSeconds)*time.Second - LeaseRenewalBuffer
+	timeout := time.Duration(lease.RemainingSeconds)*time.Second - leaseRenewalBuffer
 	e.leaseRenewalTimer = time.AfterFunc(timeout, e.renewLease)
 }
 
@@ -255,6 +298,50 @@ func (e *ChainManager) renewLease() {
 	}
 
 	e.updateLeaseWithLeaseLock(resp)
+}
+
+func (e *ChainManager) checkHealth() {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	e.checkHealthWithLock()
+}
+
+func (e *ChainManager) checkHealthWithLock() {
+	// set current state
+	connectorState, err := e.connector.IsHealthy()
+	currentState := connectorState && err == nil
+
+	// if it is first run or there is a state change, update the state and time
+	if e.healthCheckTimer == nil || (currentState != e.healthLastState) {
+		current := time.Now()
+		e.logger.Info("Health state changed",
+			zap.Bool("new state", currentState),
+			zap.Stringer("time", current))
+
+		e.healthLastState = currentState
+		e.healthLastUpdated = current
+	}
+
+	// if health condition is not healthy (pass grace period), unregisters the chain manager
+	metadata := e.connector.Metadata()
+	timeout := e.healthLastUpdated.Add(metadata.HealthCheckGracePeriod)
+	needsUnregister := !e.healthLastState && time.Now().After(timeout)
+
+	if needsUnregister {
+		e.logger.Info("Connector is not healthy, unregister chain Manager",
+			zap.String("ChainID", metadata.ChainID))
+
+		e.orchClient.UnregsiterChainManager(e.ctx, &mgrpc.UnregisterChainManagerRequest{
+			ChainId: metadata.ChainID,
+			Message: "Connected blockchain is not healthy",
+		})
+		e.stopWithLock()
+
+		// TODO add panic
+		//panic("ChainManager self destruct due to connector health")
+	} else {
+		e.healthCheckTimer = time.AfterFunc(metadata.HealthCheckInterval, e.checkHealth)
+	}
 }
 
 func (e *ChainManager) processNewBlock(block common.Block) error {

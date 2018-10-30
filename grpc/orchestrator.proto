@@ -10,6 +10,10 @@ service Orchestrator {
     // RegisterChainManager is invoked by ChainManagers to register themselves with this Orchestrator.
     rpc RegisterChainManager (RegisterChainManagerRequest) returns (RegisterChainManagerResponse);
 
+    // UnregisterChainManager is invoked by ChainManager to gracefully unregister themselves with this Orchestrator.
+    // This usually happens when problems are noticed on its connector and ChainManager needs to terminate itself.
+    rpc UnregsiterChainManager (UnregisterChainManagerRequest) returns (google.protobuf.Empty);
+
     // RenewLease renews the lease between a ChainManager and this Orchestrator.
     // Upon lease expiration, Orchestrator will consider the ChainManager dead and be free to accept new registrations.
     rpc RenewLease (RenewLeaseRequest) returns (Lease);
@@ -44,6 +48,14 @@ message RegisterChainManagerResponse {
 
     // Monitors contain all things to be monitored by the requesting ChainManager.
     MonitorSet monitors = 3;
+}
+
+message UnregisterChainManagerRequest {
+    // ChainId identifies the chain being managed.
+    string chain_id = 1;
+
+    // Message indicates the reason of the unregistration.
+    string message = 2;
 }
 
 // InstanceId identifies a specific instance of an entity.

@@ -10,11 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/megaspacelab/megaconnect/common"
-	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/megaspacelab/megaconnect/common"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -93,7 +92,15 @@ func (s *OrchestratorSuite) registerCM() (*mgrpc.RegisterChainManagerResponse, e
 	})
 }
 
-func (s *OrchestratorSuite) TestRegisterChainManager() {
+func (s *OrchestratorSuite) unregisterCM() error {
+	_, err := s.orchClient.UnregsiterChainManager(s.ctx, &mgrpc.UnregisterChainManagerRequest{
+		ChainId: s.cm.chainID,
+		Message: "Unhealthy",
+	})
+	return err
+}
+
+func (s *OrchestratorSuite) TestRegisterUnregisterChainManager() {
 	ims := IndexedMonitors{1: &mgrpc.Monitor{Id: 1}}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 
@@ -103,8 +110,10 @@ func (s *OrchestratorSuite) TestRegisterChainManager() {
 	s.True(reg.Lease.RemainingSeconds > 0)
 	s.Equal(1, len(reg.Monitors.Monitors))
 	s.True(proto.Equal(ims[1], reg.Monitors.Monitors[0]))
-}
 
+	err = s.unregisterCM()
+	s.Require().NoError(err)
+}
 func (s *OrchestratorSuite) TestRenewLease() {
 	s.fm.SetChainConfig(s.cm.chainID, nil, nil)
 
