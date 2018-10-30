@@ -101,6 +101,8 @@ func New(
 // Start would start an ChainManager loop
 func (e *ChainManager) Start(listenPort int) error {
 	e.lock.Lock()
+	e.leaseLock.Lock()
+	defer e.leaseLock.Unlock()
 	defer e.lock.Unlock()
 	if e.running {
 		return errors.New("ChainManager is already running")
@@ -127,6 +129,9 @@ func (e *ChainManager) Start(listenPort int) error {
 	if err != nil {
 		return err
 	}
+
+	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
+	e.updateLeaseWithLeaseLock(resp.Lease)
 
 	err = e.connector.Start()
 	if err != nil {
@@ -212,11 +217,17 @@ func (e *ChainManager) Start(listenPort int) error {
 // Stop would stop an ChainManager loop
 func (e *ChainManager) Stop() error {
 	e.lock.Lock()
+	e.leaseLock.Lock()
+	defer e.leaseLock.Unlock()
 	defer e.lock.Unlock()
 	return e.stopWithLock()
 }
 
 func (e *ChainManager) stopWithLock() error {
+	if !e.running {
+		return errors.New("event manager is not running")
+	}
+
 	e.running = false
 
 	err := e.connector.Stop()
@@ -228,11 +239,9 @@ func (e *ChainManager) stopWithLock() error {
 		e.healthCheckTimer.Stop()
 	}
 
-	e.leaseLock.Lock()
 	if e.leaseRenewalTimer != nil {
 		e.leaseRenewalTimer.Stop()
 	}
-	e.leaseLock.Unlock()
 
 	e.cancel()
 
@@ -241,36 +250,8 @@ func (e *ChainManager) stopWithLock() error {
 		e.logger.Error("orchConn closed with err", zap.Error(err))
 	}
 
-	return nil
-}
-
-func (e *ChainManager) stopWithLeaseLock() error {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	if !e.running {
-		return errors.New("event manager is not running")
-	}
-	e.running = false
-
-	err := e.connector.Stop()
-	if err != nil {
-		e.logger.Error("connect stop with err", zap.Error(err))
-	}
-
-	if e.leaseRenewalTimer != nil {
-		e.leaseRenewalTimer.Stop()
-	}
-
-	e.cancel()
-
-	if e.orchConn != nil {
-		err = e.orchConn.Close()
-		if err != nil {
-			e.logger.Error("orchConn closed with err", zap.Error(err))
-		}
-	}
-
 	e.logger.Info("ChainManager stopped", zap.String("ConnectorID", e.connector.Metadata().ConnectorID))
+
 	return nil
 }
 
@@ -282,9 +263,9 @@ func (e *ChainManager) updateLeaseWithLeaseLock(lease *mgrpc.Lease) {
 
 func (e *ChainManager) renewLease() {
 	e.leaseLock.Lock()
-	defer e.leaseLock.Unlock()
 	if !e.running {
 		e.logger.Warn("Skipping lease renewal on stopped ChainManager")
+		e.leaseLock.Unlock()
 		return
 	}
 
@@ -293,11 +274,13 @@ func (e *ChainManager) renewLease() {
 	})
 	if err != nil {
 		e.logger.Fatal("Failed to renew lease. Shutting down")
-		e.stopWithLeaseLock()
+		e.leaseLock.Unlock()
+		e.Stop()
 		panic("Failed to renew lease")
 	}
 
 	e.updateLeaseWithLeaseLock(resp)
+	e.leaseLock.Unlock()
 }
 
 func (e *ChainManager) checkHealth() {
@@ -417,12 +400,14 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 }
 
 func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*mgrpc.Event) error {
+	e.leaseLock.Lock()
+	defer e.leaseLock.Unlock()
+
 	stream, err := e.orchClient.ReportBlockEvents(e.ctx)
 	if err != nil {
 		return err
 	}
 
-	e.leaseLock.Lock()
 	err = stream.Send(&mgrpc.ReportBlockEventsRequest{
 		MsgType: &mgrpc.ReportBlockEventsRequest_Preflight_{
 			Preflight: &mgrpc.ReportBlockEventsRequest_Preflight{
@@ -431,7 +416,6 @@ func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*m
 			},
 		},
 	})
-	e.leaseLock.Unlock()
 	if err != nil {
 		return err
 	}

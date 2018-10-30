@@ -55,7 +55,7 @@ type TestConnector struct {
 	// set healthy state for test connector
 	healthy bool
 
-	// concurrency
+	// Locks for concurrency control.
 	lock sync.Mutex
 }
 
