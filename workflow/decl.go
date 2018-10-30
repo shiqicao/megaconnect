@@ -187,11 +187,17 @@ func NewMonitorDecl(name string, cond Expr, vars VarDecls, event *Fire, chain st
 // Name returns monitor name
 func (m *MonitorDecl) Name() string { return m.name }
 
+// Chain returns targeted chain
+func (m *MonitorDecl) Chain() string { return m.chain }
+
 // Condition returns an boolean expression when the monitor is triggered
 func (m *MonitorDecl) Condition() Expr { return m.cond }
 
 // Vars returns a copy of variable declared in this monitor
 func (m *MonitorDecl) Vars() VarDecls { return m.vars.Copy() }
+
+// EventName returns the name this monitor will fire
+func (m *MonitorDecl) EventName() string { return m.event.eventName }
 
 // Equal returns true if two monitor declaraions are the same
 func (m *MonitorDecl) Equal(x Decl) bool {
@@ -328,6 +334,21 @@ func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
 	w.children = append(w.children, child)
 	child.setParent(w)
 	return w
+}
+
+func (w *WorkflowDecl) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("workflow ")
+	buf.WriteString(w.name)
+	buf.WriteString(" {")
+	/*
+		for _, _ := range w.children {
+			// TODO: implement String() for child
+			// buf.WriteString(child.String())
+		}
+	*/
+	buf.WriteString("}")
+	return buf.String()
 }
 
 // ActionDecl represents an action declaration

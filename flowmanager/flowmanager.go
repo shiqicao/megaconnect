@@ -106,6 +106,11 @@ func (fm *FlowManager) processEventWithLock(
 	block *grpc.Block,
 	event *grpc.Event,
 ) {
+	payload, err := workflow.NewByteDecoder(event.Payload).DecodeObjConst()
+	if err != nil {
+		fm.log.Error("Failed to decode event payload", zap.Error(err))
+	}
+	fm.log.Debug("Processing event", zap.ByteString("MonitorID", event.MonitorId), zap.Stringer("EventPayload", payload))
 	for _, action := range fm.actionsIndex[string(event.MonitorId)] {
 		fm.log.Debug("Evaluating action", zap.String("action", action.Name()))
 		// TODO - evaluate
@@ -131,7 +136,7 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 	eventMonitorIDs := make(map[string][]string)
 
 	for _, m := range wf.MonitorDecls() {
-		chain := "Example" // TODO - get from monitor
+		chain := m.Chain()
 		if _, ok := fm.chainConfigs[chain]; !ok {
 			return fmt.Errorf("Unsupported chain %s", chain)
 		}
@@ -160,7 +165,7 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 
 		cc.Monitors[mid] = monitor
 
-		eventName := "TestEvent" // TODO - get from monitor
+		eventName := m.EventName()
 		eventMonitorIDs[eventName] = append(eventMonitorIDs[eventName], mid)
 	}
 

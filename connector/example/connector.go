@@ -48,7 +48,7 @@ func New(logger *zap.Logger, blockInterval time.Duration) (connector.Connector, 
 func (c *Connector) Metadata() *connector.Metadata {
 	return &connector.Metadata{
 		ConnectorID:            "Example Connector",
-		ChainID:                "Example Chain(EXC)",
+		ChainID:                "Example",
 		HealthCheckInterval:    100 * time.Millisecond,
 		HealthCheckGracePeriod: 2 * time.Second,
 	}

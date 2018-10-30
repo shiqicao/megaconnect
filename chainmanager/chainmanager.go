@@ -346,7 +346,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	}
 	interpreter := wf.NewInterpreter(wf.NewEnv(e.connector, block, nil), cache, wf.NewResolver(nil, wf.Libs), e.logger)
 	events := []*mgrpc.Event{}
-	for _, monitor := range e.monitors {
+	for id, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
 		md, err := wf.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
 		if err != nil {
@@ -363,7 +363,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 			continue
 		}
 		event := mgrpc.Event{}
-		event.Id = []byte(eventValue.EventName())
+		event.MonitorId = []byte(id)
 		payload, err := wf.EncodeObjConst(eventValue.Payload())
 		if err != nil {
 			return err
