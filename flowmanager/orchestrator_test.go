@@ -101,7 +101,7 @@ func (s *OrchestratorSuite) unregisterCM() error {
 }
 
 func (s *OrchestratorSuite) TestRegisterUnregisterChainManager() {
-	ims := IndexedMonitors{1: &mgrpc.Monitor{Id: 1}}
+	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 
 	reg, err := s.registerCM()
@@ -109,7 +109,7 @@ func (s *OrchestratorSuite) TestRegisterUnregisterChainManager() {
 
 	s.True(reg.Lease.RemainingSeconds > 0)
 	s.Equal(1, len(reg.Monitors.Monitors))
-	s.True(proto.Equal(ims[1], reg.Monitors.Monitors[0]))
+	s.True(proto.Equal(ims["1"], reg.Monitors.Monitors[0]))
 
 	err = s.unregisterCM()
 	s.Require().NoError(err)
@@ -129,7 +129,7 @@ func (s *OrchestratorSuite) TestRenewLease() {
 }
 
 func (s *OrchestratorSuite) TestReportBlockEvents() {
-	ims := IndexedMonitors{1: &mgrpc.Monitor{Id: 1}}
+	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 
 	reg, err := s.registerCM()
@@ -237,38 +237,38 @@ func (s *OrchestratorSuite) TestUpdateMonitors() {
 	}
 
 	// Scenario 1 - single addition
-	ims := IndexedMonitors{1: &mgrpc.Monitor{Id: 1}}
+	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 	select {
 	case req := <-updateReqs:
-		s.True(proto.Equal(ims[1], req.GetAddMonitor().Monitor))
+		s.True(proto.Equal(ims["1"], req.GetAddMonitor().Monitor))
 	case <-time.After(5 * time.Second):
 		s.FailNow("Timeout waiting for update req")
 	}
 	assertNoMoreReqs()
 
 	// Scenario 2 - single addition & single removal
-	ims = IndexedMonitors{2: &mgrpc.Monitor{Id: 2}}
+	ims = IndexedMonitors{"2": &mgrpc.Monitor{Id: []byte("2")}}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 	select {
 	case req := <-updateReqs:
-		s.True(proto.Equal(ims[2], req.GetAddMonitor().Monitor))
+		s.True(proto.Equal(ims["2"], req.GetAddMonitor().Monitor))
 		req = <-updateReqs
-		s.Equal(int64(1), req.GetRemoveMonitor().MonitorId)
+		s.Equal("1", string(req.GetRemoveMonitor().MonitorId))
 	case <-time.After(5 * time.Second):
 		s.FailNow("Timeout waiting for update req")
 	}
 	assertNoMoreReqs()
 
 	// Scenario 3 - forced reset
-	ims = IndexedMonitors{3: &mgrpc.Monitor{Id: 3}}
+	ims = IndexedMonitors{"3": &mgrpc.Monitor{Id: []byte("3")}}
 	s.cm.UpdateMonitorsFunc = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
 		return status.Error(codes.Aborted, "Injected error")
 	}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 	select {
 	case req := <-setReqs:
-		s.True(proto.Equal(ims[3], req.GetMonitor()))
+		s.True(proto.Equal(ims["3"], req.GetMonitor()))
 	case <-time.After(5 * time.Second):
 		s.FailNow("Timeout waiting for set req")
 	}
@@ -304,7 +304,7 @@ func (s *OrchestratorSuite) TestUpdateMonitors_Fail() {
 		return status.Error(codes.FailedPrecondition, "Injected error")
 	}
 
-	ims := IndexedMonitors{1: &mgrpc.Monitor{Id: 1}}
+	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
 	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
 
 	select {

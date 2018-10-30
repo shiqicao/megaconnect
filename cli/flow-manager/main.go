@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strconv"
 
 	mcli "github.com/megaspacelab/megaconnect/cli"
 	"github.com/megaspacelab/megaconnect/flowmanager"
@@ -136,8 +137,8 @@ func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file st
 	}
 
 	scanner := bufio.NewScanner(fs)
-	monitors := make(map[flowmanager.MonitorID]*grpc.Monitor)
-	for i := int64(0); scanner.Scan(); i++ {
+	monitors := make(map[string]*grpc.Monitor)
+	for i := 0; scanner.Scan(); i++ {
 		monitorRaw, err := hex.DecodeString(scanner.Text())
 		if err != nil {
 			return err
@@ -149,8 +150,9 @@ func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file st
 		}
 		log.Debug("Adding monitor valuations", zap.Stringer("monitor", monitor))
 		// TODO: monitor id should be unique cross different workflow
-		monitors[flowmanager.MonitorID(i)] = &grpc.Monitor{
-			Id:      int64(i),
+		id := strconv.Itoa(i)
+		monitors[id] = &grpc.Monitor{
+			Id:      []byte(id),
 			Monitor: monitorRaw,
 		}
 	}
