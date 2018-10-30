@@ -74,7 +74,6 @@ func compile(ctx *cli.Context) error {
 	}
 
 	addr := ctx.String("temporaryAddr")
-	// TODO: Read script file and parse it to AST
 	vars := wf.VarDecls{
 		"blockHeight": wf.NewObjAccessor(
 			wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
@@ -100,9 +99,33 @@ func compile(ctx *cli.Context) error {
 		),
 	)
 
-	monitor := wf.NewMonitorDecl("Test", expr, vars)
+	monitor := wf.NewMonitorDecl(
+		"Test",
+		expr,
+		vars,
+		wf.NewFire("event1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		"Eth",
+	)
 
-	bin, err := wf.EncodeMonitorDecl(monitor)
+	workflow := wf.NewWorkflowDecl("TestWF", 0).
+		AddChild(
+			wf.NewEventDecl("TestEvent0", wf.NewObjType(wf.ObjFieldTypes{"x": wf.IntType})),
+		).
+		AddChild(
+			wf.NewEventDecl("TestEvent1", wf.NewObjType(wf.ObjFieldTypes{"height": wf.IntType})),
+		).
+		AddChild(monitor).
+		AddChild(
+			wf.NewActionDecl(
+				"TestAction1",
+				wf.NewEVar("TestEvent1"),
+				wf.Stmts{
+					wf.NewFire("TestEvent0", wf.NewObjLit(wf.VarDecls{"x": wf.NewIntConstFromI64(1)})),
+				}),
+		)
+
+	// TODO: Read script file and parse it to AST
+	bin, err := wf.EncodeWorkflow(workflow)
 	if err != nil {
 		return err
 	}

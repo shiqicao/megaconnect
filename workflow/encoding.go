@@ -84,7 +84,13 @@ func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
 	if err := e.EncodeExpr(md.Condition()); err != nil {
 		return err
 	}
-	return e.encodeVarDecls(md.vars)
+	if err := e.encodeVarDecls(md.vars); err != nil {
+		return err
+	}
+	if err := e.encodeFireStmt(md.event); err != nil {
+		return err
+	}
+	return e.encodeString(md.chain)
 }
 
 func (e *Encoder) encodeEventExpr(eexpr EventExpr) error {
@@ -133,21 +139,7 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		}
 		return e.encodeBytes(expr.Value().Bytes())
 	case *ObjConst:
-		keys := expr.Fields()
-		if e.sortObjKey {
-			sort.Strings(keys)
-		}
-		fields := expr.Value()
-		e.encodeLengthI(len(fields))
-		for _, key := range keys {
-			if err = e.encodeString(key); err != nil {
-				return err
-			}
-			if err = e.EncodeExpr(fields[key]); err != nil {
-				return err
-			}
-		}
-		return nil
+		return e.encodeObjConst(expr)
 	case *BinOp:
 		if err = e.encodeBigEndian(uint8(expr.Op())); err != nil {
 			return err
@@ -190,6 +182,24 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 	}
 
 	return ErrNotSupportedByType(expr)
+}
+
+func (e *Encoder) encodeObjConst(o *ObjConst) error {
+	keys := o.Fields()
+	if e.sortObjKey {
+		sort.Strings(keys)
+	}
+	fields := o.Value()
+	e.encodeLengthI(len(fields))
+	for _, key := range keys {
+		if err := e.encodeString(key); err != nil {
+			return err
+		}
+		if err := e.EncodeExpr(fields[key]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Encoder) encodeObjLit(o *ObjLit) error {
@@ -357,6 +367,13 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 	return nil
 }
 
+func (e *Encoder) encodeFireStmt(f *Fire) error {
+	if err := e.encodeString(f.eventName); err != nil {
+		return err
+	}
+	return e.EncodeExpr(f.eventObj)
+}
+
 func (e *Encoder) encodeStmt(s Stmt) error {
 	kind, err := getStmtKind(s)
 	if err != nil {
@@ -365,10 +382,7 @@ func (e *Encoder) encodeStmt(s Stmt) error {
 	e.encodeBigEndian(kind)
 	switch s := s.(type) {
 	case *Fire:
-		if err := e.encodeString(s.eventName); err != nil {
-			return err
-		}
-		return e.EncodeExpr(s.eventObj)
+		return e.encodeFireStmt(s)
 	default:
 		return ErrNotSupportedByType(s)
 	}
@@ -376,19 +390,36 @@ func (e *Encoder) encodeStmt(s Stmt) error {
 
 // EncodeExpr encodes an expression to binary format
 func EncodeExpr(expr Expr) ([]byte, error) {
-	var buf bytes.Buffer
-	e := &Encoder{writer: &buf}
-	if err := e.EncodeExpr(expr); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return withByteBuffer(func(e *Encoder) error {
+		return e.EncodeExpr(expr)
+	})
 }
 
 // EncodeMonitorDecl encode a monitor declaration
 func EncodeMonitorDecl(m *MonitorDecl) ([]byte, error) {
+	return withByteBuffer(func(e *Encoder) error {
+		return e.EncodeMonitorDecl(m)
+	})
+}
+
+// EncodeObjConst serializes object value to binary format
+func EncodeObjConst(o *ObjConst) ([]byte, error) {
+	return withByteBuffer(func(e *Encoder) error {
+		return e.encodeObjConst(o)
+	})
+}
+
+// EncodeWorkflow serializes workflow declaration to binary format
+func EncodeWorkflow(wf *WorkflowDecl) ([]byte, error) {
+	return withByteBuffer(func(e *Encoder) error {
+		return e.EncodeWorkflow(wf)
+	})
+}
+
+func withByteBuffer(f func(e *Encoder) error) ([]byte, error) {
 	var buf bytes.Buffer
 	e := &Encoder{writer: &buf}
-	if err := e.EncodeMonitorDecl(m); err != nil {
+	if err := f(e); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -497,7 +528,15 @@ func (d *Decoder) DecodeMonitorDecl() (*MonitorDecl, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewMonitorDecl(string(name), cond, vars), nil
+	event, err := d.decodeFireStmt()
+	if err != nil {
+		return nil, err
+	}
+	chain, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	return NewMonitorDecl(string(name), cond, vars, event, string(chain)), nil
 }
 
 func (d *Decoder) decodeEventExpr() (EventExpr, error) {
@@ -566,27 +605,7 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		}
 		return NewStrConst(string(bytes)), nil
 	case exprKindObj:
-		values := map[string]Const{}
-		len, err := d.decodeLength()
-		if err != nil {
-			return nil, err
-		}
-		for ; len > 0; len-- {
-			name, err := d.decodeBytes()
-			if err != nil {
-				return nil, err
-			}
-			expr, err := d.DecodeExpr()
-			if err != nil {
-				return nil, err
-			}
-			obj, ok := expr.(Const)
-			if !ok {
-				return nil, &ErrConstExpected{Actual: reflect.TypeOf(expr).String()}
-			}
-			values[string(name)] = obj
-		}
-		return NewObjConst(values), nil
+		return d.DecodeObjConst()
 	case exprKindBinOp:
 		op, err := d.decodeUint8()
 		if err != nil {
@@ -666,6 +685,31 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		return NewObjLit(vars), nil
 	}
 	return nil, &ErrNotSupported{Name: string(kind)}
+}
+
+// DecodeObjConst decodes an object value from binary
+func (d *Decoder) DecodeObjConst() (*ObjConst, error) {
+	values := map[string]Const{}
+	len, err := d.decodeLength()
+	if err != nil {
+		return nil, err
+	}
+	for ; len > 0; len-- {
+		name, err := d.decodeBytes()
+		if err != nil {
+			return nil, err
+		}
+		expr, err := d.DecodeExpr()
+		if err != nil {
+			return nil, err
+		}
+		obj, ok := expr.(Const)
+		if !ok {
+			return nil, &ErrConstExpected{Actual: reflect.TypeOf(expr).String()}
+		}
+		values[string(name)] = obj
+	}
+	return NewObjConst(values), nil
 }
 
 func (d *Decoder) decodeVarDecls() (VarDecls, error) {
@@ -752,12 +796,27 @@ func (d *Decoder) decodeBytes() ([]byte, error) {
 	}
 	bytes := make([]byte, len)
 	n, err := d.reader.Read(bytes)
+	if err == io.EOF && uint64(n) == len {
+		return bytes, nil
+	}
 	if err != nil {
 		return nil, err
 	} else if uint64(n) != len {
 		return nil, errors.New("")
 	}
 	return bytes, nil
+}
+
+func (d *Decoder) decodeFireStmt() (*Fire, error) {
+	eventName, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	eventObj, err := d.DecodeExpr()
+	if err != nil {
+		return nil, err
+	}
+	return NewFire(string(eventName), eventObj), nil
 }
 
 func (d *Decoder) decodeStmt() (Stmt, error) {
@@ -767,15 +826,7 @@ func (d *Decoder) decodeStmt() (Stmt, error) {
 	}
 	switch kind {
 	case stmtKindFire:
-		eventName, err := d.decodeBytes()
-		if err != nil {
-			return nil, err
-		}
-		eventObj, err := d.DecodeExpr()
-		if err != nil {
-			return nil, err
-		}
-		return NewFire(string(eventName), eventObj), nil
+		return d.decodeFireStmt()
 	default:
 		return nil, &ErrNotSupported{Name: string(kind)}
 	}

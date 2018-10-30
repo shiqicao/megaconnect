@@ -166,17 +166,21 @@ func (v VarDecls) Copy() VarDecls {
 // MonitorDecl represents a monitor unit in workflow lang
 type MonitorDecl struct {
 	decl
-	name string
-	cond Expr
-	vars VarDecls
+	name  string
+	cond  Expr
+	vars  VarDecls
+	event *Fire
+	chain string
 }
 
 // NewMonitorDecl creates a new MonitorDecl
-func NewMonitorDecl(name string, cond Expr, vars VarDecls) *MonitorDecl {
+func NewMonitorDecl(name string, cond Expr, vars VarDecls, event *Fire, chain string) *MonitorDecl {
 	return &MonitorDecl{
-		name: name,
-		cond: cond,
-		vars: vars.Copy(),
+		name:  name,
+		cond:  cond,
+		vars:  vars.Copy(),
+		event: event,
+		chain: chain,
 	}
 }
 
@@ -192,7 +196,12 @@ func (m *MonitorDecl) Vars() VarDecls { return m.vars.Copy() }
 // Equal returns true if two monitor declaraions are the same
 func (m *MonitorDecl) Equal(x Decl) bool {
 	y, ok := x.(*MonitorDecl)
-	return ok && m.Name() == x.Name() && m.Condition().Equal(y.Condition()) && m.vars.Equal(y.vars)
+	return ok &&
+		m.Name() == x.Name() &&
+		m.Condition().Equal(y.Condition()) &&
+		m.vars.Equal(y.vars) &&
+		m.chain == y.chain &&
+		m.event.Equal(y.event)
 }
 
 func (m *MonitorDecl) String() string {

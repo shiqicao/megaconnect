@@ -16,3 +16,18 @@ var (
 	EOR  = func(x EventExpr, y EventExpr) EventExpr { return NewEBinOp(OrEOp, x, y) }
 	EAND = func(x EventExpr, y EventExpr) EventExpr { return NewEBinOp(AndEOp, x, y) }
 )
+
+var (
+	// Expr constructors
+	T   = TrueConst
+	F   = FalseConst
+	BIN = func(op Operator) func(Expr, Expr) *BinOp {
+		return func(x Expr, y Expr) *BinOp { return NewBinOp(op, x, y) }
+	}
+	AND  = BIN(AndOp)
+	OR   = BIN(OrOp)
+	FIRE = func(n string, e Expr) *Fire {
+		return NewFire(n, e)
+	}
+	MD = NewMonitorDecl
+)

@@ -139,7 +139,6 @@ message Event {
     // MonitorId identifies the Monitor being fired.
     bytes monitor_id = 1;
 
-    // Context contains a list of evalutaion result of expressions in Monitor, the order of list is 
-    // the same as the order of list in Monitor
-    repeated bytes evaluations_results = 2;
+    // Event payload object encoded by workflow encoder
+    bytes payload = 2;
 }

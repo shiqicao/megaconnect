@@ -14,11 +14,13 @@ import (
 	"fmt"
 )
 
+// EventExprVisitor visits an event expression tree
 type EventExprVisitor struct {
 	VisitVar   func(*EVar) interface{}
 	VisitBinOp func(bin *EBinOp, l interface{}, r interface{}) interface{}
 }
 
+// Visit visits each nodes in an event expression tree
 func (e *EventExprVisitor) Visit(eexpr EventExpr) interface{} {
 	switch eexpr := eexpr.(type) {
 	case *EVar:
