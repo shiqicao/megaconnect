@@ -130,9 +130,6 @@ func (e *ChainManager) Start(listenPort int) error {
 		return err
 	}
 
-	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
-	e.updateLeaseWithLeaseLock(resp.Lease)
-
 	err = e.connector.Start()
 	if err != nil {
 		return err
@@ -148,6 +145,7 @@ func (e *ChainManager) Start(listenPort int) error {
 		for {
 			if time.Now().After(timeout) {
 				message := "Initialization error, not healthy"
+				e.connector.Stop()
 				e.logger.Error(message)
 				return errors.New(message)
 			}
@@ -167,9 +165,7 @@ func (e *ChainManager) Start(listenPort int) error {
 
 	// register with orchestrator
 	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
-	e.leaseLock.Lock()
 	e.updateLeaseWithLeaseLock(resp.Lease)
-	e.leaseLock.Unlock()
 
 	e.monitorsVersion = resp.Monitors.GetVersion()
 	for _, m := range resp.Monitors.GetMonitors() {

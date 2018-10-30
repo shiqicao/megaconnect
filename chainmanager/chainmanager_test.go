@@ -385,8 +385,6 @@ func (s *ChainManagerSuite) TestHealth() {
 	s.connector.SetHealthy(false)
 	err := s.cm.Start(s.listenAddr.Port)
 	s.EqualError(err, "Initialization error, not healthy")
-	err = s.cm.Stop()
-	s.NoError(err)
 
 	// launch it again, this time, set the health to be healthy 0.2 seconds after start is called,
 	// chain manager should start just fine
