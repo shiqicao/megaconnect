@@ -101,9 +101,10 @@ func New(
 // Start would start an ChainManager loop
 func (e *ChainManager) Start(listenPort int) error {
 	e.lock.Lock()
+	defer e.lock.Unlock()
 	e.leaseLock.Lock()
 	defer e.leaseLock.Unlock()
-	defer e.lock.Unlock()
+
 	if e.running {
 		return errors.New("ChainManager is already running")
 	}
@@ -135,6 +136,7 @@ func (e *ChainManager) Start(listenPort int) error {
 		return err
 	}
 
+	// TODO - defer registration with orchestrator until after deemed healthy.
 	// initial health check, wait till connector is healthy, if not healthy within grace period, terminate
 	e.logger.Debug("Start monitoring health of connected blockchain", zap.String("name", metadata.ConnectorID))
 	e.healthLastState, err = e.connector.IsHealthy()
@@ -213,13 +215,10 @@ func (e *ChainManager) Start(listenPort int) error {
 // Stop would stop an ChainManager loop
 func (e *ChainManager) Stop() error {
 	e.lock.Lock()
+	defer e.lock.Unlock()
 	e.leaseLock.Lock()
 	defer e.leaseLock.Unlock()
-	defer e.lock.Unlock()
-	return e.stopWithLock()
-}
 
-func (e *ChainManager) stopWithLock() error {
 	if !e.running {
 		return errors.New("event manager is not running")
 	}
@@ -233,10 +232,12 @@ func (e *ChainManager) stopWithLock() error {
 
 	if e.healthCheckTimer != nil {
 		e.healthCheckTimer.Stop()
+		e.healthCheckTimer = nil
 	}
 
 	if e.leaseRenewalTimer != nil {
 		e.leaseRenewalTimer.Stop()
+		e.leaseRenewalTimer = nil
 	}
 
 	e.cancel()
@@ -259,9 +260,10 @@ func (e *ChainManager) updateLeaseWithLeaseLock(lease *mgrpc.Lease) {
 
 func (e *ChainManager) renewLease() {
 	e.leaseLock.Lock()
-	if !e.running {
+	defer e.leaseLock.Unlock()
+
+	if !e.running || e.leaseID == nil {
 		e.logger.Warn("Skipping lease renewal on stopped ChainManager")
-		e.leaseLock.Unlock()
 		return
 	}
 
@@ -270,13 +272,18 @@ func (e *ChainManager) renewLease() {
 	})
 	if err != nil {
 		e.logger.Fatal("Failed to renew lease. Shutting down")
-		e.leaseLock.Unlock()
-		e.Stop()
-		panic("Failed to renew lease")
+		e.leaseID = nil
+
+		// Perform stop in another go routine to respect lock order.
+		// Otherwise, we risk deadlocks.
+		go func() {
+			e.Stop()
+			panic("Failed to renew lease")
+		}()
+		return
 	}
 
 	e.updateLeaseWithLeaseLock(resp)
-	e.leaseLock.Unlock()
 }
 
 func (e *ChainManager) checkHealth() {
@@ -310,14 +317,18 @@ func (e *ChainManager) checkHealthWithLock() {
 		e.logger.Info("Connector is not healthy, unregister chain Manager",
 			zap.String("ChainID", metadata.ChainID))
 
+		// TODO - add lease id for request validation and move to Stop.
 		e.orchClient.UnregsiterChainManager(e.ctx, &mgrpc.UnregisterChainManagerRequest{
 			ChainId: metadata.ChainID,
 			Message: "Connected blockchain is not healthy",
 		})
-		e.stopWithLock()
 
-		// TODO add panic
-		//panic("ChainManager self destruct due to connector health")
+		go func() {
+			e.Stop()
+
+			// TODO add panic
+			//panic("ChainManager self destruct due to connector health")
+		}()
 	} else {
 		e.healthCheckTimer = time.AfterFunc(metadata.HealthCheckInterval, e.checkHealth)
 	}
