@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"path"
-	"strconv"
+	"path/filepath"
 
 	mcli "github.com/megaspacelab/megaconnect/cli"
 	"github.com/megaspacelab/megaconnect/flowmanager"
@@ -41,11 +39,14 @@ func main() {
 			}
 
 			fm := flowmanager.NewFlowManager(log)
+			fm.SetChainConfig("Example", nil, nil)
+			fm.SetChainConfig("Ethereum", nil, nil)
+			fm.SetChainConfig("Bitcoin", nil, nil)
 			orch := flowmanager.NewOrchestrator(fm, log)
 
 			dataDir := ctx.Path(mcli.DataDirFlag.Name)
 			done := make(chan struct{}, 1)
-			go loadAndWatchChainConfigs(fm, log, dataDir, done, "Example", "Ethereum", "Bitcoin")
+			go loadAndWatchChainConfigs(fm, log, dataDir, done)
 
 			listenAddr := fmt.Sprintf(":%d", ctx.Int(listenPortFlag.Name))
 			actualAddr := make(chan net.Addr, 1)
@@ -75,7 +76,6 @@ func loadAndWatchChainConfigs(
 	log *zap.Logger,
 	dataDir string,
 	done <-chan struct{},
-	chains ...string,
 ) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -83,22 +83,34 @@ func loadAndWatchChainConfigs(
 	}
 	defer watcher.Close()
 
-	for _, chain := range chains {
-		chainDir := path.Join(dataDir, "fm", "chains", chain)
-		err = os.MkdirAll(chainDir, 0700)
-		if err != nil {
-			panic(err)
-		}
+	wfDir := path.Join(dataDir, "fm", "workflows")
+	err = os.MkdirAll(wfDir, 0700)
+	if err != nil {
+		panic(err)
+	}
 
-		err = reloadMonitors(fm, log, chain, path.Join(chainDir, "monitors"))
+	files := make([]string, 0)
+	filepath.Walk(wfDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			panic(err)
+			return err
 		}
+		if info.IsDir() {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
 
-		err = watcher.Add(chainDir)
+	for _, file := range files {
+		err := reloadWorkflow(fm, log, file)
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	err = watcher.Add(wfDir)
+	if err != nil {
+		panic(err)
 	}
 
 	for {
@@ -107,20 +119,22 @@ func loadAndWatchChainConfigs(
 			return
 		case event := <-watcher.Events:
 			log.Info("Received fs event", zap.Stringer("event", event))
-			if path.Base(event.Name) != "monitors" {
-				continue
-			}
-			chain := path.Base(path.Dir(event.Name))
-			err = reloadMonitors(fm, log, chain, event.Name)
-			if err != nil {
-				log.Error("Failed to reload monitors", zap.String("chain", chain))
+			if event.Op == fsnotify.Create {
+				err = reloadWorkflow(fm, log, event.Name)
+				if err != nil {
+					log.Error("Failed to reload monitors", zap.Error(err))
+				}
+			} else if event.Op == fsnotify.Remove {
+				// Un-deploy
+			} else {
+				log.Debug("File operator not supported", zap.Uint32("Op", uint32(event.Op)))
 			}
 		}
 	}
 }
 
-func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file string) error {
-	log.Info("Reloading monitors", zap.String("chain", chain), zap.String("file", file))
+func reloadWorkflow(fm *flowmanager.FlowManager, log *zap.Logger, file string) error {
+	log.Info("Reloading workflow", zap.String("file", file))
 
 	fs, err := os.Open(file)
 	if err != nil {
@@ -130,36 +144,24 @@ func reloadMonitors(fm *flowmanager.FlowManager, log *zap.Logger, chain, file st
 
 	if _, ok := err.(*os.PathError); ok {
 		log.Debug("File does not exist", zap.String("file", file))
-		fm.SetChainConfig(chain, nil, nil)
 		return nil
 	} else if err != nil {
 		return err
 	}
 
-	scanner := bufio.NewScanner(fs)
-	monitors := make(map[string]*grpc.Monitor)
-	for i := 0; scanner.Scan(); i++ {
-		monitorRaw, err := hex.DecodeString(scanner.Text())
-		if err != nil {
-			return err
-		}
-		monitor, err := wf.NewByteDecoder(monitorRaw).DecodeMonitorDecl()
-		if err != nil {
-			log.Error("Failed to decode monitor", zap.Error(err))
-			return err
-		}
-		log.Debug("Adding monitor valuations", zap.Stringer("monitor", monitor))
-		// TODO: monitor id should be unique cross different workflow
-		id := strconv.Itoa(i)
-		monitors[id] = &grpc.Monitor{
-			Id:      []byte(id),
-			Monitor: monitorRaw,
-		}
-	}
-	if scanner.Err() != nil {
-		return scanner.Err()
+	workflow, err := wf.NewDecoder(fs).DecodeWorkflow()
+	if err != nil {
+		return err
 	}
 
-	fm.SetChainConfig(chain, monitors, nil)
+	if workflow.Name() != path.Base(file) {
+		log.Error("Workflow/file name mismatch", zap.String("workflow", workflow.Name()), zap.String("file", file))
+		return fmt.Errorf("Workflow name %s mismatches file name %s", workflow.Name(), file)
+	}
+	if err = fm.DeployWorkflow(workflow); err != nil {
+		log.Error("Failed to deploy", zap.String("workflow", workflow.Name()), zap.Error(err))
+		return err
+	}
+
 	return nil
 }

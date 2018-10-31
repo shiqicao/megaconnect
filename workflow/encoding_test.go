@@ -32,16 +32,13 @@ func TestFuncCallEncoding(t *testing.T) {
 }
 
 func TestLengthEncoding(t *testing.T) {
-	var b bytes.Buffer
-	e := &Encoder{writer: &b}
-	d := &Decoder{reader: &b}
-
 	test := func(x int) {
-		e.encodeLengthI(x)
-		n, err := d.decodeLength()
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(x), n)
-		b.Reset()
+		withGen(func(ge genEncoder, gd genDecoder) {
+			ge().encodeLengthI(x)
+			n, err := gd().decodeLength()
+			assert.NoError(t, err)
+			assert.Equal(t, uint64(x), n)
+		})
 	}
 	test(0)
 	test(1)
@@ -136,63 +133,93 @@ func TestLargeArrayEncoding(t *testing.T) {
 
 func TestMonitorDeclEncoding(t *testing.T) {
 	check := func(m *MonitorDecl) {
-		var b bytes.Buffer
-		e := Encoder{writer: &b}
-		d := Decoder{reader: &b}
-
-		err := e.EncodeMonitorDecl(m)
-		assert.NoError(t, err)
-		decoded, err := d.DecodeMonitorDecl()
-		assert.NoError(t, err)
-		assert.True(t, m.Equal(decoded))
+		withGen(func(ge genEncoder, gd genDecoder) {
+			err := ge().EncodeMonitorDecl(m)
+			assert.NoError(t, err)
+			decoded, err := gd().DecodeMonitorDecl()
+			assert.NoError(t, err)
+			assert.True(t, m.Equal(decoded))
+		})
 	}
 
-	check(NewMonitorDecl("a", GetBoolConst(true), VarDecls{"x": FalseConst}))
-	check(NewMonitorDecl("b", NewBinOp(AndOp, GetBoolConst(true), GetBoolConst(false)), VarDecls{"x": TrueConst}))
+	check(MD("a", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth"))
+	check(MD("b", AND(T, F), VarDecls{"x": T}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth"))
 }
 
 func TestWorkflowEncoding(t *testing.T) {
 	check := func(w *WorkflowDecl) {
-		var b bytes.Buffer
-		e := Encoder{writer: &b}
-		d := Decoder{reader: &b}
-
-		err := e.EncodeWorkflow(w)
-		assert.NoError(t, err)
-		decoded, err := d.DecodeWorkflow()
-		assert.NoError(t, err)
-		assert.True(t, w.Equal(decoded))
+		withGen(
+			func(ge genEncoder, gd genDecoder) {
+				e := ge()
+				err := e.EncodeWorkflow(w)
+				assert.NoError(t, err)
+				d := gd()
+				decoded, err := d.DecodeWorkflow()
+				assert.NoError(t, err)
+				assert.True(t, w.Equal(decoded))
+			})
 	}
 
-	check(NewWorkflowDecl("a", 1).AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})))
 	check(NewWorkflowDecl("a", 1).
-		AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
-		AddChild(NewMonitorDecl("c", GetBoolConst(true), VarDecls{"x": FalseConst})),
+		AddChild(MD("b", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")))
+	check(NewWorkflowDecl("a", 1).
+		AddChild(MD("b", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")).
+		AddChild(MD("c", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": F})), "Eth")),
 	)
 
 	check(NewWorkflowDecl("a", 1).AddChild(NewActionDecl("b", EV("a"), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
 	check(NewWorkflowDecl("a", 1).
-		AddChild(NewMonitorDecl("b", GetBoolConst(true), VarDecls{"x": FalseConst})).
-		AddChild(NewActionDecl("c", NewEBinOp(AndEOp, EV("a"), EV("b")), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
+		AddChild(MD("b", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")).
+		AddChild(NewActionDecl("c", EAND(EV("a"), EV("b")), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
 	)
 
 	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": IntType}))))
 	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": NewObjType(ObjFieldTypes{"a": StrType})}))))
 	check(NewWorkflowDecl("a", 1).
-		AddChild(NewActionDecl("c", NewEBinOp(OrEOp, EV("a"), EAND(EV("a"), EV("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
+		AddChild(NewActionDecl("c", EOR(EV("a"), EAND(EV("a"), EV("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
 		AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"b": BoolType, "a": NewObjType(ObjFieldTypes{"a": StrType})}))),
 	)
 }
 
 func assertExprEncoding(t *testing.T, expr Expr) {
+	withGen(
+		func(ge genEncoder, gd genDecoder) {
+			e := ge()
+			err := e.EncodeExpr(expr)
+			assert.NoError(t, err)
+
+			d := gd()
+			decodedExpr, err := d.DecodeExpr()
+			assert.NoError(t, err)
+			assert.True(t, expr.Equal(decodedExpr))
+		})
+}
+
+type genEncoder func() *Encoder
+type genDecoder func() *Decoder
+
+// gengen generates a pair of en/de-coder generator.
+// Apologizing for making it a 2nd order function, which is necessary for bytesGenGen,
+// the decoder can't be created until all bytes written to the encoder
+type gengen func() (genEncoder, genDecoder)
+
+func bufferGenGen() (genEncoder, genDecoder) {
 	var b bytes.Buffer
+	return func() *Encoder { return &Encoder{writer: &b} }, func() *Decoder { return &Decoder{reader: &b} }
+}
 
-	e := &Encoder{writer: &b}
-	err := e.EncodeExpr(expr)
-	assert.NoError(t, err)
+func bytesGenGen() (genEncoder, genDecoder) {
+	var b bytes.Buffer
+	return func() *Encoder { return &Encoder{writer: &b} }, func() *Decoder { return NewByteDecoder(b.Bytes()) }
+}
 
-	d := &Decoder{reader: &b}
-	decodedExpr, err := d.DecodeExpr()
-	assert.NoError(t, err)
-	assert.True(t, expr.Equal(decodedExpr))
+// withGen executes t with multiple different implementation of io.Reader and io.Writer.
+// Different reader/writer implementation behaves differently.
+// For example, io.Reader([]bytes).Read() returns (0, EOF) if it tries to read 0 byte, whereas bytes.Buffer.Read() just return (0, nil)
+func withGen(t func(ge genEncoder, gd genDecoder)) {
+	gengens := []gengen{bufferGenGen, bytesGenGen}
+	for _, gengen := range gengens {
+		ge, gd := gengen()
+		t(ge, gd)
+	}
 }

@@ -37,6 +37,13 @@ func (s *FlowManagerSuite) SetupTest() {
 		map[string]workflow.Expr{
 			"balance": workflow.NewIntConstFromI64(100),
 		},
+		workflow.NewFire(
+			"TestEvent",
+			workflow.NewObjLit(workflow.VarDecls{
+				"balance": workflow.NewIntConstFromI64(1),
+			}),
+		),
+		"Example",
 	))
 	wf.AddChild(workflow.NewActionDecl(
 		"TestAction",
@@ -79,9 +86,17 @@ func (s *FlowManagerSuite) TestReportBlockEvents() {
 	// This should be ignored
 	s.fm.ReportBlockEvents("Example", config.MonitorsVersion-1, block, nil)
 
+	eventPayload, err := workflow.EncodeObjConst(
+		workflow.NewObjConst(workflow.ObjFields{"a": workflow.TrueConst}),
+	)
+	s.Require().NoError(err)
+
 	// This should be processed
 	s.fm.ReportBlockEvents("Example", config.MonitorsVersion, block, []*grpc.Event{
-		&grpc.Event{MonitorId: []byte(MonitorID(WorkflowID(s.wfs[0]), s.wfs[0].MonitorDecls()[0]))},
+		&grpc.Event{
+			MonitorId: []byte(MonitorID(WorkflowID(s.wfs[0]), s.wfs[0].MonitorDecls()[0])),
+			Payload:   eventPayload,
+		},
 	})
 }
 

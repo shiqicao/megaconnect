@@ -42,42 +42,36 @@ func NewInterpreter(env *Env, cache Cache, resolver *Resolver, logger *zap.Logge
 	}
 }
 
-// EvalMonitor evaluates a monitor. It push a scope with var declaration and pops it up after evaluation.
-// It evaluates RHS of var declaration if monitor condition evaluates to true and returns variable results
-// to caller.
-func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (Const, map[string]Const, error) {
+// EvalMonitor evaluates a monitor. It pushes a scope with var declaration and pops it up after evaluation.
+// It creates a new instance of an event defined in monitor if condition evaluates to true
+func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (*FireEventResult, error) {
 	// push variable declarations
 	i.vars = make(map[string]Expr, len(monitor.vars))
 	for v, expr := range monitor.vars {
 		if _, ok := i.vars[v]; ok {
-			return nil, nil, &ErrVarDeclaredAlready{VarName: v}
+			return nil, &ErrVarDeclaredAlready{VarName: v}
 		}
 		if err := i.resolver.resolveExpr(expr); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		i.vars[v] = expr
 	}
 	defer func() { i.vars = nil }()
 
 	if err := i.resolver.resolveExpr(monitor.Condition()); err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+	if err := i.resolver.resolveExpr(monitor.event.eventObj); err != nil {
+		return nil, err
 	}
 	result, err := i.evalExpr(monitor.Condition())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	vars := make(map[string]Const, len(monitor.vars))
-	if result.Equal(TrueConst) {
-		for v := range monitor.vars {
-			r, err := i.evalExpr(NewVar(v))
-			if err != nil {
-				return nil, nil, err
-			}
-			vars[v] = r
-		}
+	if result.Equal(FalseConst) {
+		return nil, nil
 	}
-	return result, vars, nil
+	return i.evalFireStmt(monitor.event)
 }
 
 func (i *Interpreter) lookup(v *Var) (Const, error) {
@@ -157,19 +151,23 @@ func (i *Interpreter) evalAction(action *ActionDecl) ([]StmtResult, error) {
 	return results, nil
 }
 
+func (i *Interpreter) evalFireStmt(fire *Fire) (*FireEventResult, error) {
+	result, err := i.evalExpr(fire.eventObj)
+	if err != nil {
+		return nil, err
+	}
+	obj, ok := result.(*ObjConst)
+	if !ok {
+		// Type checker should catch mismatched type error already
+		return nil, &ErrTypeMismatch{ExpectedType: fire.eventDecl.ty, ActualType: obj.Type()}
+	}
+	return NewFireEventResult(fire.eventName, obj), nil
+}
+
 func (i *Interpreter) evalStmt(stmt Stmt) (StmtResult, error) {
 	switch stmt := stmt.(type) {
 	case *Fire:
-		result, err := i.evalExpr(stmt.eventObj)
-		if err != nil {
-			return nil, err
-		}
-		obj, ok := result.(*ObjConst)
-		if !ok {
-			// Type checker should catch mismatched type error already
-			return nil, &ErrTypeMismatch{ExpectedType: stmt.eventDecl.ty, ActualType: obj.Type()}
-		}
-		return NewFireEvent(stmt.eventName, obj), nil
+		return i.evalFireStmt(stmt)
 	default:
 		return nil, ErrNotSupportedByType(stmt)
 	}

@@ -303,7 +303,7 @@ func TestEvalAction(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(r))
-	fireResult := r[0].(*FireEvent)
+	fireResult := r[0].(*FireEventResult)
 	assert.NotNil(t, fireResult)
 	assert.Equal(t, fireResult.eventName, "B")
 	assert.True(t, NewObjConst(ObjFields{"x": TrueConst}).Equal(fireResult.payload))
@@ -390,27 +390,37 @@ func TestObjLit(t *testing.T) {
 }
 
 func TestMonitor(t *testing.T) {
-	assertM := func(m *MonitorDecl, expected Const, expectedVarsResults map[string]Const) {
+	assertM := func(m *MonitorDecl, fireResult *FireEventResult) {
 		var cache *FuncCallCache
 		i := NewInterpreter(NewEnv(nil, nil, nil), cache, nil, zap.NewNop())
-		r, v, err := i.EvalMonitor(m)
+		r, err := i.EvalMonitor(m)
 		assert.NoError(t, err)
-		assert.NotNil(t, r)
-		assert.True(t, r.Equal(expected))
-		if r.Equal(TrueConst) {
-			assert.NotNil(t, v)
-			assert.Equal(t, len(m.Vars()), len(v))
-			assert.Nil(t, i.vars)
-			for varName, varValue := range v {
-				assert.Contains(t, expectedVarsResults, varName)
-				assert.True(t, varValue.Equal(expectedVarsResults[varName]))
-			}
+		if fireResult == nil {
+			assert.Nil(t, r)
+			return
 		}
+		assert.True(t, r.Equal(fireResult))
 	}
-	assertM(NewMonitorDecl("A", TrueConst, nil), TrueConst, map[string]Const{})
-	assertM(NewMonitorDecl("A", FalseConst, nil), FalseConst, nil)
-	assertM(NewMonitorDecl("A", TrueConst, VarDecls{"a": NewBinOp(AndOp, TrueConst, FalseConst)}), TrueConst, map[string]Const{"a": FalseConst})
-	assertM(NewMonitorDecl("A", FalseConst, VarDecls{"a": NewBinOp(AndOp, TrueConst, FalseConst)}), FalseConst, nil)
+	assertM(
+		MD("A", T, nil, NewFire("e", NewObjLit(VarDecls{"a": T})), "Eth"),
+		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
+	)
+	assertM(
+		MD("A", F, nil, NewFire("e", NewObjLit(VarDecls{"a": F})), "Eth"),
+		nil,
+	)
+	assertM(
+		MD("A", T, VarDecls{"a": OR(T, F)}, NewFire("e", NewObjLit(VarDecls{"a": T})), "Eth"),
+		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
+	)
+	assertM(
+		MD("A", F, VarDecls{"a": OR(T, F)}, NewFire("e", NewObjLit(VarDecls{"a": T})), "Eth"),
+		nil,
+	)
+	assertM(
+		MD("A", T, VarDecls{"a": OR(T, F)}, NewFire("e", NewObjLit(VarDecls{"a": NewVar("a")})), "Eth"),
+		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
+	)
 }
 
 type MockCache struct {

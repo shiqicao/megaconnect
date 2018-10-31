@@ -14,7 +14,6 @@ package chainmanager_test
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"net"
@@ -32,6 +31,7 @@ import (
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/connector/example"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	wf "github.com/megaspacelab/megaconnect/workflow"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -108,11 +108,10 @@ func (s *ChainManagerSuite) SetupTest() {
 	s.log = log
 	s.ctx = context.Background()
 
-	for i, hexStr := range []string{
-		"04546573740401060a47657442616c616e636502022a307846426231623733433466304244613466363764634132363663653645663432663532306642423938080b626c6f636b4865696768740103457468060a47657442616c616e636502022a307846426231623733433466304244613466363764634132363663653645663432663532306642423938040a080b626c6f636b486569676874010101010103457468010b626c6f636b486569676874070608476574426c6f636b00010345746806686569676874",
-		"04546573740401060a47657442616c616e636502022a307838373665616266343431623265653562356230353534666435303261386530363030393530636661080b626c6f636b4865696768740103457468060a47657442616c616e636502022a307838373665616266343431623265653562356230353534666435303261386530363030393530636661040a080b626c6f636b486569676874010101010103457468010b626c6f636b486569676874070608476574426c6f636b00010345746806686569676874",
+	for i, monitor := range []*wf.MonitorDecl{
+		monitor1(), monitor2(),
 	} {
-		monitor, err := parseMonitor(strconv.Itoa(i), hexStr)
+		monitor, err := buildMonitor(strconv.Itoa(i), monitor)
 		s.Require().NoError(err)
 		s.monitors = append(s.monitors, monitor)
 	}
@@ -495,8 +494,8 @@ func (s *ChainManagerSuite) TestRunner() {
 	})
 }
 
-func parseMonitor(id string, hexStr string) (*mgrpc.Monitor, error) {
-	monitorRaw, err := hex.DecodeString(hexStr)
+func buildMonitor(id string, monitor *wf.MonitorDecl) (*mgrpc.Monitor, error) {
+	monitorRaw, err := wf.EncodeMonitorDecl(monitor)
 	if err != nil {
 		return nil, err
 	}
@@ -523,4 +522,64 @@ type fakeOrchestrator struct {
 
 func TestChainManager(t *testing.T) {
 	suite.Run(t, new(ChainManagerSuite))
+}
+
+func monitorCondition() wf.Expr {
+	return wf.NewBinOp(
+		wf.NotEqualOp,
+		wf.NewFuncCall(
+			wf.NamespacePrefix{"Eth"},
+			"GetBalance",
+			wf.NewStrConst("1"),
+			wf.NewVar("blockHeight"),
+		),
+		wf.NewFuncCall(
+			wf.NamespacePrefix{"Eth"},
+			"GetBalance",
+			wf.NewStrConst("1"),
+			wf.NewBinOp(wf.MinusOp,
+				wf.NewVar("blockHeight"),
+				wf.NewIntConstFromI64(1),
+			),
+		),
+	)
+}
+
+func monitorVars() wf.VarDecls {
+	return wf.VarDecls{
+		"blockHeight": wf.NewObjAccessor(
+			wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
+			"height",
+		),
+	}
+}
+
+func monitor1() *wf.MonitorDecl {
+	return wf.NewMonitorDecl(
+		"TestMonitor",
+		monitorCondition(),
+		monitorVars(),
+		wf.NewFire(
+			"TestEvent",
+			wf.NewObjLit(wf.VarDecls{
+				"balance": wf.NewIntConstFromI64(1),
+			}),
+		),
+		"Example",
+	)
+}
+
+func monitor2() *wf.MonitorDecl {
+	return wf.NewMonitorDecl(
+		"TestMonitor2",
+		monitorCondition(),
+		monitorVars(),
+		wf.NewFire(
+			"TestEvent",
+			wf.NewObjLit(wf.VarDecls{
+				"balance": wf.NewIntConstFromI64(1),
+			}),
+		),
+		"Example",
+	)
 }

@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	p "path"
 
 	wf "github.com/megaspacelab/megaconnect/workflow"
 	cli "gopkg.in/urfave/cli.v2"
@@ -44,13 +45,15 @@ func main() {
 
 func compile(ctx *cli.Context) error {
 	output := ctx.Path("output")
+	var name string
 	var binWriter io.Writer
 	var metaWriter io.Writer
-	var monitorWriter io.Writer
+	var workflowWriter io.Writer
 	if output == "" {
 		metaWriter = os.Stdout
 	} else {
-		path := ctx.Path("output")
+		path := output
+		name = p.Base(output)
 		metafs, err := os.Create(path + ".json")
 		if err != nil {
 			return err
@@ -58,23 +61,22 @@ func compile(ctx *cli.Context) error {
 		defer metafs.Close()
 		metaWriter = metafs
 
-		binfs, err := os.Create(path + ".bast")
+		binfs, err := os.Create(path)
 		if err != nil {
 			return err
 		}
 		defer binfs.Close()
 		binWriter = binfs
 
-		monitorfs, err := os.Create(path + ".monitor")
+		workflowfs, err := os.Create(path + ".wf")
 		if err != nil {
 			return err
 		}
-		defer monitorfs.Close()
-		monitorWriter = monitorfs
+		defer workflowfs.Close()
+		workflowWriter = workflowfs
 	}
 
 	addr := ctx.String("temporaryAddr")
-	// TODO: Read script file and parse it to AST
 	vars := wf.VarDecls{
 		"blockHeight": wf.NewObjAccessor(
 			wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
@@ -100,9 +102,51 @@ func compile(ctx *cli.Context) error {
 		),
 	)
 
-	monitor := wf.NewMonitorDecl("Test", expr, vars)
+	monitorEth := wf.NewMonitorDecl(
+		"EthMonitor",
+		expr,
+		vars,
+		wf.NewFire("TestEvent1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		"Ethereum",
+	)
 
-	bin, err := wf.EncodeMonitorDecl(monitor)
+	monitorExample := wf.NewMonitorDecl(
+		"ExampleMonitor",
+		expr,
+		vars,
+		wf.NewFire("TestEvent1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		"Example",
+	)
+
+	monitorBtc := wf.NewMonitorDecl(
+		"BtcMonitor",
+		expr,
+		vars,
+		wf.NewFire("TestEvent1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		"Bitcoin",
+	)
+
+	workflow := wf.NewWorkflowDecl(name, 0).
+		AddChild(
+			wf.NewEventDecl("TestEvent0", wf.NewObjType(wf.ObjFieldTypes{"x": wf.IntType})),
+		).
+		AddChild(
+			wf.NewEventDecl("TestEvent1", wf.NewObjType(wf.ObjFieldTypes{"height": wf.IntType})),
+		).
+		AddChild(monitorEth).
+		AddChild(monitorExample).
+		AddChild(monitorBtc).
+		AddChild(
+			wf.NewActionDecl(
+				"TestAction1",
+				wf.NewEVar("TestEvent1"),
+				wf.Stmts{
+					wf.NewFire("TestEvent0", wf.NewObjLit(wf.VarDecls{"x": wf.NewIntConstFromI64(1)})),
+				}),
+		)
+
+	// TODO: Read script file and parse it to AST
+	bin, err := wf.EncodeWorkflow(workflow)
 	if err != nil {
 		return err
 	}
@@ -111,7 +155,7 @@ func compile(ctx *cli.Context) error {
 		Source string
 		Hex    string
 	}{
-		Source: monitor.String(),
+		Source: workflow.String(),
 		Hex:    hex,
 	}
 
@@ -123,8 +167,8 @@ func compile(ctx *cli.Context) error {
 			return err
 		}
 	}
-	if monitorWriter != nil {
-		if _, err := monitorWriter.Write([]byte(hex)); err != nil {
+	if workflowWriter != nil {
+		if _, err := workflowWriter.Write([]byte(hex)); err != nil {
 			return err
 		}
 	}

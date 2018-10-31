@@ -346,7 +346,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	}
 	interpreter := wf.NewInterpreter(wf.NewEnv(e.connector, block, nil), cache, wf.NewResolver(nil, wf.Libs), e.logger)
 	events := []*mgrpc.Event{}
-	for _, monitor := range e.monitors {
+	for id, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
 		md, err := wf.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
 		if err != nil {
@@ -354,27 +354,21 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		}
 
 		e.logger.Debug("Evaluating condition", zap.Stringer("height", block.Height()), zap.Stringer("condition", md.Condition()))
-		result, vars, err := interpreter.EvalMonitor(md)
+		eventValue, err := interpreter.EvalMonitor(md)
 		if err != nil {
 			return err
 		}
-		e.logger.Debug("Evaluated condition", zap.Stringer("height", block.Height()), zap.Stringer("condition", result))
-		if result.Equal(wf.FalseConst) {
+		e.logger.Debug("Evaluated condition", zap.Stringer("height", block.Height()), zap.Bool("condition", eventValue != nil))
+		if eventValue == nil {
 			continue
 		}
-
 		event := mgrpc.Event{}
-		event.MonitorId = monitor.Id
-		event.EvaluationsResults = make([][]byte, 0, len(vars))
-		for varName, value := range vars {
-			e.logger.Debug("Packing var", zap.Stringer(varName, value))
-			encoded, err := wf.EncodeExpr(result)
-			if err != nil {
-				e.logger.Error("Failed to encode result", zap.Error(err))
-				return err
-			}
-			event.EvaluationsResults = append(event.EvaluationsResults, encoded)
+		event.MonitorId = []byte(id)
+		payload, err := wf.EncodeObjConst(eventValue.Payload())
+		if err != nil {
+			return err
 		}
+		event.Payload = payload
 		events = append(events, &event)
 	}
 

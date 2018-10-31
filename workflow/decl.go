@@ -166,22 +166,29 @@ func (v VarDecls) Copy() VarDecls {
 // MonitorDecl represents a monitor unit in workflow lang
 type MonitorDecl struct {
 	decl
-	name string
-	cond Expr
-	vars VarDecls
+	name  string
+	cond  Expr
+	vars  VarDecls
+	event *Fire
+	chain string
 }
 
 // NewMonitorDecl creates a new MonitorDecl
-func NewMonitorDecl(name string, cond Expr, vars VarDecls) *MonitorDecl {
+func NewMonitorDecl(name string, cond Expr, vars VarDecls, event *Fire, chain string) *MonitorDecl {
 	return &MonitorDecl{
-		name: name,
-		cond: cond,
-		vars: vars.Copy(),
+		name:  name,
+		cond:  cond,
+		vars:  vars.Copy(),
+		event: event,
+		chain: chain,
 	}
 }
 
 // Name returns monitor name
 func (m *MonitorDecl) Name() string { return m.name }
+
+// Chain returns targeted chain
+func (m *MonitorDecl) Chain() string { return m.chain }
 
 // Condition returns an boolean expression when the monitor is triggered
 func (m *MonitorDecl) Condition() Expr { return m.cond }
@@ -189,10 +196,18 @@ func (m *MonitorDecl) Condition() Expr { return m.cond }
 // Vars returns a copy of variable declared in this monitor
 func (m *MonitorDecl) Vars() VarDecls { return m.vars.Copy() }
 
+// EventName returns the name this monitor will fire
+func (m *MonitorDecl) EventName() string { return m.event.eventName }
+
 // Equal returns true if two monitor declaraions are the same
 func (m *MonitorDecl) Equal(x Decl) bool {
 	y, ok := x.(*MonitorDecl)
-	return ok && m.Name() == x.Name() && m.Condition().Equal(y.Condition()) && m.vars.Equal(y.vars)
+	return ok &&
+		m.Name() == x.Name() &&
+		m.Condition().Equal(y.Condition()) &&
+		m.vars.Equal(y.vars) &&
+		m.chain == y.chain &&
+		m.event.Equal(y.event)
 }
 
 func (m *MonitorDecl) String() string {
@@ -319,6 +334,21 @@ func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
 	w.children = append(w.children, child)
 	child.setParent(w)
 	return w
+}
+
+func (w *WorkflowDecl) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("workflow ")
+	buf.WriteString(w.name)
+	buf.WriteString(" {")
+	/*
+		for _, _ := range w.children {
+			// TODO: implement String() for child
+			// buf.WriteString(child.String())
+		}
+	*/
+	buf.WriteString("}")
+	return buf.String()
 }
 
 // ActionDecl represents an action declaration

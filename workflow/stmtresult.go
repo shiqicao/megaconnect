@@ -11,24 +11,32 @@
 package workflow
 
 // StmtResult is a result of execution of a statement in workflow lang
-type StmtResult interface{}
+type StmtResult interface {
+	Equal(StmtResult) bool
+}
 
-// FireEvent represents the result of Fire statement in workflow lang
-type FireEvent struct {
+// FireEventResult represents the result of Fire statement in workflow lang
+type FireEventResult struct {
 	eventName string
 	payload   *ObjConst
 }
 
-// NewFireEvent creates a new instance of FireEvent
-func NewFireEvent(eventName string, payload *ObjConst) *FireEvent {
-	return &FireEvent{
+// Equal returns true if `x` is equivalent to this object
+func (f *FireEventResult) Equal(x StmtResult) bool {
+	y, ok := x.(*FireEventResult)
+	return ok && y.eventName == f.eventName && y.payload.Equal(f.payload)
+}
+
+// NewFireEventResult creates a new instance of FireEvent
+func NewFireEventResult(eventName string, payload *ObjConst) *FireEventResult {
+	return &FireEventResult{
 		eventName: eventName,
 		payload:   payload,
 	}
 }
 
 // EventName returns the name of event being fired
-func (f *FireEvent) EventName() string { return f.eventName }
+func (f *FireEventResult) EventName() string { return f.eventName }
 
 // Payload returns payload of an event
-func (f *FireEvent) Payload() *ObjConst { return f.payload }
+func (f *FireEventResult) Payload() *ObjConst { return f.payload }
