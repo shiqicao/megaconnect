@@ -108,7 +108,8 @@ func (fm *FlowManager) processEventWithLock(
 ) {
 	payload, err := workflow.NewByteDecoder(event.Payload).DecodeObjConst()
 	if err != nil {
-		fm.log.Error("Failed to decode event payload", zap.Error(err))
+		fm.log.Error("Failed to decode event payload", zap.Error(err), zap.ByteString("payload", event.Payload))
+		return
 	}
 	fm.log.Debug("Processing event", zap.ByteString("MonitorID", event.MonitorId), zap.Stringer("EventPayload", payload))
 	for _, action := range fm.actionsIndex[string(event.MonitorId)] {
