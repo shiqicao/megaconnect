@@ -54,7 +54,8 @@ func (s *FlowManagerSuite) SetupTest() {
 }
 
 func (s *FlowManagerSuite) TestDeployWorkflow() {
-	config := s.fm.SetChainConfig("Example", nil, nil)
+	s.fm.SetChainConfig("Example", nil, nil)
+	config := s.fm.GetChainConfig("Example")
 	s.Require().NotNil(config)
 
 	err := s.fm.DeployWorkflow(s.wfs[0])
@@ -72,7 +73,8 @@ func (s *FlowManagerSuite) TestDeployWorkflow() {
 }
 
 func (s *FlowManagerSuite) TestReportBlockEvents() {
-	config := s.fm.SetChainConfig("Example", nil, nil)
+	s.fm.SetChainConfig("Example", nil, nil)
+	config := s.fm.GetChainConfig("Example")
 	s.Require().NotNil(config)
 
 	err := s.fm.DeployWorkflow(s.wfs[0])
