@@ -10,6 +10,8 @@ kdAction : 'a' 'c' 't' 'i' 'o' 'n' ;
 kdChain : 'c' 'h' 'a' 'i' 'n' ;
 kdCondition : 'c' 'o' 'n' 'd' 'i' 't' 'i' 'o' 'n' ;
 kdVar : 'v' 'a' 'r' ;
+kdWorkflow : 'w' 'o' 'r' 'k' 'f' 'l' 'o' 'w';
+kdFire : 'f' 'i' 'r' 'e';
 
 // letter and digit
 _digit : '0' - '9' ;
@@ -32,14 +34,44 @@ import (
 )
 >>
 
+Workflow 
+  : kdWorkflow id "{" Decls "}" << wf.NewWorkflowDecl(pa.Lit($1), 0).AddChildren($3.([]wf.Decl)), nil>>
+  ;
+
+Decls 
+  : Decl        <<[]wf.Decl{$0.(wf.Decl)}, nil>>
+  | Decls Decl  <<append($0.([]wf.Decl), $1.([]wf.Decl)[0]), nil>>
+  ;
+
+Decl
+  : Monitor
+  | empty
+  ;
+
 Monitor : 
   kdMonitor id 
     kdChain id 
     kdCondition Expr 
-    kdVar "{" 
-      VarDecls
-    "}"
-  <<pa.MonitorAction($1, $3, $5, $8)>>;
+    MonitorVar
+    kdFire id ObjLit
+  <<pa.MonitorAction($1, $3, $5, $6, $8, $9)>>;
+
+MonitorVar 
+  : kdVar "{" VarDecls "}" <<$2, nil>>
+  | empty 
+  ;
+
+ObjLit : "{" ObjLitFields "}" <<$1, nil>>;
+
+ObjLitField
+  : id ":" Expr "," <<pa.VarDeclAction($0, $2)>>
+  | empty
+  ;
+
+ObjLitFields
+  : ObjLitField
+  | ObjLitFields ObjLitField <<pa.VarDeclsAction($0, $1)>>
+  ;
 
 VarDecl 
   : id "=" Expr <<pa.VarDeclAction($0, $2)>>

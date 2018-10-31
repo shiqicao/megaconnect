@@ -24,36 +24,52 @@ import (
 
 func TestParser(t *testing.T) {
 	r, err := parse(t, `
-	monitor a 
-	  chain Eth 
-	  condition true
-	  var {
-		  a = true
-		  b = false
-	  }
+	workflow w {
+		monitor a 
+	  		chain Eth 
+	  		condition true
+	  		var {
+		  		a = true
+		  		b = false
+	  		}
+	  		fire e {
+				a: true,
+				b: true && false,
+			}		  
+	}
 	`)
 	assert.NoError(t, err)
-	md, ok := r.(*wf.MonitorDecl)
+	workflow, ok := r.(*wf.WorkflowDecl)
 	assert.True(t, ok)
-	assert.NotNil(t, md)
-	assert.True(t, md.Equal(wf.NewMonitorDecl("a", wf.TrueConst, wf.VarDecls{"a": wf.TrueConst, "b": wf.FalseConst})))
+	assert.NotNil(t, workflow)
+	md := workflow.MonitorDecls()
+	assert.True(t, md[0].Equal(wf.NewMonitorDecl(
+		"a",
+		wf.TrueConst,
+		wf.VarDecls{"a": wf.TrueConst, "b": wf.FalseConst},
+		wf.NewFire("e", wf.NewObjLit(wf.VarDecls{"a": T, "b": AND(T, F)})),
+		"Eth",
+	)))
 }
 
-func TestExprParsing(t *testing.T) {
-	T := wf.TrueConst
-	F := wf.FalseConst
-	B := func(op wf.Operator) func(x wf.Expr, y wf.Expr) wf.Expr {
+var (
+	T = wf.TrueConst
+	F = wf.FalseConst
+	B = func(op wf.Operator) func(x wf.Expr, y wf.Expr) wf.Expr {
 		return func(x wf.Expr, y wf.Expr) wf.Expr {
 			return wf.NewBinOp(op, x, y)
 		}
 	}
-	AND := B(wf.AndOp)
-	OR := B(wf.OrOp)
-	EQ := B(wf.EqualOp)
-	GT := B(wf.GreaterThanOp)
-	V := wf.NewVar
-	ADD := B(wf.PlusOp)
-	MUL := B(wf.MultOp)
+	AND = B(wf.AndOp)
+	OR  = B(wf.OrOp)
+	EQ  = B(wf.EqualOp)
+	GT  = B(wf.GreaterThanOp)
+	V   = wf.NewVar
+	ADD = B(wf.PlusOp)
+	MUL = B(wf.MultOp)
+)
+
+func aTestExprParsing(t *testing.T) {
 
 	assertExprParsing(t, AND(T, T), "true && true")
 	assertExprParsing(t, OR(AND(T, T), F), "true && true || false")

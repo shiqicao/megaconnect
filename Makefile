@@ -38,7 +38,7 @@ cleanprotos:
 	rm -f grpc/*.pb.go .protos
 
 parser:
-	$(GOCC) -a -zip -debug_lexer=true -debug_parser=true  -o workflow/parser/goccgen -p github.com/megaspacelab/megaconnect/workflow/parser/goccgen workflow/parser/lang.bnf
+	$(GOCC) -v -a -zip -debug_lexer=true -debug_parser=true  -o workflow/parser/goccgen -p github.com/megaspacelab/megaconnect/workflow/parser/goccgen workflow/parser/lang.bnf
 
 cleanparser: 
 	rm -f workflow/parser/goccgen

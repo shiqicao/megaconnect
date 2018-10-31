@@ -27,19 +27,23 @@ func TermBoolLitAction(t interface{}) (*wf.BoolConst, error) {
 	return nil, fmt.Errorf("")
 }
 
-func MonitorAction(name interface{}, chain interface{}, expr interface{}, varDecls interface{}) (*wf.MonitorDecl, error) {
+func MonitorAction(
+	name interface{}, chain interface{}, expr interface{},
+	varDecls interface{}, event interface{}, eventObj interface{},
+) (*wf.MonitorDecl, error) {
 	if varDecls == nil {
 		varDecls = wf.VarDecls{}
 	} else {
 		varDecls = varDecls.(wf.VarDecls)
 	}
-	md := wf.NewMonitorDecl(string(name.(*token.Token).Lit), expr.(wf.Expr), varDecls.(wf.VarDecls))
+	fire := wf.NewFire(Lit(event), wf.NewObjLit(eventObj.(wf.VarDecls)))
+	md := wf.NewMonitorDecl(Lit(name), expr.(wf.Expr), varDecls.(wf.VarDecls), fire, Lit(chain))
 	return md, nil
 }
 
 func VarDeclAction(nameRaw interface{}, exprRaw interface{}) (wf.VarDecls, error) {
 	vd := make(wf.VarDecls)
-	name := string(nameRaw.(*token.Token).Lit)
+	name := Lit(nameRaw)
 	expr := exprRaw.(wf.Expr)
 	vd[name] = expr
 	return vd, nil
@@ -59,4 +63,8 @@ func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecl
 		varDecls[name] = expr
 	}
 	return varDecls, nil
+}
+
+func Lit(t interface{}) string {
+	return string(t.(*token.Token).Lit)
 }

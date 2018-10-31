@@ -318,6 +318,13 @@ func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
 	return w
 }
 
+func (w *WorkflowDecl) AddChildren(children []Decl) *WorkflowDecl {
+	for _, child := range children {
+		w.AddChild(child)
+	}
+	return w
+}
+
 func (w *WorkflowDecl) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("workflow ")
