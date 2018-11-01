@@ -181,6 +181,11 @@ func TestWorkflowEncoding(t *testing.T) {
 	)
 }
 
+func TestPropEncoding(t *testing.T) {
+	assertExprEncoding(t, P("a"))
+	assertExprEncoding(t, EQ(P("a"), P("b")))
+}
+
 func assertExprEncoding(t *testing.T, expr Expr) {
 	withGen(
 		func(ge genEncoder, gd genDecoder) {

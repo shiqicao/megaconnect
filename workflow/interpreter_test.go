@@ -281,25 +281,27 @@ func TestSymbolResolve(t *testing.T) {
 }
 
 type mockEventStore struct {
-	occurred []string
+	events map[string]*ObjConst
 }
 
-func (m *mockEventStore) Occurs(name string) bool {
-	for _, o := range m.occurred {
-		if o == name {
-			return true
+func (m *mockEventStore) lookup(name string) *ObjConst {
+	for e, o := range m.events {
+		if e == name {
+			return o
 		}
 	}
-	return false
+	return nil
 }
 
 func TestEvalAction(t *testing.T) {
 	wf := NewWorkflowDecl("A", 0).AddChild(NewEventDecl("B", NewObjType(ObjFieldTypes{"a": IntType})))
 	ib := newInterpreterBuilder()
-	i := ib.withWF(wf).withEM(&mockEventStore{occurred: []string{"a"}})()
+	i := ib.withWF(wf).withEM(
+		&mockEventStore{events: map[string]*ObjConst{"a": NewObjConst(ObjFields{"x": T})}},
+	)()
 
 	r, err := i.EvalAction(
-		NewActionDecl("B", EV("a"), Stmts{NewFire("B", NewObjLit(VarDecls{"x": TrueConst}))}),
+		NewActionDecl("B", EV("a"), Stmts{FIRE("B", NewObjLit(VarDecls{"x": TrueConst}))}),
 	)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(r))
@@ -321,19 +323,22 @@ func TestEvalEExpr(t *testing.T) {
 	check(false, EAND(EV("a"), EV("b")))
 	check(false, EOR(EV("a"), EV("b")))
 
-	em.occurred = []string{"a"}
+	em.events = map[string]*ObjConst{"a": NewObjConst(ObjFields{"x": T})}
 	check(false, EAND(EV("a"), EV("b")))
 	check(true, EOR(EV("a"), EV("b")))
 
-	em.occurred = []string{"b"}
+	em.events = map[string]*ObjConst{"b": NewObjConst(ObjFields{"x": T})}
 	check(false, EAND(EV("a"), EV("b")))
 	check(true, EOR(EV("a"), EV("b")))
 
-	em.occurred = []string{"a", "b"}
+	em.events = map[string]*ObjConst{
+		"a": NewObjConst(ObjFields{"x": T}),
+		"b": NewObjConst(ObjFields{"x": T}),
+	}
 	check(true, EAND(EV("a"), EV("b")))
 	check(true, EOR(EV("a"), EV("b")))
 
-	em.occurred = []string{"a"}
+	em.events = map[string]*ObjConst{"a": NewObjConst(ObjFields{"x": T})}
 	check(false, EAND(
 		EOR(EV("a"), EV("b")),
 		EAND(EV("b"), EV("a")),
@@ -353,6 +358,39 @@ func TestBooleanOps(t *testing.T) {
 
 	assertExpEval(t, FalseConst, NewUniOp(NotOp, TrueConst))
 	assertExpEval(t, TrueConst, NewUniOp(NotOp, FalseConst))
+}
+
+func TestProps(t *testing.T) {
+	es := &mockEventStore{events: nil}
+	ib := newInterpreterBuilder().withEM(es)
+	check := ib.assertExpEval
+	checkerr := ib.assertExpEvalErr
+
+	checkerr(t, P("a"))
+
+	a := NewObjConst(ObjFields{"x": T})
+	es.events = map[string]*ObjConst{"a": a}
+	check(t, a, P("a"))
+	check(t, T, NewObjAccessor(P("a"), "x"))
+
+	a = NewObjConst(ObjFields{"x": T})
+	b := NewObjConst(ObjFields{"x": T})
+	es.events = map[string]*ObjConst{"a": a, "b": b}
+	check(t, T, EQ(P("a"), P("b")))
+}
+
+func TestEventVar(t *testing.T) {
+	es := &mockEventStore{events: nil}
+	vars := map[string]Expr{}
+	ib := newInterpreterBuilder().withEM(es).withVars(vars)
+	check := ib.assertExpEval
+
+	check(t, F, V("a"))
+
+	a := NewObjConst(ObjFields{"x": T})
+	es.events = map[string]*ObjConst{"a": a}
+	check(t, T, V("a"))
+	check(t, F, V("b"))
 }
 
 func TestIntOp(t *testing.T) {

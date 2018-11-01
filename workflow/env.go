@@ -30,8 +30,9 @@ type chain interface {
 }
 
 type eventStore interface {
-	// Occurs returns true if an event occurs in this evaluation session
-	Occurs(eventName string) bool
+	// lookup returns event payload obj if an event occurs in this evaluation session,
+	// returns nil otherwise
+	lookup(eventName string) *ObjConst
 }
 
 // NewEnv creates a new Env

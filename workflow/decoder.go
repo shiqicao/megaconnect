@@ -267,19 +267,29 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		}
 		return NewObjAccessor(receiver, string(field)), nil
 	case exprKindVar:
-		name, err := d.decodeBytes()
-		if err != nil {
-			return nil, err
-		}
-		return NewVar(string(name)), nil
+		return d.decodeVar()
 	case exprKindObjLit:
 		vars, err := d.decodeVarDecls()
 		if err != nil {
 			return nil, err
 		}
 		return NewObjLit(vars), nil
+	case exprKindProps:
+		v, err := d.decodeVar()
+		if err != nil {
+			return nil, err
+		}
+		return NewProps(v), nil
 	}
 	return nil, &ErrNotSupported{Name: string(kind)}
+}
+
+func (d *Decoder) decodeVar() (*Var, error) {
+	name, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	return NewVar(string(name)), nil
 }
 
 // DecodeObjConst decodes an object value from binary
