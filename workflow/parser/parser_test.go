@@ -69,7 +69,7 @@ var (
 	MUL = B(wf.MultOp)
 )
 
-func aTestExprParsing(t *testing.T) {
+func TestExprParsing(t *testing.T) {
 
 	assertExprParsing(t, AND(T, T), "true && true")
 	assertExprParsing(t, OR(AND(T, T), F), "true && true || false")
@@ -83,11 +83,13 @@ func aTestExprParsing(t *testing.T) {
 }
 
 func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
-	code := fmt.Sprintf("monitor a chain Eth condition %s var{}", expr)
+	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true, } }", expr)
 	r, err := parse(t, code)
 	assert.NoError(t, err)
-	md, ok := r.(*wf.MonitorDecl)
+	w, ok := r.(*wf.WorkflowDecl)
 	assert.True(t, ok)
+	assert.NotNil(t, w)
+	md := w.MonitorDecls()[0]
 	assert.NotNil(t, md)
 	assert.True(t, md.Condition().Equal(expected))
 }
