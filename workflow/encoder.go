@@ -35,7 +35,7 @@ const (
 	exprKindObjAccessor = 0x07
 	exprKindVar         = 0x08
 	exprKindObjLit      = 0x09
-	exprKindProp        = 0x0a
+	exprKindProps       = 0x0a
 )
 
 const (
@@ -177,7 +177,7 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		return e.encodeVar(expr)
 	case *ObjLit:
 		return e.encodeObjLit(expr)
-	case *Prop:
+	case *Props:
 		return e.encodeVar(expr.eventVar)
 	}
 
@@ -434,8 +434,8 @@ func getExprKind(expr Expr) (uint8, error) {
 		return exprKindVar, nil
 	case *ObjLit:
 		return exprKindObjLit, nil
-	case *Prop:
-		return exprKindProp, nil
+	case *Props:
+		return exprKindProps, nil
 	}
 	return math.MaxUint8, &ErrNotSupported{Name: reflect.TypeOf(expr).String()}
 }

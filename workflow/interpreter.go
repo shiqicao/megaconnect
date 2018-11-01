@@ -202,13 +202,13 @@ func (i *Interpreter) evalExpr(expr Expr) (Const, error) {
 		return i.evalObjAccessor(e)
 	case *ObjLit:
 		return i.evalObjLit(e)
-	case *Prop:
-		return i.evalProp(e)
+	case *Props:
+		return i.evalProps(e)
 	}
 	return nil, &ErrNotSupported{Name: reflect.TypeOf(expr).String()}
 }
 
-func (i *Interpreter) evalProp(prop *Prop) (*ObjConst, error) {
+func (i *Interpreter) evalProps(prop *Props) (*ObjConst, error) {
 	if i.env.eventStore == nil {
 		return nil, &ErrEventNotFound{Name: prop.eventVar.name}
 	}

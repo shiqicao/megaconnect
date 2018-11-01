@@ -274,12 +274,12 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 			return nil, err
 		}
 		return NewObjLit(vars), nil
-	case exprKindProp:
+	case exprKindProps:
 		v, err := d.decodeVar()
 		if err != nil {
 			return nil, err
 		}
-		return NewProp(v), nil
+		return NewProps(v), nil
 	}
 	return nil, &ErrNotSupported{Name: string(kind)}
 }

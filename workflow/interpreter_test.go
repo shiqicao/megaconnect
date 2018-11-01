@@ -360,7 +360,7 @@ func TestBooleanOps(t *testing.T) {
 	assertExpEval(t, TrueConst, NewUniOp(NotOp, FalseConst))
 }
 
-func TestProp(t *testing.T) {
+func TestProps(t *testing.T) {
 	es := &mockEventStore{events: nil}
 	ib := newInterpreterBuilder().withEM(es)
 	check := ib.assertExpEval

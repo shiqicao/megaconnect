@@ -30,5 +30,5 @@ var (
 	FIRE = NewFire
 	MD   = NewMonitorDecl
 	V    = NewVar
-	P    = func(a string) *Prop { return NewProp(V(a)) }
+	P    = func(a string) *Props { return NewProps(V(a)) }
 )
