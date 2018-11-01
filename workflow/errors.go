@@ -165,3 +165,12 @@ type ErrArgLenMismatch struct {
 func (e *ErrArgLenMismatch) Error() string {
 	return fmt.Sprintf("Number of arguments mismatch, %d arguments expected from function %s, only %d given", e.ParamLen, e.FuncName, e.ArgLen)
 }
+
+// ErrEventNotFound is returned if event is not found
+type ErrEventNotFound struct {
+	Name string
+}
+
+func (e *ErrEventNotFound) Error() string {
+	return fmt.Sprintf("Event %s not found", e.Name)
+}

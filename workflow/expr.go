@@ -406,6 +406,7 @@ func NewObjLit(fields VarDecls) *ObjLit {
 	}
 }
 
+// Equal returns true if two ObjLit are equivalent
 func (o *ObjLit) Equal(expr Expr) bool {
 	y, ok := expr.(*ObjLit)
 	return ok && y.fields.Equal(o.fields)
@@ -430,3 +431,34 @@ func (o *ObjLit) String() string {
 	buf.WriteString("}")
 	return buf.String()
 }
+
+// Prop is a unary operator of event type, it returns properties of an event as an obj.
+// Prop is defined as a struct instead of an operator in UniOp. Prop should alway apply on an variable,
+// but UniOp can not enforce this criteria.
+type Prop struct {
+	eventVar *Var
+}
+
+// NewProp returns a new instance of Prop
+func NewProp(v *Var) *Prop {
+	return &Prop{
+		eventVar: v,
+	}
+}
+
+func (p *Prop) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("property(")
+	buf.WriteString(p.eventVar.String())
+	buf.WriteString(")")
+	return buf.String()
+}
+
+// Equal returns true if two Prop are equivalent
+func (p *Prop) Equal(x Expr) bool {
+	y, ok := x.(*Prop)
+	return ok && p.eventVar.Equal(y.eventVar)
+}
+
+// Var returns the event var
+func (p *Prop) Var() *Var { return p.eventVar }

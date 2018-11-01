@@ -26,8 +26,9 @@ var (
 	}
 	AND  = BIN(AndOp)
 	OR   = BIN(OrOp)
-	FIRE = func(n string, e Expr) *Fire {
-		return NewFire(n, e)
-	}
-	MD = NewMonitorDecl
+	EQ   = BIN(EqualOp)
+	FIRE = NewFire
+	MD   = NewMonitorDecl
+	V    = NewVar
+	P    = func(a string) *Prop { return NewProp(V(a)) }
 )

@@ -77,6 +77,9 @@ func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (*FireEventResult, error
 func (i *Interpreter) lookup(v *Var) (Const, error) {
 	expr, ok := i.vars[v.Name()]
 	if !ok {
+		if i.env.eventStore != nil {
+			return GetBoolConst(i.env.eventStore.lookup(v.name) != nil), nil
+		}
 		return nil, &ErrVarNotFound{VarName: v.Name()}
 	}
 	value, ok := expr.(Const)
@@ -95,7 +98,7 @@ func (i *Interpreter) lookupEvent(name string) (bool, error) {
 	if i.env.eventStore == nil {
 		return false, &ErrEventExprNotSupport{}
 	}
-	return i.env.eventStore.Occurs(name), nil
+	return i.env.eventStore.lookup(name) != nil, nil
 }
 
 func (i *Interpreter) evalEventExpr(eexpr EventExpr) (bool, error) {
@@ -199,9 +202,21 @@ func (i *Interpreter) evalExpr(expr Expr) (Const, error) {
 		return i.evalObjAccessor(e)
 	case *ObjLit:
 		return i.evalObjLit(e)
+	case *Prop:
+		return i.evalProp(e)
 	}
-
 	return nil, &ErrNotSupported{Name: reflect.TypeOf(expr).String()}
+}
+
+func (i *Interpreter) evalProp(prop *Prop) (*ObjConst, error) {
+	if i.env.eventStore == nil {
+		return nil, &ErrEventNotFound{Name: prop.eventVar.name}
+	}
+	obj := i.env.eventStore.lookup(prop.eventVar.name)
+	if obj == nil {
+		return nil, &ErrEventNotFound{Name: prop.eventVar.name}
+	}
+	return obj, nil
 }
 
 func (i *Interpreter) evalObjLit(objLit *ObjLit) (*ObjConst, error) {
