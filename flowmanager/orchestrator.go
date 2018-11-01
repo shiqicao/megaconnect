@@ -180,12 +180,19 @@ func (o *Orchestrator) UnregsiterChainManager(
 	if req.ChainId == "" {
 		return nil, status.Error(codes.InvalidArgument, "Missing ChainId")
 	}
+	if req.LeaseId == nil {
+		return nil, status.Error(codes.InvalidArgument, "Missing LeaseId")
+	}
+	reqLeaseID, err := leaseIDFromBytes(req.LeaseId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "Invalid LeaseId")
+	}
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
 	lease := o.chainToLease[req.ChainId]
-	if lease == nil {
-		return nil, status.Error(codes.Aborted, "Lease doesn't exist or has already expired")
+	if lease == nil || lease.id != reqLeaseID {
+		return nil, status.Error(codes.Aborted, "Lease doesn't match, doesn't exist or has already expired")
 	}
 
 	// expires lease and shutdown chain manager

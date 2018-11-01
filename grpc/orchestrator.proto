@@ -54,8 +54,11 @@ message UnregisterChainManagerRequest {
     // ChainId identifies the chain being managed.
     string chain_id = 1;
 
+    // LeaseId must be the id of a still valid Lease of to be unregistered chain manager.
+    bytes lease_id = 2;
+
     // Message indicates the reason of the unregistration.
-    string message = 2;
+    string message = 3;
 }
 
 // InstanceId identifies a specific instance of an entity.

@@ -134,6 +134,7 @@ func (s *ChainManagerSuite) SetupTest() {
 			) (*mgrpc.RegisterChainManagerResponse, error) {
 				s.orch.lock.Lock()
 				defer s.orch.lock.Unlock()
+				s.orch.registerCallCount++
 
 				s.orch.sessionID = req.SessionId
 				leaseID := uuid.New()
@@ -381,19 +382,14 @@ func (s *ChainManagerSuite) TestRenewLease() {
 }
 
 func (s *ChainManagerSuite) TestHealth() {
-	// set connector to be not healthy to begin with and launching the chain manager would fail
-	s.connector.SetHealthy(false)
-	err := s.cm.Start(s.listenAddr.Port)
-	s.EqualError(err, "Initialization error, not healthy")
-
-	// launch it again, this time, set the health to be healthy 0.2 seconds after start is called,
+	// launch it again, this time, set the health to be healthy at half of grace period after start is called,
 	// chain manager should start just fine
 	s.connector.SetHealthy(false)
 	go func() {
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		s.connector.SetHealthy(true)
 	}()
-	err = s.cm.Start(s.listenAddr.Port)
+	err := s.cm.Start(s.listenAddr.Port)
 	s.NoError(err)
 	err = s.cm.Stop()
 	s.NoError(err)
@@ -404,21 +400,33 @@ func (s *ChainManagerSuite) TestHealth() {
 	prevCallCount := s.orch.unregisterCallCount
 	err = s.cm.Start(s.listenAddr.Port)
 	s.NoError(err)
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	go func() {
 		s.connector.SetHealthy(false) // setting the health to be false
-		time.Sleep(s.connector.Metadata().HealthCheckGracePeriod / 2)
+		time.Sleep(s.connector.Metadata().HealthCheckGracePeriod - 100*time.Millisecond)
 		s.connector.SetHealthy(true) // within grace period, set the health back to true
 	}()
 
 	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod) // sleep for a little over grace period
-	time.Sleep(2 * time.Second)
+	time.Sleep(200 * time.Millisecond)
 
 	s.True(s.orch.unregisterCallCount-prevCallCount == 0) // unregister should never been called
 	err = s.cm.Stop()                                     // calling stop on connector, it should be closed without error
 	s.NoError(err)
+}
 
+func (s *ChainManagerSuite) TestHealthFailStart() {
+	// set connector to be not healthy to begin with and launch the chain manager
+	// Register chain manager should not have been called
+	s.connector.SetHealthy(false)
+	prevCallCount := s.orch.registerCallCount
+	go func() {
+		s.cm.Start(s.listenAddr.Port)
+	}()
+	time.Sleep(s.connector.Metadata().HealthCheckGracePeriod + 100*time.Millisecond)
+	s.True(s.orch.registerCallCount-prevCallCount == 0) // Register shouldn't have been called
+	return
 }
 
 func (s *ChainManagerSuite) TestHealthFail() {
@@ -516,6 +524,7 @@ type fakeOrchestrator struct {
 	blockHeight         *big.Int
 	leaseRenewals       int
 	unregisterCallCount int
+	registerCallCount   int
 
 	lock sync.Mutex
 }

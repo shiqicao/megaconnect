@@ -120,7 +120,28 @@ func (e *ChainManager) Start(listenPort int) error {
 	e.sessionID = uuid.New()
 	e.instance++
 
+	err = e.connector.Start()
+	if err != nil {
+		return err
+	}
 	metadata := e.connector.Metadata()
+
+	// TODO Add healthy endpoint in CM and start async for HA
+	// initial health check, wait till connector is healthy
+	for {
+		e.healthLastState, err = e.connector.IsHealthy()
+		if e.healthLastState && err == nil {
+			break
+		}
+		if err != nil {
+			e.logger.Debug("health check error", zap.Error(err))
+		}
+		e.logger.Info("Connector is not healthy, waiting for it to turn healthy...")
+		time.Sleep(metadata.HealthCheckInterval)
+	}
+
+	// health check is finished and connector is healthy, register chainmanager and start monitoring health repeatedly
+	e.logger.Debug("Register with Orchestrator", zap.String("chain ID", metadata.ChainID))
 	resp, err := e.orchClient.RegisterChainManager(e.ctx, &mgrpc.RegisterChainManagerRequest{
 		ChainId:        metadata.ChainID,
 		ChainManagerId: &mgrpc.InstanceId{Id: []byte(e.id), Instance: e.instance},
@@ -131,43 +152,12 @@ func (e *ChainManager) Start(listenPort int) error {
 		return err
 	}
 
-	err = e.connector.Start()
-	if err != nil {
-		return err
-	}
-
-	// TODO - defer registration with orchestrator until after deemed healthy.
-	// initial health check, wait till connector is healthy, if not healthy within grace period, terminate
-	e.logger.Debug("Start monitoring health of connected blockchain", zap.String("name", metadata.ConnectorID))
-	e.healthLastState, err = e.connector.IsHealthy()
-
-	if !e.healthLastState || err != nil {
-		e.logger.Info("Connector is not healthy, waiting for it to turn healthy")
-		timeout := time.Now().Add(metadata.HealthCheckGracePeriod)
-		for {
-			if time.Now().After(timeout) {
-				message := "Initialization error, not healthy"
-				e.connector.Stop()
-				e.logger.Error(message)
-				return errors.New(message)
-			}
-			if e.healthLastState && err == nil {
-				break
-			}
-			time.Sleep(metadata.HealthCheckInterval)
-			e.healthLastState, err = e.connector.IsHealthy()
-			if err != nil {
-				e.logger.Debug("health check error", zap.Error(err))
-			}
-		}
-	}
-
-	// health check is finished and connector is healthy, start monitoring health repeatedly
-	e.checkHealthWithLock()
-
 	// register with orchestrator
 	e.logger.Debug("Registered with Orchestrator", zap.Stringer("lease", resp.Lease))
 	e.updateLeaseWithLeaseLock(resp.Lease)
+
+	e.logger.Debug("Start monitoring health of connected blockchain", zap.String("name", metadata.ConnectorID))
+	e.checkHealthWithLock()
 
 	e.monitorsVersion = resp.Monitors.GetVersion()
 	for _, m := range resp.Monitors.GetMonitors() {
@@ -317,9 +307,9 @@ func (e *ChainManager) checkHealthWithLock() {
 		e.logger.Info("Connector is not healthy, unregister chain Manager",
 			zap.String("ChainID", metadata.ChainID))
 
-		// TODO - add lease id for request validation and move to Stop.
 		e.orchClient.UnregsiterChainManager(e.ctx, &mgrpc.UnregisterChainManagerRequest{
 			ChainId: metadata.ChainID,
+			LeaseId: e.leaseID,
 			Message: "Connected blockchain is not healthy",
 		})
 

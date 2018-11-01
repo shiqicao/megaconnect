@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/megaspacelab/megaconnect/common"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/stretchr/testify/suite"
@@ -84,17 +85,26 @@ func (s *OrchestratorSuite) TearDownTest() {
 }
 
 func (s *OrchestratorSuite) registerCM() (*mgrpc.RegisterChainManagerResponse, error) {
-	return s.orchClient.RegisterChainManager(s.ctx, &mgrpc.RegisterChainManagerRequest{
+	resp, err := s.orchClient.RegisterChainManager(s.ctx, &mgrpc.RegisterChainManagerRequest{
 		ChainId:        s.cm.chainID,
 		ChainManagerId: s.cm.cmID,
 		ListenPort:     int32(s.cm.listenPort),
 		SessionId:      s.cm.sessionID,
 	})
+	if err != nil {
+		return nil, err
+	}
+	s.cm.leaseID = resp.Lease.Id
+	return resp, err
 }
 
-func (s *OrchestratorSuite) unregisterCM() error {
+func (s *OrchestratorSuite) unregisterCM(leaseID []byte) error {
+	if leaseID == nil {
+		leaseID = s.cm.leaseID[:]
+	}
 	_, err := s.orchClient.UnregsiterChainManager(s.ctx, &mgrpc.UnregisterChainManagerRequest{
 		ChainId: s.cm.chainID,
+		LeaseId: leaseID,
 		Message: "Unhealthy",
 	})
 	return err
@@ -111,7 +121,17 @@ func (s *OrchestratorSuite) TestRegisterUnregisterChainManager() {
 	s.Equal(1, len(reg.Monitors.Monitors))
 	s.True(proto.Equal(ims["1"], reg.Monitors.Monitors[0]))
 
-	err = s.unregisterCM()
+	// test with non valid leaseID should fail
+	err = s.unregisterCM([]byte("jibberish"))
+	s.Require().Error(err, "Invalid LeaseId")
+
+	// temper with wrong valid leaseID should fail
+	newLeaseID := uuid.New()
+	err = s.unregisterCM(newLeaseID[:])
+	s.Require().Error(err, "Lease doesn't match, doesn't exist or has already expired")
+
+	// send coorect leaseID should succeed
+	err = s.unregisterCM(nil)
 	s.Require().NoError(err)
 }
 func (s *OrchestratorSuite) TestRenewLease() {
@@ -318,6 +338,7 @@ type fakeChainManager struct {
 	ChainManagerServerMock
 
 	chainID    string
+	leaseID    []byte
 	cmID       *mgrpc.InstanceId
 	listenPort int
 	sessionID  []byte

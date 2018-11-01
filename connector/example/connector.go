@@ -49,8 +49,8 @@ func (c *Connector) Metadata() *connector.Metadata {
 	return &connector.Metadata{
 		ConnectorID:            "Example Connector",
 		ChainID:                "Example",
-		HealthCheckInterval:    100 * time.Millisecond,
-		HealthCheckGracePeriod: 2 * time.Second,
+		HealthCheckInterval:    50 * time.Millisecond,
+		HealthCheckGracePeriod: 250 * time.Millisecond,
 	}
 }
 
