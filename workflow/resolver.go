@@ -12,15 +12,15 @@ package workflow
 
 // Resolver resolves symbol in workflow lang
 type Resolver struct {
-	wf   *WorkflowDecl
-	libs []*NamespaceDecl
+	libs             []*NamespaceDecl
+	defaultNamespace NamespacePrefix
 }
 
 // NewResolver creates a new instance of Resolver
-func NewResolver(wf *WorkflowDecl, libs []*NamespaceDecl) *Resolver {
+func NewResolver(libs []*NamespaceDecl, defaultNamespace NamespacePrefix) *Resolver {
 	return &Resolver{
-		wf:   wf,
-		libs: libs,
+		libs:             libs,
+		defaultNamespace: defaultNamespace,
 	}
 }
 
@@ -35,32 +35,12 @@ func (r *Resolver) resolveAction(action *ActionDecl) error {
 }
 
 func (r *Resolver) resolveStmt(stmt Stmt) error {
-	switch stmt.(type) {
+	switch s := stmt.(type) {
 	case *Fire:
-		// TODO - fix
-		/*
-			eventDecl := r.resolveEvent(s.eventName)
-			if eventDecl == nil {
-				return &ErrSymbolNotResolved{Symbol: s.eventName}
-			}
-			s.eventDecl = eventDecl
-		*/
-		return nil
+		return r.resolveExpr(s.eventObj)
 	default:
 		return ErrNotSupportedByType(stmt)
 	}
-}
-
-func (r *Resolver) resolveEvent(name string) *EventDecl {
-	if r.wf == nil {
-		return nil
-	}
-	for _, decl := range r.wf.EventDecls() {
-		if decl.Name() == name {
-			return decl
-		}
-	}
-	return nil
 }
 
 func (r *Resolver) resolveExpr(expr Expr) error {
@@ -93,7 +73,11 @@ func (r *Resolver) resolveExpr(expr Expr) error {
 }
 
 func (r *Resolver) resolveFuncCall(fun *FuncCall) error {
-	decl := resolveFun(r.libs, fun.Name(), fun.NamespacePrefix())
+	ns := fun.NamespacePrefix()
+	if ns.IsEmpty() && !r.defaultNamespace.IsEmpty() {
+		ns = r.defaultNamespace
+	}
+	decl := resolveFun(r.libs, fun.Name(), ns)
 	if decl == nil {
 		return &ErrSymbolNotResolved{Symbol: fun.Name()}
 	}

@@ -310,6 +310,9 @@ func (o *ObjConst) Equal(x Expr) bool {
 // NamespacePrefix represents a namespace hierarchy
 type NamespacePrefix []string
 
+// IsEmpty returns true if namespace is empty
+func (n NamespacePrefix) IsEmpty() bool { return len(n) == 0 }
+
 func (n NamespacePrefix) String() string {
 	var buf bytes.Buffer
 	for _, ns := range n {

@@ -110,9 +110,17 @@ func (n *NamespaceDecl) Parent() *NamespaceDecl { return n.parent }
 // Name returns identifier of this namespace
 func (n *NamespaceDecl) Name() string { return n.name }
 
-func (n *NamespaceDecl) addFunc(funcDecl *FuncDecl) *NamespaceDecl {
+// AddFunc insert a function declaration to this namespace
+func (n *NamespaceDecl) AddFunc(funcDecl *FuncDecl) *NamespaceDecl {
 	funcDecl.parent = n
 	n.funs = append(n.funs, funcDecl)
+	return n
+}
+
+// AddChild insert a namespace as child namespace
+func (n *NamespaceDecl) AddChild(child *NamespaceDecl) *NamespaceDecl {
+	child.parent = n
+	n.children = append(n.children, child)
 	return n
 }
 
@@ -380,7 +388,7 @@ func (a *ActionDecl) Name() string { return a.name }
 // Trigger returns action trigger
 func (a *ActionDecl) Trigger() EventExpr { return a.trigger }
 
-// RunStmt returns action run statement
+// Body returns action run statement
 func (a *ActionDecl) Body() Stmts { return a.body.Copy() }
 
 // TriggerEvents returns a set of all events used in trigger

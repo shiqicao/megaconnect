@@ -48,6 +48,7 @@ type ChainManager struct {
 	id        string
 	orchAddr  string
 	connector connector.Connector
+	chainAPI  *chainAPI
 	logger    *zap.Logger
 
 	// Dynamic members.
@@ -97,6 +98,7 @@ func New(
 		logger:     logger,
 		monitors:   make(map[string]*mgrpc.Monitor),
 		blockCache: ring.New(blockCacheSize),
+		chainAPI:   newChainAPI(id, conn),
 	}
 }
 
@@ -347,7 +349,13 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	if err != nil {
 		e.logger.Error("Cache creation failed", zap.Error(err))
 	}
-	interpreter := wf.NewInterpreter(wf.NewEnv(e.connector, block, nil), cache, wf.NewResolver(nil, wf.Libs), e.logger)
+	api := e.chainAPI.setCurrentBlock(block).getAPI()
+	interpreter := wf.NewInterpreter(
+		wf.NewEnv(nil),
+		cache,
+		wf.NewResolver([]*wf.NamespaceDecl{api}, wf.NamespacePrefix{e.id}),
+		e.logger,
+	)
 	events := []*mgrpc.Event{}
 	for id, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
