@@ -10,7 +10,13 @@
 
 package workflow
 
+import (
+	"bytes"
+	"fmt"
+)
+
 type Stmt interface {
+	fmt.Stringer
 	Equal(Stmt) bool
 }
 
@@ -55,4 +61,13 @@ func NewFire(eventName string, eventObj Expr) *Fire {
 func (f *Fire) Equal(x Stmt) bool {
 	y, ok := x.(*Fire)
 	return ok && y.eventName == f.eventName && y.eventObj.Equal(f.eventObj)
+}
+
+func (f *Fire) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("fire ")
+	buf.WriteString(f.eventName)
+	buf.WriteString(" ")
+	buf.WriteString(f.eventObj.String())
+	return buf.String()
 }

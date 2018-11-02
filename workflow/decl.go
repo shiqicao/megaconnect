@@ -12,6 +12,7 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/megaspacelab/megaconnect/common"
 )
@@ -204,6 +205,7 @@ func (m *MonitorDecl) String() string {
 
 // Decl is an interface for all declarations in a workflow
 type Decl interface {
+	fmt.Stringer
 	Name() *Id
 	Parent() *WorkflowDecl
 	setParent(*WorkflowDecl)
@@ -243,6 +245,15 @@ func (e *EventDecl) Equal(x Decl) bool {
 
 // Name returns event name
 func (e *EventDecl) Name() *Id { return e.name }
+
+func (e *EventDecl) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("event ")
+	buf.WriteString(e.name.id)
+	buf.WriteString(" ")
+	buf.WriteString(e.ty.String())
+	return buf.String()
+}
 
 // WorkflowDecl represents a workflow declaration
 type WorkflowDecl struct {
@@ -382,4 +393,20 @@ func (a *ActionDecl) TriggerEvents() []string {
 		result = append(result, e)
 	}
 	return result
+}
+
+func (a *ActionDecl) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("action ")
+	buf.WriteString(a.name.id)
+	buf.WriteString(" { ")
+	buf.WriteString("trigger ")
+	buf.WriteString(a.trigger.String())
+	buf.WriteString("run {")
+	for _, s := range a.body {
+		buf.WriteString(s.String())
+	}
+	buf.WriteString(" }")
+	buf.WriteString(" }")
+	return buf.String()
 }

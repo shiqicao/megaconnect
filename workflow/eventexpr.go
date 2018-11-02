@@ -10,8 +10,14 @@
 
 package workflow
 
+import (
+	"bytes"
+	"fmt"
+)
+
 // EventExpr represents event expression
 type EventExpr interface {
+	fmt.Stringer
 	Equal(EventExpr) bool
 }
 
@@ -25,6 +31,11 @@ const (
 	// OrEOp represents logical OR for event expressions
 	OrEOp
 )
+
+var eventExprOperatorToStr = map[EventExprOperator]string{
+	AndEOp: "&&",
+	OrEOp:  "||",
+}
 
 // EBinOp represents binary operators for event expression
 type EBinOp struct {
@@ -48,6 +59,14 @@ func (e *EBinOp) Equal(x EventExpr) bool {
 	return ok && y.left.Equal(e.left) && y.right.Equal(e.right)
 }
 
+func (e *EBinOp) String() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.left.String())
+	buf.WriteString(" " + eventExprOperatorToStr[e.op] + " ")
+	buf.WriteString(e.right.String())
+	return buf.String()
+}
+
 // EVar represents event variable
 type EVar struct{ name string }
 
@@ -59,3 +78,5 @@ func (e *EVar) Equal(x EventExpr) bool {
 	y, ok := x.(*EVar)
 	return ok && e.name == y.name
 }
+
+func (e *EVar) String() string { return e.name }
