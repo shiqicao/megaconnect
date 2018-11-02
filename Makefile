@@ -2,7 +2,7 @@ PROTOC = protoc
 
 COVERAGE_OUT = coverage.out
 # Keep adding to this list as we implement tests to target more packages
-COVERPKG = ./chainmanager/...,./common/...,./connector/...,./flowmanager/...,./workflow/...
+COVERPKG = ./chainmanager/...,./common/...,./connector/...,./flowmanager/...,./workflow/...,./unsafe/...
 
 
 .PHONY: build install clean test cov covhtml dep protos cleanprotos
