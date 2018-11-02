@@ -157,7 +157,7 @@ func compile(ctx *cli.Context) error {
 				wf.NewEBinOp(wf.AndEOp, wf.NewEVar("ExEvent"), wf.NewEVar("EthEvent")),
 				wf.Stmts{
 					wf.NewFire(
-						"HeightSumEvent",
+						"TestEvent0",
 						wf.NewObjLit(
 							wf.VarDecls{
 								"example_h": wf.NewObjAccessor(wf.NewProps(wf.NewVar("ExEvent")), "height"),
@@ -179,7 +179,7 @@ func compile(ctx *cli.Context) error {
 								"heightSum": wf.NewBinOp(
 									wf.PlusOp,
 									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "eth_h"),
-									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "ex_h"),
+									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "example_h"),
 								),
 							},
 						),
