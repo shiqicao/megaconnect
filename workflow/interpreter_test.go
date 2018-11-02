@@ -294,9 +294,8 @@ func (m *mockEventStore) Lookup(name string) *ObjConst {
 }
 
 func TestEvalAction(t *testing.T) {
-	wf := NewWorkflowDecl("A", 0).AddChild(NewEventDecl("B", NewObjType(ObjFieldTypes{"a": IntType})))
 	ib := newInterpreterBuilder()
-	i := ib.withWF(wf).withEM(
+	i := ib.withEM(
 		&mockEventStore{events: map[string]*ObjConst{"a": NewObjConst(ObjFields{"x": T})}},
 	)()
 
@@ -430,7 +429,7 @@ func TestObjLit(t *testing.T) {
 func TestMonitor(t *testing.T) {
 	assertM := func(m *MonitorDecl, fireResult *FireEventResult) {
 		var cache *FuncCallCache
-		i := NewInterpreter(NewEnv(nil, nil, nil), cache, nil, zap.NewNop())
+		i := NewInterpreter(NewEnv(nil), cache, nil, zap.NewNop())
 		r, err := i.EvalMonitor(m)
 		assert.NoError(t, err)
 		if fireResult == nil {
@@ -520,7 +519,7 @@ type interpreterBuilder func() *Interpreter
 func newInterpreterBuilder() interpreterBuilder {
 	var cache *FuncCallCache
 	return func() *Interpreter {
-		return NewInterpreter(NewEnv(nil, nil, nil), cache, nil, zap.NewNop())
+		return NewInterpreter(NewEnv(nil), cache, nil, zap.NewNop())
 	}
 }
 
@@ -547,17 +546,6 @@ func (ib interpreterBuilder) withVars(vars map[string]Expr) interpreterBuilder {
 	return func() *Interpreter {
 		i := ib()
 		i.vars = vars
-		return i
-	}
-}
-
-func (ib interpreterBuilder) withWF(wf *WorkflowDecl) interpreterBuilder {
-	return func() *Interpreter {
-		i := ib()
-		if i.resolver == nil {
-			i.resolver = NewResolver(nil, nil)
-		}
-		i.resolver.wf = wf
 		return i
 	}
 }

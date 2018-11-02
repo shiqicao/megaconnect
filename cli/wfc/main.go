@@ -80,20 +80,20 @@ func compile(ctx *cli.Context) error {
 	addr := ctx.String("temporaryAddr")
 	vars := wf.VarDecls{
 		"blockHeight": wf.NewObjAccessor(
-			wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
+			wf.NewFuncCall(nil, "GetBlock"),
 			"height",
 		),
 	}
 	expr := wf.NewBinOp(
 		wf.NotEqualOp,
 		wf.NewFuncCall(
-			wf.NamespacePrefix{"Eth"},
+			nil,
 			"GetBalance",
 			wf.NewStrConst(addr),
 			wf.NewVar("blockHeight"),
 		),
 		wf.NewFuncCall(
-			wf.NamespacePrefix{"Eth"},
+			nil,
 			"GetBalance",
 			wf.NewStrConst(addr),
 			wf.NewBinOp(wf.MinusOp,
@@ -107,7 +107,7 @@ func compile(ctx *cli.Context) error {
 		"EthMonitor",
 		expr,
 		vars,
-		wf.NewFire("TestEvent1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		wf.NewFire("EthEvent", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
 		"Ethereum",
 	)
 
@@ -115,7 +115,7 @@ func compile(ctx *cli.Context) error {
 		"ExampleMonitor",
 		expr,
 		vars,
-		wf.NewFire("TestEvent1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		wf.NewFire("ExEvent", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
 		"Example",
 	)
 
@@ -123,16 +123,30 @@ func compile(ctx *cli.Context) error {
 		"BtcMonitor",
 		expr,
 		vars,
-		wf.NewFire("TestEvent1", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
+		wf.NewFire("BtcEvent", wf.NewObjLit(wf.VarDecls{"height": wf.NewVar("blockHeight")})),
 		"Bitcoin",
 	)
 
 	workflow := wf.NewWorkflowDecl(name, 0).
 		AddChild(
-			wf.NewEventDecl("TestEvent0", wf.NewObjType(wf.ObjFieldTypes{"x": wf.IntType})),
+			wf.NewEventDecl("TestEvent0", wf.NewObjType(wf.ObjFieldTypes{
+				"example_h": wf.IntType,
+				"eth_h":     wf.IntType,
+			})),
 		).
 		AddChild(
-			wf.NewEventDecl("TestEvent1", wf.NewObjType(wf.ObjFieldTypes{"height": wf.IntType})),
+			wf.NewEventDecl("HeightSumEvent", wf.NewObjType(wf.ObjFieldTypes{
+				"heightSum": wf.IntType,
+			})),
+		).
+		AddChild(
+			wf.NewEventDecl("ExEvent", wf.NewObjType(wf.ObjFieldTypes{"height": wf.IntType})),
+		).
+		AddChild(
+			wf.NewEventDecl("BtcEvent", wf.NewObjType(wf.ObjFieldTypes{"height": wf.IntType})),
+		).
+		AddChild(
+			wf.NewEventDecl("EthEvent", wf.NewObjType(wf.ObjFieldTypes{"height": wf.IntType})),
 		).
 		AddChild(monitorEth).
 		AddChild(monitorExample).
@@ -140,10 +154,38 @@ func compile(ctx *cli.Context) error {
 		AddChild(
 			wf.NewActionDecl(
 				"TestAction1",
-				wf.NewEVar("TestEvent1"),
+				wf.NewEBinOp(wf.AndEOp, wf.NewEVar("ExEvent"), wf.NewEVar("EthEvent")),
 				wf.Stmts{
-					wf.NewFire("TestEvent0", wf.NewObjLit(wf.VarDecls{"x": wf.NewIntConstFromI64(1)})),
+					wf.NewFire(
+						"TestEvent0",
+						wf.NewObjLit(
+							wf.VarDecls{
+								"example_h": wf.NewObjAccessor(wf.NewProps(wf.NewVar("ExEvent")), "height"),
+								"eth_h":     wf.NewObjAccessor(wf.NewProps(wf.NewVar("EthEvent")), "height"),
+							},
+						),
+					),
 				}),
+		).
+		AddChild(
+			wf.NewActionDecl(
+				"JoinAction",
+				wf.NewEVar("TestEvent0"),
+				wf.Stmts{
+					wf.NewFire(
+						"HeightSumEvent",
+						wf.NewObjLit(
+							wf.VarDecls{
+								"heightSum": wf.NewBinOp(
+									wf.PlusOp,
+									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "eth_h"),
+									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "example_h"),
+								),
+							},
+						),
+					),
+				},
+			),
 		)
 
 	// TODO: Read script file and parse it to AST

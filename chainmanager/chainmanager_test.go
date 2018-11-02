@@ -537,13 +537,13 @@ func monitorCondition() wf.Expr {
 	return wf.NewBinOp(
 		wf.NotEqualOp,
 		wf.NewFuncCall(
-			wf.NamespacePrefix{"Eth"},
+			nil,
 			"GetBalance",
 			wf.NewStrConst("1"),
 			wf.NewVar("blockHeight"),
 		),
 		wf.NewFuncCall(
-			wf.NamespacePrefix{"Eth"},
+			nil,
 			"GetBalance",
 			wf.NewStrConst("1"),
 			wf.NewBinOp(wf.MinusOp,
@@ -557,7 +557,7 @@ func monitorCondition() wf.Expr {
 func monitorVars() wf.VarDecls {
 	return wf.VarDecls{
 		"blockHeight": wf.NewObjAccessor(
-			wf.NewFuncCall(wf.NamespacePrefix{"Eth"}, "GetBlock"),
+			wf.NewFuncCall(nil, "GetBlock"),
 			"height",
 		),
 	}

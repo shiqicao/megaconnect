@@ -185,7 +185,7 @@ func (fm *FlowManager) processEventWithLock(
 		fm.log.Debug("Evaluating action", zap.String("action", action.decl.Name()))
 		action.observe(eventName, eventPayload)
 
-		env := workflow.NewEnv(nil, nil, action)
+		env := workflow.NewEnv(action)
 		intp := workflow.NewInterpreter(env, nil, dummyResolver, fm.log)
 
 		results, err := intp.EvalAction(action.decl)

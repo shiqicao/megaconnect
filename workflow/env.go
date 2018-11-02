@@ -10,23 +10,11 @@
 
 package workflow
 
-import (
-	"math/big"
-
-	"github.com/megaspacelab/megaconnect/common"
-)
-
 // Env provides execution environment for interpreter and analyzer,
 // analyzer does symbol resolving and type checking but not execution.
 // TODO: this env is specificity for ChainManager
 type Env struct {
-	chain        chain
-	currentBlock common.Block
-	eventStore   eventStore
-}
-
-type chain interface {
-	QueryAccountBalance(addr string, height *big.Int) (*big.Int, error)
+	eventStore eventStore
 }
 
 type eventStore interface {
@@ -36,15 +24,8 @@ type eventStore interface {
 }
 
 // NewEnv creates a new Env
-func NewEnv(chain chain, currentBlock common.Block, eventStore eventStore) *Env {
+func NewEnv(eventStore eventStore) *Env {
 	return &Env{
-		chain:        chain,
-		currentBlock: currentBlock,
-		eventStore:   eventStore,
+		eventStore: eventStore,
 	}
-}
-
-// CurrentBlock returns the block interpreter anchors for a workflow
-func (e *Env) CurrentBlock() common.Block {
-	return e.currentBlock
 }
