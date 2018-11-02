@@ -10,9 +10,11 @@ import (
 	"sync"
 	"time"
 
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/unsafe"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
-	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -466,7 +468,7 @@ func (cm *chainManagerProxy) patchConfig(patch *ChainConfigPatch) error {
 			err = stream.Send(&mgrpc.UpdateMonitorsRequest{
 				MsgType: &mgrpc.UpdateMonitorsRequest_RemoveMonitor_{
 					RemoveMonitor: &mgrpc.UpdateMonitorsRequest_RemoveMonitor{
-						MonitorId: []byte(m),
+						MonitorId: unsafe.StringToBytes(m),
 					},
 				},
 			})

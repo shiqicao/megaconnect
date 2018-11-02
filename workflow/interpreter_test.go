@@ -284,7 +284,7 @@ type mockEventStore struct {
 	events map[string]*ObjConst
 }
 
-func (m *mockEventStore) lookup(name string) *ObjConst {
+func (m *mockEventStore) Lookup(name string) *ObjConst {
 	for e, o := range m.events {
 		if e == name {
 			return o

@@ -35,13 +35,16 @@ func (r *Resolver) resolveAction(action *ActionDecl) error {
 }
 
 func (r *Resolver) resolveStmt(stmt Stmt) error {
-	switch s := stmt.(type) {
+	switch stmt.(type) {
 	case *Fire:
-		eventDecl := r.resolveEvent(s.eventName)
-		if eventDecl == nil {
-			return &ErrSymbolNotResolved{Symbol: s.eventName}
-		}
-		s.eventDecl = eventDecl
+		// TODO - fix
+		/*
+			eventDecl := r.resolveEvent(s.eventName)
+			if eventDecl == nil {
+				return &ErrSymbolNotResolved{Symbol: s.eventName}
+			}
+			s.eventDecl = eventDecl
+		*/
 		return nil
 	default:
 		return ErrNotSupportedByType(stmt)
@@ -49,6 +52,9 @@ func (r *Resolver) resolveStmt(stmt Stmt) error {
 }
 
 func (r *Resolver) resolveEvent(name string) *EventDecl {
+	if r.wf == nil {
+		return nil
+	}
 	for _, decl := range r.wf.EventDecls() {
 		if decl.Name() == name {
 			return decl

@@ -30,9 +30,9 @@ type chain interface {
 }
 
 type eventStore interface {
-	// lookup returns event payload obj if an event occurs in this evaluation session,
+	// Lookup returns event payload obj if an event occurs in this evaluation session,
 	// returns nil otherwise
-	lookup(eventName string) *ObjConst
+	Lookup(eventName string) *ObjConst
 }
 
 // NewEnv creates a new Env

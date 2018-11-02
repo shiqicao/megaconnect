@@ -17,6 +17,8 @@ import (
 	"math"
 	"reflect"
 	"sort"
+
+	"github.com/megaspacelab/megaconnect/unsafe"
 )
 
 // TODO - document binary format
@@ -265,7 +267,7 @@ func (e *Encoder) encodeBigEndian(x interface{}) error {
 }
 
 func (e *Encoder) encodeString(s string) error {
-	return e.encodeBytes([]byte(s))
+	return e.encodeBytes(unsafe.StringToBytes(s))
 }
 
 func (e *Encoder) encodeLengthI(n int) {

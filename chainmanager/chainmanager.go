@@ -20,12 +20,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/unsafe"
 	wf "github.com/megaspacelab/megaconnect/workflow"
+
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -123,7 +125,7 @@ func (e *ChainManager) Start(listenPort int) error {
 	metadata := e.connector.Metadata()
 	resp, err := e.orchClient.RegisterChainManager(e.ctx, &mgrpc.RegisterChainManagerRequest{
 		ChainId:        metadata.ChainID,
-		ChainManagerId: &mgrpc.InstanceId{Id: []byte(e.id), Instance: e.instance},
+		ChainManagerId: &mgrpc.InstanceId{Id: unsafe.StringToBytes(e.id), Instance: e.instance},
 		ListenPort:     int32(listenPort),
 		SessionId:      e.sessionID[:],
 	})
@@ -374,7 +376,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 			continue
 		}
 		event := mgrpc.Event{}
-		event.MonitorId = []byte(id)
+		event.MonitorId = unsafe.StringToBytes(id)
 		payload, err := wf.EncodeObjConst(eventValue.Payload())
 		if err != nil {
 			return err
@@ -596,7 +598,7 @@ func (e *ChainManager) UpdateMonitors(stream mgrpc.ChainManager_UpdateMonitorsSe
 			e.monitors[string(m.AddMonitor.Monitor.Id)] = m.AddMonitor.Monitor
 		case *mgrpc.UpdateMonitorsRequest_RemoveMonitor_:
 			e.logger.Debug("Received UpdateMonitorsRequest.RemoveMonitor", zap.Stringer("m", m.RemoveMonitor))
-			delete(e.monitors, string(m.RemoveMonitor.MonitorId))
+			delete(e.monitors, unsafe.BytesToString(m.RemoveMonitor.MonitorId))
 		default:
 			return status.Error(codes.InvalidArgument, "Wrong message type. Expecting AddMonitor or RemoveMonitor")
 		}
