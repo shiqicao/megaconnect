@@ -10,12 +10,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const chainID = "Example"
+
 type FlowManagerSuite struct {
 	suite.Suite
 
 	log *zap.Logger
 	fm  *FlowManager
-	wfs []*workflow.WorkflowDecl
 }
 
 func (s *FlowManagerSuite) SetupTest() {
@@ -23,10 +24,18 @@ func (s *FlowManagerSuite) SetupTest() {
 	s.Require().NoError(err)
 	s.log = log
 	s.fm = NewFlowManager(log)
+}
 
+func (s *FlowManagerSuite) workflow1() *workflow.WorkflowDecl {
 	wf := workflow.NewWorkflowDecl("TestWorkflow", 1)
 	wf.AddChild(workflow.NewEventDecl(
 		"TestEvent",
+		workflow.NewObjType(map[string]workflow.Type{
+			"balance": workflow.IntType,
+		}),
+	))
+	wf.AddChild(workflow.NewEventDecl(
+		"TestEvent2",
 		workflow.NewObjType(map[string]workflow.Type{
 			"balance": workflow.IntType,
 		}),
@@ -43,22 +52,36 @@ func (s *FlowManagerSuite) SetupTest() {
 				"balance": workflow.NewIntConstFromI64(1),
 			}),
 		),
-		"Example",
+		chainID,
 	))
 	wf.AddChild(workflow.NewActionDecl(
 		"TestAction",
 		workflow.NewEVar("TestEvent"),
+		[]workflow.Stmt{
+			workflow.NewFire(
+				"TestEvent2",
+				workflow.NewProps(workflow.NewVar("TestEvent")),
+			),
+		},
+	))
+	wf.AddChild(workflow.NewActionDecl(
+		"TestAction2",
+		workflow.NewEBinOp(
+			workflow.AndEOp,
+			workflow.NewEVar("TestEvent"),
+			workflow.NewEVar("TestEvent2"),
+		),
 		[]workflow.Stmt{},
 	))
-	s.wfs = append(s.wfs, wf)
+	return wf
 }
 
 func (s *FlowManagerSuite) TestDeployWorkflow() {
-	s.fm.SetChainConfig("Example", nil, nil)
-	config := s.fm.GetChainConfig("Example")
+	s.fm.SetChainConfig(chainID, nil, nil)
+	config := s.fm.GetChainConfig(chainID)
 	s.Require().NotNil(config)
 
-	err := s.fm.DeployWorkflow(s.wfs[0])
+	err := s.fm.DeployWorkflow(s.workflow1())
 	s.Require().NoError(err)
 
 	select {
@@ -67,39 +90,44 @@ func (s *FlowManagerSuite) TestDeployWorkflow() {
 		s.FailNow("Config wasn't updated after workflow deployment")
 	}
 
-	config = s.fm.GetChainConfig("Example")
+	config = s.fm.GetChainConfig(chainID)
 	s.Require().NotNil(config)
 	s.Require().Len(config.Monitors, 1)
 }
 
 func (s *FlowManagerSuite) TestReportBlockEvents() {
-	s.fm.SetChainConfig("Example", nil, nil)
-	config := s.fm.GetChainConfig("Example")
+	s.fm.SetChainConfig(chainID, nil, nil)
+	config := s.fm.GetChainConfig(chainID)
 	s.Require().NotNil(config)
 
-	err := s.fm.DeployWorkflow(s.wfs[0])
+	wf := s.workflow1()
+	err := s.fm.DeployWorkflow(wf)
 	s.Require().NoError(err)
 
-	config = s.fm.GetChainConfig("Example")
+	config = s.fm.GetChainConfig(chainID)
 	s.Require().NotNil(config)
 
 	block := &grpc.Block{}
 
 	// This should be ignored
-	s.fm.ReportBlockEvents("Example", config.MonitorsVersion-1, block, nil)
+	s.fm.ReportBlockEvents(chainID, config.MonitorsVersion-1, block, nil)
 
 	eventPayload, err := workflow.EncodeObjConst(
-		workflow.NewObjConst(workflow.ObjFields{"a": workflow.TrueConst}),
+		workflow.NewObjConst(workflow.ObjFields{
+			"balance": workflow.NewIntConstFromI64(1),
+		}),
 	)
 	s.Require().NoError(err)
 
 	// This should be processed
-	s.fm.ReportBlockEvents("Example", config.MonitorsVersion, block, []*grpc.Event{
+	s.fm.ReportBlockEvents(chainID, config.MonitorsVersion, block, []*grpc.Event{
 		&grpc.Event{
-			MonitorId: []byte(MonitorID(WorkflowID(s.wfs[0]), s.wfs[0].MonitorDecls()[0])),
+			MonitorId: []byte(MonitorID(WorkflowID(wf), wf.MonitorDecls()[0])),
 			Payload:   eventPayload,
 		},
 	})
+
+	// TODO - verify event processing results once we have those
 }
 
 func TestFlowManager(t *testing.T) {

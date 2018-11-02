@@ -1,3 +1,13 @@
+// Copyright 2018 @ MegaSpace
+
+// The MegaSpace source code is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+
+// You should have received a copy of the GNU Lesser General Public License
+// along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
+
 package flowmanager
 
 import (
@@ -6,9 +16,14 @@ import (
 	"sync"
 
 	"github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/unsafe"
 	"github.com/megaspacelab/megaconnect/workflow"
 
 	"go.uber.org/zap"
+)
+
+var (
+	dummyResolver = workflow.NewResolver(nil, nil)
 )
 
 // FlowManager manages workflows and compiles them into monitors for each chain.
@@ -20,7 +35,8 @@ type FlowManager struct {
 
 	// Internal states.
 	workflows    map[string]*workflow.WorkflowDecl
-	actionsIndex map[string][]*workflow.ActionDecl // Actions indexed by monitor ids
+	monitorInfos map[string]*monitorInfo
+	actionsIndex map[string][]*actionState // Actions indexed by event ids
 
 	lock sync.Mutex
 	log  *zap.Logger
@@ -31,7 +47,8 @@ func NewFlowManager(log *zap.Logger) *FlowManager {
 	return &FlowManager{
 		chainConfigs: make(map[string]*ChainConfig),
 		workflows:    make(map[string]*workflow.WorkflowDecl),
-		actionsIndex: make(map[string][]*workflow.ActionDecl),
+		monitorInfos: make(map[string]*monitorInfo),
+		actionsIndex: make(map[string][]*actionState),
 		log:          log,
 	}
 }
@@ -135,23 +152,69 @@ func (fm *FlowManager) ReportBlockEvents(
 	}
 
 	for _, event := range events {
-		fm.processEventWithLock(block, event)
+		info := fm.monitorInfos[unsafe.BytesToString(event.MonitorId)]
+		if info == nil {
+			fm.log.Error("Missing monitor info", zap.Binary("monitorID", event.MonitorId))
+			continue
+		}
+
+		payload, err := workflow.NewByteDecoder(event.Payload).DecodeObjConst()
+		if err != nil {
+			fm.log.Error("Failed to decode event payload", zap.Error(err), zap.Binary("payload", event.Payload))
+			continue
+		}
+
+		fm.processEventWithLock(info.workflowID, info.eventName, payload)
 	}
 }
 
 func (fm *FlowManager) processEventWithLock(
-	block *grpc.Block,
-	event *grpc.Event,
+	workflowID string,
+	eventName string,
+	eventPayload *workflow.ObjConst,
 ) {
-	payload, err := workflow.NewByteDecoder(event.Payload).DecodeObjConst()
-	if err != nil {
-		fm.log.Error("Failed to decode event payload", zap.Error(err), zap.ByteString("payload", event.Payload))
-		return
+	fm.log.Debug("Processing event",
+		zap.String("workflowID", workflowID),
+		zap.String("eventName", eventName),
+		zap.Stringer("eventPayload", eventPayload))
+
+	var fires []*workflow.FireEventResult
+	eventID := EventID(workflowID, eventName)
+
+	for _, action := range fm.actionsIndex[eventID] {
+		fm.log.Debug("Evaluating action", zap.String("action", action.decl.Name()))
+		action.observe(eventName, eventPayload)
+
+		env := workflow.NewEnv(nil, nil, action)
+		intp := workflow.NewInterpreter(env, nil, dummyResolver, fm.log)
+
+		results, err := intp.EvalAction(action.decl)
+		if err != nil {
+			fm.log.Error("Failed to evaluate action",
+				zap.Error(err), zap.String("action", action.decl.Name()))
+			continue
+		}
+		if results == nil {
+			continue
+		}
+
+		fm.log.Debug("Action triggered", zap.String("action", action.decl.Name()))
+
+		// Reset action state upon triggering
+		action.reset()
+
+		for _, r := range results {
+			switch result := r.(type) {
+			case *workflow.FireEventResult:
+				fires = append(fires, result)
+			}
+		}
 	}
-	fm.log.Debug("Processing event", zap.ByteString("MonitorID", event.MonitorId), zap.Stringer("EventPayload", payload))
-	for _, action := range fm.actionsIndex[string(event.MonitorId)] {
-		fm.log.Debug("Evaluating action", zap.String("action", action.Name()))
-		// TODO - evaluate
+
+	// Recursively process fired events.
+	// This means all fired events are inserted into the event stream right after their triggering event.
+	for _, fire := range fires {
+		fm.processEventWithLock(workflowID, fire.EventName(), fire.Payload())
 	}
 }
 
@@ -161,14 +224,14 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
 
-	id := WorkflowID(wf)
-	if _, ok := fm.workflows[id]; ok {
+	wfid := WorkflowID(wf)
+	if _, ok := fm.workflows[wfid]; ok {
 		return errors.New("Workflow already exists")
 	}
-	fm.workflows[id] = wf
+	fm.workflows[wfid] = wf
 
 	chainMonitors := make(map[string]IndexedMonitors)
-	eventMonitorIDs := make(map[string][]string)
+	monitorInfos := make(map[string]*monitorInfo)
 
 	// Pre-validate all monitors before making any state changes.
 	for _, m := range wf.MonitorDecls() {
@@ -183,7 +246,7 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 			chainMonitors[chain] = monitors
 		}
 
-		mid := MonitorID(id, m)
+		mid := MonitorID(wfid, m)
 		if _, ok := monitors[mid]; ok {
 			panic("Duplicate monitor id")
 		}
@@ -194,9 +257,10 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 		}
 
 		monitors[mid] = monitor
-
-		eventName := m.EventName()
-		eventMonitorIDs[eventName] = append(eventMonitorIDs[eventName], mid)
+		monitorInfos[mid] = &monitorInfo{
+			eventName:  m.EventName(),
+			workflowID: wfid,
+		}
 	}
 
 	// Deploy monitors.
@@ -215,106 +279,47 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 
 		fm.setChainConfigWithLock(chain, monitors, nil) // TODO - resumeAfter
 	}
+	for k, v := range monitorInfos {
+		if _, ok := fm.monitorInfos[k]; ok {
+			panic("Duplicate monitor id")
+		}
+		fm.monitorInfos[k] = v
+	}
 
 	// Deploy actions.
 	for _, a := range wf.ActionDecls() {
+		action := &actionState{decl: a}
+
 		for _, e := range a.TriggerEvents() {
-			for _, mid := range eventMonitorIDs[e] {
-				fm.actionsIndex[mid] = append(fm.actionsIndex[mid], a)
-			}
+			eid := EventID(wfid, e)
+			fm.actionsIndex[eid] = append(fm.actionsIndex[eid], action)
 		}
 	}
 
 	return nil
 }
 
-type chainConfigBase struct {
-	// MonitorsVersion is used for Orchestrator and ChainManager to agree on the set of active monitors.
-	MonitorsVersion uint32
-
-	// ResumeAfter specifies the LAST block BEFORE this ChainConfig became effective.
-	ResumeAfter *grpc.BlockSpec
-
-	// Outdated is closed when this ChainConfig becomes outdated.
-	Outdated chan struct{}
+type monitorInfo struct {
+	workflowID string
+	eventName  string
 }
 
-// ChainConfig captures configs about a chain.
-type ChainConfig struct {
-	chainConfigBase
-
-	// Monitors are the active monitors for this chain.
-	Monitors IndexedMonitors
+type actionState struct {
+	decl           *workflow.ActionDecl
+	observedEvents map[string]*workflow.ObjConst
 }
 
-func (cc *ChainConfig) copy() *ChainConfig {
-	if cc == nil {
-		return nil
-	}
-	cp := *cc
-	cp.Monitors = cp.Monitors.Copy()
-	return &cp
+func (s *actionState) Lookup(event string) *workflow.ObjConst {
+	return s.observedEvents[event]
 }
 
-// ChainConfigPatch represents a patch that can be applied to a ChainConfig.
-type ChainConfigPatch struct {
-	chainConfigBase
-
-	AddMonitors    []*grpc.Monitor
-	RemoveMonitors []string
+func (s *actionState) observe(event string, props *workflow.ObjConst) {
+	if s.observedEvents == nil {
+		s.observedEvents = make(map[string]*workflow.ObjConst)
+	}
+	s.observedEvents[event] = props
 }
 
-// Apply applies this patch to cc.
-// cc will be patched in place, unless it's nil, in which case a new ChainConfig is created.
-func (ccp *ChainConfigPatch) Apply(cc *ChainConfig) *ChainConfig {
-	if ccp == nil {
-		return cc
-	}
-
-	if cc == nil {
-		cc = &ChainConfig{
-			chainConfigBase: ccp.chainConfigBase,
-		}
-	} else {
-		cc.chainConfigBase = ccp.chainConfigBase
-	}
-
-	for _, m := range ccp.RemoveMonitors {
-		delete(cc.Monitors, m)
-	}
-
-	if cc.Monitors == nil && len(ccp.AddMonitors) > 0 {
-		cc.Monitors = make(IndexedMonitors, len(ccp.AddMonitors))
-	}
-
-	for _, m := range ccp.AddMonitors {
-		cc.Monitors[string(m.Id)] = m
-	}
-
-	return cc
-}
-
-// IndexedMonitors is a bunch of monitors indexed by ID.
-type IndexedMonitors map[string]*grpc.Monitor
-
-// Monitors returns all monitors contained in this IndexedMonitors.
-func (im IndexedMonitors) Monitors() []*grpc.Monitor {
-	monitors := make([]*grpc.Monitor, 0, len(im))
-	for _, m := range im {
-		monitors = append(monitors, m)
-	}
-	return monitors
-}
-
-// Copy makes a shallow copy of the IndexedMonitors.
-func (im IndexedMonitors) Copy() IndexedMonitors {
-	if im == nil {
-		return nil
-	}
-
-	cp := make(IndexedMonitors, len(im))
-	for k, v := range im {
-		cp[k] = v
-	}
-	return cp
+func (s *actionState) reset() {
+	s.observedEvents = nil
 }

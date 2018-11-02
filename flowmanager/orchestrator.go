@@ -1,3 +1,13 @@
+// Copyright 2018 @ MegaSpace
+
+// The MegaSpace source code is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+
+// You should have received a copy of the GNU Lesser General Public License
+// along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
+
 package flowmanager
 
 import (
@@ -10,9 +20,11 @@ import (
 	"sync"
 	"time"
 
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/unsafe"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
-	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -473,7 +485,7 @@ func (cm *chainManagerProxy) patchConfig(patch *ChainConfigPatch) error {
 			err = stream.Send(&mgrpc.UpdateMonitorsRequest{
 				MsgType: &mgrpc.UpdateMonitorsRequest_RemoveMonitor_{
 					RemoveMonitor: &mgrpc.UpdateMonitorsRequest_RemoveMonitor{
-						MonitorId: []byte(m),
+						MonitorId: unsafe.StringToBytes(m),
 					},
 				},
 			})

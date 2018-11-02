@@ -78,7 +78,7 @@ func (i *Interpreter) lookup(v *Var) (Const, error) {
 	expr, ok := i.vars[v.Name()]
 	if !ok {
 		if i.env.eventStore != nil {
-			return GetBoolConst(i.env.eventStore.lookup(v.name) != nil), nil
+			return GetBoolConst(i.env.eventStore.Lookup(v.name) != nil), nil
 		}
 		return nil, &ErrVarNotFound{VarName: v.Name()}
 	}
@@ -98,7 +98,7 @@ func (i *Interpreter) lookupEvent(name string) (bool, error) {
 	if i.env.eventStore == nil {
 		return false, &ErrEventExprNotSupport{}
 	}
-	return i.env.eventStore.lookup(name) != nil, nil
+	return i.env.eventStore.Lookup(name) != nil, nil
 }
 
 func (i *Interpreter) evalEventExpr(eexpr EventExpr) (bool, error) {
@@ -212,7 +212,7 @@ func (i *Interpreter) evalProps(prop *Props) (*ObjConst, error) {
 	if i.env.eventStore == nil {
 		return nil, &ErrEventNotFound{Name: prop.eventVar.name}
 	}
-	obj := i.env.eventStore.lookup(prop.eventVar.name)
+	obj := i.env.eventStore.Lookup(prop.eventVar.name)
 	if obj == nil {
 		return nil, &ErrEventNotFound{Name: prop.eventVar.name}
 	}

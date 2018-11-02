@@ -18,6 +18,7 @@ import (
 	"os"
 	p "path"
 
+	"github.com/megaspacelab/megaconnect/unsafe"
 	wf "github.com/megaspacelab/megaconnect/workflow"
 	cli "gopkg.in/urfave/cli.v2"
 )
@@ -168,7 +169,7 @@ func compile(ctx *cli.Context) error {
 		}
 	}
 	if workflowWriter != nil {
-		if _, err := workflowWriter.Write([]byte(hex)); err != nil {
+		if _, err := workflowWriter.Write(unsafe.StringToBytes(hex)); err != nil {
 			return err
 		}
 	}
