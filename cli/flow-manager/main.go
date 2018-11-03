@@ -119,12 +119,12 @@ func loadAndWatchChainConfigs(
 			return
 		case event := <-watcher.Events:
 			log.Info("Received fs event", zap.Stringer("event", event))
-			if event.Op == fsnotify.Create {
+			if (event.Op & fsnotify.Write) == fsnotify.Write {
 				err = reloadWorkflow(fm, log, event.Name)
 				if err != nil {
 					log.Error("Failed to reload monitors", zap.Error(err))
 				}
-			} else if event.Op == fsnotify.Remove {
+			} else if (event.Op & fsnotify.Remove) == fsnotify.Remove {
 				// Un-deploy
 			} else {
 				log.Debug("File operator not supported", zap.Uint32("Op", uint32(event.Op)))
