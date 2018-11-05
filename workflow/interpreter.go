@@ -47,14 +47,14 @@ func NewInterpreter(env *Env, cache Cache, resolver *Resolver, logger *zap.Logge
 func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (*FireEventResult, error) {
 	// push variable declarations
 	i.vars = make(map[string]Expr, len(monitor.vars))
-	for v, expr := range monitor.vars {
-		if _, ok := i.vars[v]; ok {
-			return nil, &ErrVarDeclaredAlready{VarName: v}
+	for key, value := range monitor.vars {
+		if _, ok := i.vars[key]; ok {
+			return nil, &ErrVarDeclaredAlready{VarName: key}
 		}
-		if err := i.resolver.resolveExpr(expr); err != nil {
+		if err := i.resolver.resolveExpr(value.expr); err != nil {
 			return nil, err
 		}
-		i.vars[v] = expr
+		i.vars[key] = value.expr
 	}
 	defer func() { i.vars = nil }()
 
@@ -220,9 +220,9 @@ func (i *Interpreter) evalProps(prop *Props) (*ObjConst, error) {
 }
 
 func (i *Interpreter) evalObjLit(objLit *ObjLit) (*ObjConst, error) {
-	result := make(ObjFields, len(objLit.fields))
-	for field, expr := range objLit.fields {
-		value, err := i.evalExpr(expr)
+	result := make(map[string]Const, len(objLit.fields))
+	for field, value := range objLit.fields {
+		value, err := i.evalExpr(value.expr)
 		if err != nil {
 			return nil, err
 		}

@@ -27,8 +27,13 @@ var (
 
 // Expr represents expression in the language. All type of expression derives from it.
 type Expr interface {
+	Node
 	fmt.Stringer
 	Equal(Expr) bool
+}
+
+type expr struct {
+	node
 }
 
 // Args is a list of function arguments, it is referenced in FuncCall expression
@@ -59,6 +64,7 @@ func (a Args) Equal(b Args) bool {
 
 // FuncCall represents a function invoking expression
 type FuncCall struct {
+	expr
 	decl *FuncDecl
 	name string
 	args Args
@@ -122,7 +128,10 @@ type Const interface {
 }
 
 // BoolConst is a value typed to BoolType
-type BoolConst struct{ value bool }
+type BoolConst struct {
+	expr
+	value bool
+}
 
 // GetBoolConst converts value to TrueConst or FalseConst
 func GetBoolConst(value bool) *BoolConst {
@@ -150,7 +159,10 @@ func (b *BoolConst) Equal(x Expr) bool {
 }
 
 // StrConst is a value typed to StrType
-type StrConst struct{ value string }
+type StrConst struct {
+	expr
+	value string
+}
 
 // NewStrConst lifts a string from hosting language(Go)
 func NewStrConst(value string) *StrConst { return &StrConst{value: value} }
@@ -170,7 +182,10 @@ func (s *StrConst) Equal(x Expr) bool {
 }
 
 // IntConst represents a big interger
-type IntConst struct{ value *big.Int }
+type IntConst struct {
+	expr
+	value *big.Int
+}
 
 // NewIntConst lifts a big integer from hosting language(Go)
 func NewIntConst(value *big.Int) *IntConst { return &IntConst{value: value} }
@@ -194,6 +209,7 @@ func (i *IntConst) Equal(x Expr) bool {
 
 // ObjConst represents an object, an object contains a list of fields and corresponding types
 type ObjConst struct {
+	expr
 	ty    *ObjType
 	value ObjFields
 }
@@ -224,9 +240,9 @@ func (o ObjFields) Copy() ObjFields {
 
 // NewObjConst converts a list of named `Const` to ObjConst, it also calculates type of this ObjConst
 func NewObjConst(values ObjFields) *ObjConst {
-	ty := make(map[string]Type)
+	ty := make(IdToTy, len(values))
 	for field, value := range values {
-		ty[field] = value.Type()
+		ty.Add(field, value.Type())
 	}
 	return &ObjConst{
 		ty:    NewObjType(ty),
@@ -248,13 +264,13 @@ func NewObjConstWithTy(ty *ObjType, values ObjFields) (*ObjConst, error) {
 	for field, fieldTy := range ty.Fields() {
 		value, ok := values[field]
 		if !ok {
-			return nil, &ErrObjFieldMissing{Field: field, ObjType: ty}
+			return nil, &ErrObjFieldMissing{Field: fieldTy.id.id, ObjType: ty}
 		}
-		if _, ok := fieldTy.(*ObjType); ok && value == nil {
+		if _, ok := fieldTy.ty.(*ObjType); ok && value == nil {
 			continue
 		}
-		if !fieldTy.Equal(value.Type()) {
-			return nil, &ErrObjFieldTypeMismatch{Field: field, ObjType: ty, Type: value.Type()}
+		if !fieldTy.ty.Equal(value.Type()) {
+			return nil, &ErrObjFieldTypeMismatch{Field: fieldTy.id.id, ObjType: ty, Type: value.Type()}
 		}
 	}
 
@@ -348,6 +364,7 @@ func (n NamespacePrefix) Copy() NamespacePrefix {
 // ObjAccessor represents field selection operation,
 // for example, A.foo, where A is an object and foo is a field of A
 type ObjAccessor struct {
+	expr
 	receiver Expr
 	field    string
 }
@@ -378,6 +395,7 @@ func (o *ObjAccessor) Equal(expr Expr) bool {
 
 // Var represents a variable in workflow lang
 type Var struct {
+	expr
 	name string
 }
 
@@ -399,11 +417,12 @@ func (v *Var) String() string { return v.name }
 // ObjLit represents an object literal,
 // for example, {a: 1 + 1, b: "bar"}
 type ObjLit struct {
-	fields VarDecls
+	expr
+	fields IdToExpr
 }
 
 // NewObjLit creates an instance of ObjLit
-func NewObjLit(fields VarDecls) *ObjLit {
+func NewObjLit(fields IdToExpr) *ObjLit {
 	return &ObjLit{
 		fields: fields.Copy(),
 	}
@@ -416,16 +435,16 @@ func (o *ObjLit) Equal(expr Expr) bool {
 }
 
 // Fields returns a copy of field declaration
-func (o *ObjLit) Fields() VarDecls { return o.fields.Copy() }
+func (o *ObjLit) Fields() IdToExpr { return o.fields.Copy() }
 
 func (o *ObjLit) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("{")
 	len := len(o.fields)
-	for field, expr := range o.fields {
+	for field, value := range o.fields {
 		buf.WriteString(field)
 		buf.WriteString(":")
-		buf.WriteString(expr.String())
+		buf.WriteString(value.expr.String())
 		if len > 1 {
 			buf.WriteString(",")
 		}
@@ -439,6 +458,7 @@ func (o *ObjLit) String() string {
 // Props is defined as a struct instead of an operator in UniOp. Props should alway apply on an variable,
 // but UniOp can not enforce this criteria.
 type Props struct {
+	expr
 	eventVar *Var
 }
 

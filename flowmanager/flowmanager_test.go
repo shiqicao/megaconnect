@@ -30,27 +30,31 @@ func (s *FlowManagerSuite) workflow1() *workflow.WorkflowDecl {
 	wf := workflow.NewWorkflowDecl("TestWorkflow", 1)
 	wf.AddChild(workflow.NewEventDecl(
 		"TestEvent",
-		workflow.NewObjType(map[string]workflow.Type{
-			"balance": workflow.IntType,
-		}),
+		workflow.NewObjType(workflow.NewIdToTy().Add(
+			"balance",
+			workflow.IntType,
+		)),
 	))
 	wf.AddChild(workflow.NewEventDecl(
 		"TestEvent2",
-		workflow.NewObjType(map[string]workflow.Type{
-			"balance": workflow.IntType,
-		}),
+		workflow.NewObjType(workflow.NewIdToTy().Add(
+			"balance",
+			workflow.IntType,
+		)),
 	))
 	wf.AddChild(workflow.NewMonitorDecl(
 		"TestMonitor",
 		workflow.TrueConst,
-		map[string]workflow.Expr{
-			"balance": workflow.NewIntConstFromI64(100),
-		},
+		workflow.NewIdToExpr().Add(
+			"balance",
+			workflow.NewIntConstFromI64(100),
+		),
 		workflow.NewFire(
 			"TestEvent",
-			workflow.NewObjLit(workflow.VarDecls{
-				"balance": workflow.NewIntConstFromI64(1),
-			}),
+			workflow.NewObjLit(workflow.NewIdToExpr().Add(
+				"balance",
+				workflow.NewIntConstFromI64(1),
+			)),
 		),
 		chainID,
 	))

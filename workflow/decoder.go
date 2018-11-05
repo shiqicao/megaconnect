@@ -317,12 +317,12 @@ func (d *Decoder) DecodeObjConst() (*ObjConst, error) {
 	return NewObjConst(values), nil
 }
 
-func (d *Decoder) decodeVarDecls() (VarDecls, error) {
+func (d *Decoder) decodeVarDecls() (IdToExpr, error) {
 	len, err := d.decodeLength()
 	if err != nil {
 		return nil, err
 	}
-	vars := make(VarDecls, len)
+	vars := make(IdToExpr, len)
 	for ; len > 0; len-- {
 		varName, err := d.decodeBytes()
 		if err != nil {
@@ -332,7 +332,7 @@ func (d *Decoder) decodeVarDecls() (VarDecls, error) {
 		if err != nil {
 			return nil, err
 		}
-		vars[string(varName)] = expr
+		vars.Add(string(varName), expr)
 	}
 	return vars, nil
 }
@@ -361,7 +361,7 @@ func (d *Decoder) decodeObjType() (*ObjType, error) {
 	if err != nil {
 		return nil, err
 	}
-	fields := make(ObjFieldTypes, len)
+	fields := make(IdToTy, len)
 	for ; len > 0; len-- {
 		name, err := d.decodeBytes()
 		if err != nil {
@@ -371,7 +371,7 @@ func (d *Decoder) decodeObjType() (*ObjType, error) {
 		if err != nil {
 			return nil, err
 		}
-		fields[string(name)] = fieldType
+		fields.Add(string(name), fieldType)
 	}
 	return NewObjType(fields), nil
 }

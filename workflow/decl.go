@@ -143,46 +143,18 @@ func (f FuncDecls) Copy() FuncDecls {
 	return r
 }
 
-// VarDecls is a set of variable declarations
-type VarDecls map[string]Expr
-
-// Equal returns true iff two VarDecls are the same
-func (v VarDecls) Equal(x VarDecls) bool {
-	if len(v) != len(x) {
-		return false
-	}
-	for n, e := range v {
-		if xe, ok := x[n]; !ok || !xe.Equal(e) {
-			return false
-		}
-	}
-	return true
-}
-
-// Copy return a new instance of VarDecls with identical content
-func (v VarDecls) Copy() VarDecls {
-	if v == nil {
-		return nil
-	}
-	r := make(VarDecls, len(v))
-	for n, e := range v {
-		r[n] = e
-	}
-	return r
-}
-
 // MonitorDecl represents a monitor unit in workflow lang
 type MonitorDecl struct {
 	decl
 	name  string
 	cond  Expr
-	vars  VarDecls
+	vars  IdToExpr
 	event *Fire
 	chain string
 }
 
 // NewMonitorDecl creates a new MonitorDecl
-func NewMonitorDecl(name string, cond Expr, vars VarDecls, event *Fire, chain string) *MonitorDecl {
+func NewMonitorDecl(name string, cond Expr, vars IdToExpr, event *Fire, chain string) *MonitorDecl {
 	return &MonitorDecl{
 		name:  name,
 		cond:  cond,
@@ -202,7 +174,7 @@ func (m *MonitorDecl) Chain() string { return m.chain }
 func (m *MonitorDecl) Condition() Expr { return m.cond }
 
 // Vars returns a copy of variable declared in this monitor
-func (m *MonitorDecl) Vars() VarDecls { return m.vars.Copy() }
+func (m *MonitorDecl) Vars() IdToExpr { return m.vars.Copy() }
 
 // EventName returns the name this monitor will fire
 func (m *MonitorDecl) EventName() string { return m.event.eventName }
@@ -239,6 +211,7 @@ type Decl interface {
 }
 
 type decl struct {
+	node
 	parent *WorkflowDecl
 }
 
@@ -273,6 +246,7 @@ func (e *EventDecl) Name() string { return e.name }
 
 // WorkflowDecl represents a workflow declaration
 type WorkflowDecl struct {
+	node
 	version  uint32
 	name     string
 	children []Decl
