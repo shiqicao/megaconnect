@@ -17,7 +17,7 @@ import (
 	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
 )
 
-func TermBoolLitAction(t interface{}) (*wf.BoolConst, error) {
+func BoolLitAction(t interface{}) (*wf.BoolConst, error) {
 	lit := string(t.(*token.Token).Lit)
 	if lit == "true" {
 		return wf.TrueConst, nil
@@ -25,6 +25,14 @@ func TermBoolLitAction(t interface{}) (*wf.BoolConst, error) {
 		return wf.FalseConst, nil
 	}
 	return nil, fmt.Errorf("")
+}
+
+func StrLitAction(t interface{}) (*wf.StrConst, error) {
+	lit := string(t.(*token.Token).Lit)
+	if len(lit) < 2 {
+		return nil, fmt.Errorf("")
+	}
+	return wf.NewStrConst(lit[1 : len(lit)-1]), nil
 }
 
 func MonitorAction(

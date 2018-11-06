@@ -82,6 +82,13 @@ func TestExprParsing(t *testing.T) {
 	assertExprParsing(t, ADD(V("a"), MUL(V("b"), V("c"))), "a + b * c")
 }
 
+func TestStrLit(t *testing.T) {
+	assertExprParsing(t, wf.NewStrConst(""), "\"\"")
+	assertExprParsing(t, wf.NewStrConst(" "), "\" \"")
+	assertExprParsing(t, wf.NewStrConst("a+b"), "\"a+b\"")
+	assertExprParsing(t, wf.NewStrConst("a"), "\"a\"")
+}
+
 func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
 	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true, } }", expr)
 	r, err := parse(t, code)
@@ -91,6 +98,18 @@ func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
 	assert.NotNil(t, w)
 	md := w.MonitorDecls()[0]
 	assert.NotNil(t, md)
+	if !md.Condition().Equal(expected) {
+		t.Logf(
+			"Actual Parsed Expr(%T): %s",
+			md.Condition(),
+			md.Condition().String(),
+		)
+		t.Logf(
+			"Expected Expr(%T): %s",
+			expected,
+			expected.String(),
+		)
+	}
 	assert.True(t, md.Condition().Equal(expected))
 }
 

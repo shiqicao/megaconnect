@@ -405,20 +405,30 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Term4 : boolLit	<< pa.TermBoolLitAction(X[0]) >>`,
+		String: `Term4 : boolLit	<< pa.BoolLitAction(X[0]) >>`,
 		Id:         "Term4",
 		NTType:     17,
 		Index:      38,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return pa.TermBoolLitAction(X[0])
+			return pa.BoolLitAction(X[0])
+		},
+	},
+	ProdTabEntry{
+		String: `Term4 : stringLit	<< pa.StrLitAction(X[0]) >>`,
+		Id:         "Term4",
+		NTType:     17,
+		Index:      39,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return pa.StrLitAction(X[0])
 		},
 	},
 	ProdTabEntry{
 		String: `Term4 : id	<< wf.NewVar(string(X[0].(*token.Token).Lit)), nil >>`,
 		Id:         "Term4",
 		NTType:     17,
-		Index:      39,
+		Index:      40,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewVar(string(X[0].(*token.Token).Lit)), nil
@@ -428,7 +438,7 @@ var productionsTable = ProdTab{
 		String: `Term4 : "(" Expr ")"	<< X[1], nil >>`,
 		Id:         "Term4",
 		NTType:     17,
-		Index:      40,
+		Index:      41,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[1], nil

@@ -19,6 +19,12 @@ _letter : 'a' - 'z' | 'A' - 'Z' ;
 
 boolLit : 't' 'r' 'u' 'e' | 'f' 'a' 'l' 's' 'e' ;
 
+// string literals 
+stringLit : '"' { . | '\\' '"' | _escapeChar } '"' ; 
+
+// single-character escapes 
+_escapeChar : '\\' 'n' | '\\' 'r' | '\\' 't' ;
+
 // comment
 !comment : '/' '/' {.} ;
 
@@ -122,7 +128,8 @@ Term3
   ;
 
 Term4
-  : boolLit      <<pa.TermBoolLitAction($0)>>
+  : boolLit      <<pa.BoolLitAction($0)>>
+  | stringLit    <<pa.StrLitAction($0)>>
   | id           <<wf.NewVar(string($0.(*token.Token).Lit)), nil>>
   | "(" Expr ")" <<$1, nil>>
   ;
