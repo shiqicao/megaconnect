@@ -223,7 +223,7 @@ func TestSymbolResolve(t *testing.T) {
 					[]*ParamDecl{
 						NewParamDecl("bar", StrType),
 					},
-					NewObjType(VT("size", IntType).Add("text", StrType)),
+					NewObjType(VT("size", IntType).Put("text", StrType)),
 					func(env *Env, args map[string]Const) (Const, error) {
 						bar := args["bar"]
 						barStr := bar.(*StrConst)

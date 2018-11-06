@@ -111,7 +111,7 @@ func TestVarEncoding(t *testing.T) {
 
 func TestObjLitEncoding(t *testing.T) {
 	assertExprEncoding(t, NewObjLit(VD("a", NewIntConstFromI64(1))))
-	assertExprEncoding(t, NewObjLit(VD("a", TrueConst).Add("b", FalseConst)))
+	assertExprEncoding(t, NewObjLit(VD("a", TrueConst).Put("b", FalseConst)))
 	assertExprEncoding(t, NewObjLit(VD("a", NewObjLit(VD("a", NewStrConst("x"))))))
 }
 
@@ -177,7 +177,7 @@ func TestWorkflowEncoding(t *testing.T) {
 	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(VT("a", NewObjType(VT("a", StrType)))))))
 	check(NewWorkflowDecl("a", 1).
 		AddChild(NewActionDecl("c", EOR(EV("a"), EAND(EV("a"), EV("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
-		AddChild(NewEventDecl("b", NewObjType(VT("b", BoolType).Add("a", NewObjType(VT("a", StrType)))))),
+		AddChild(NewEventDecl("b", NewObjType(VT("b", BoolType).Put("a", NewObjType(VT("a", StrType)))))),
 	)
 }
 

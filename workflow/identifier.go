@@ -28,8 +28,8 @@ type IdToTy map[string]idTy
 // NewIdToTy creates an instance of IdToTy
 func NewIdToTy() IdToTy { return make(IdToTy) }
 
-// Add inserts a new pair of Id and type
-func (i IdToTy) Add(id string, ty Type) IdToTy {
+// Put inserts a new pair of Id and type
+func (i IdToTy) Put(id string, ty Type) IdToTy {
 	i[id] = idTy{id: &Id{id: id}, ty: ty}
 	return i
 }
@@ -71,8 +71,8 @@ func (i IdToExpr) Equal(x IdToExpr) bool {
 	return true
 }
 
-// Add inserts a pair of identifier and expression
-func (i IdToExpr) Add(id string, expr Expr) IdToExpr {
+// Put inserts a pair of identifier and expression
+func (i IdToExpr) Put(id string, expr Expr) IdToExpr {
 	i[id] = idExpr{id: &Id{id: id}, expr: expr}
 	return i
 }

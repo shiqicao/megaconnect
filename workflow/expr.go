@@ -242,7 +242,7 @@ func (o ObjFields) Copy() ObjFields {
 func NewObjConst(values ObjFields) *ObjConst {
 	ty := make(IdToTy, len(values))
 	for field, value := range values {
-		ty.Add(field, value.Type())
+		ty.Put(field, value.Type())
 	}
 	return &ObjConst{
 		ty:    NewObjType(ty),

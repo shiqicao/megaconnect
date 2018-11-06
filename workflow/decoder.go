@@ -332,7 +332,7 @@ func (d *Decoder) decodeVarDecls() (IdToExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		vars.Add(string(varName), expr)
+		vars.Put(string(varName), expr)
 	}
 	return vars, nil
 }
@@ -371,7 +371,7 @@ func (d *Decoder) decodeObjType() (*ObjType, error) {
 		if err != nil {
 			return nil, err
 		}
-		fields.Add(string(name), fieldType)
+		fields.Put(string(name), fieldType)
 	}
 	return NewObjType(fields), nil
 }
