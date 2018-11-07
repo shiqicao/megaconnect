@@ -113,6 +113,7 @@ func TestObjAccessor(t *testing.T) {
 	assertExprParsing(t, OA(AND(V("A"), V("B")), "a"), "(A && B).a")
 	assertExprParsing(t, AND(V("A"), OA(V("B"), "a")), "A && B.a")
 	assertExprParsing(t, MUL(V("A"), OA(V("B"), "a")), "A * B.a")
+	assertExprParsing(t, MUL(OA(V("A"), "b"), OA(V("B"), "a")), "A.b * B.a")
 }
 
 func assertExprParsingErr(t *testing.T, expr string) {

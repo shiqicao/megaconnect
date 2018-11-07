@@ -12,6 +12,9 @@ kdCondition : 'c' 'o' 'n' 'd' 'i' 't' 'i' 'o' 'n' ;
 kdVar : 'v' 'a' 'r' ;
 kdWorkflow : 'w' 'o' 'r' 'k' 'f' 'l' 'o' 'w';
 kdFire : 'f' 'i' 'r' 'e';
+kdInt : 'i' 'n' 't';
+kdStr : 's' 't' 'r' 'i' 'n' 'g';
+kdBool : 'b' 'o' 'o' 'l';
 
 // letter and digit
 _digit : '0' - '9' ;
@@ -54,6 +57,7 @@ Decls
 
 Decl
   : Monitor
+  | Event
   | empty
   ;
 
@@ -68,6 +72,21 @@ Monitor :
 MonitorVar 
   : kdVar "{" VarDecls "}" <<$2, nil>>
   | empty 
+  ;
+
+Event : kdEvent "{" EventFieldDecls "}";
+
+EventFieldDecl : id ":"  Type;
+
+EventFieldDecls 
+  : EventFieldDecl
+  | EventFieldDecls EventFieldDecl
+  ;
+
+Type 
+  : kdStr 
+  | kdInt 
+  | kdBool
   ;
 
 ObjLit : "{" ObjLitFields "}" <<$1, nil>>;
@@ -139,6 +158,7 @@ Term5
   : intLit       <<pa.IntLitAction($0)>>
   | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
+  | ObjLit       <<pa.
   | id           <<wf.NewVar(string($0.(*token.Token).Lit)), nil>>
   | "(" Expr ")" <<$1, nil>>
   ;
