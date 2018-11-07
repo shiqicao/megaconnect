@@ -63,7 +63,7 @@ func newChainAPI(defaultNamesapce string, chain chain) *chainAPI {
 		wf.NewFuncDecl(
 			"GetBlock",
 			[]*wf.ParamDecl{},
-			wf.NewObjType(wf.NewIdToTy().Add(
+			wf.NewObjType(wf.NewIdToTy().Put(
 				"height", wf.IntType,
 			)),
 			func(_ *wf.Env, args map[string]wf.Const) (wf.Const, error) {

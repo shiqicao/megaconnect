@@ -30,14 +30,14 @@ func (s *FlowManagerSuite) workflow1() *workflow.WorkflowDecl {
 	wf := workflow.NewWorkflowDecl("TestWorkflow", 1)
 	wf.AddChild(workflow.NewEventDecl(
 		"TestEvent",
-		workflow.NewObjType(workflow.NewIdToTy().Add(
+		workflow.NewObjType(workflow.NewIdToTy().Put(
 			"balance",
 			workflow.IntType,
 		)),
 	))
 	wf.AddChild(workflow.NewEventDecl(
 		"TestEvent2",
-		workflow.NewObjType(workflow.NewIdToTy().Add(
+		workflow.NewObjType(workflow.NewIdToTy().Put(
 			"balance",
 			workflow.IntType,
 		)),
@@ -45,13 +45,13 @@ func (s *FlowManagerSuite) workflow1() *workflow.WorkflowDecl {
 	wf.AddChild(workflow.NewMonitorDecl(
 		"TestMonitor",
 		workflow.TrueConst,
-		workflow.NewIdToExpr().Add(
+		workflow.NewIdToExpr().Put(
 			"balance",
 			workflow.NewIntConstFromI64(100),
 		),
 		workflow.NewFire(
 			"TestEvent",
-			workflow.NewObjLit(workflow.NewIdToExpr().Add(
+			workflow.NewObjLit(workflow.NewIdToExpr().Put(
 				"balance",
 				workflow.NewIntConstFromI64(1),
 			)),

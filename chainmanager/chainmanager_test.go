@@ -555,7 +555,7 @@ func monitorCondition() wf.Expr {
 }
 
 func monitorVars() wf.IdToExpr {
-	return wf.NewIdToExpr().Add(
+	return wf.NewIdToExpr().Put(
 		"blockHeight",
 		wf.NewObjAccessor(
 			wf.NewFuncCall(nil, "GetBlock"),
@@ -571,7 +571,7 @@ func monitor1() *wf.MonitorDecl {
 		monitorVars(),
 		wf.NewFire(
 			"TestEvent",
-			wf.NewObjLit(wf.NewIdToExpr().Add(
+			wf.NewObjLit(wf.NewIdToExpr().Put(
 				"balance",
 				wf.NewIntConstFromI64(1),
 			)),
@@ -587,7 +587,7 @@ func monitor2() *wf.MonitorDecl {
 		monitorVars(),
 		wf.NewFire(
 			"TestEvent",
-			wf.NewObjLit(wf.NewIdToExpr().Add(
+			wf.NewObjLit(wf.NewIdToExpr().Put(
 				"balance",
 				wf.NewIntConstFromI64(1),
 			)),
