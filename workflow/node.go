@@ -30,6 +30,10 @@ type node struct {
 }
 
 func (n *node) setPos(pos *Pos) {
+	if pos == nil {
+		n.pos = nil
+		return
+	}
 	p := *pos
 	n.pos = &p
 }
