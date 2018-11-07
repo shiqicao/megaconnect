@@ -83,10 +83,27 @@ func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecl
 	return varDecls, nil
 }
 
+func ObjLitFieldsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecls, error) {
+	varDecls := varDeclsRaw.(wf.VarDecls)
+	if varDeclRaw == nil {
+		return varDecls, nil
+	}
+	varDecl := varDeclRaw.([]interface{})
+	field := Lit(varDecl[0])
+	expr := varDecl[1].(wf.Expr)
+	varDecls[field] = expr
+	return varDecls, nil
+}
+
 func ObjAccessorAction(expr interface{}, id interface{}) (*wf.ObjAccessor, error) {
 	receiver := expr.(wf.Expr)
 	accessor := Lit(id)
 	return wf.NewObjAccessor(receiver, accessor), nil
+}
+
+func ObjLitAction(objFields interface{}) (*wf.ObjLit, error) {
+	fields := objFields.(wf.VarDecls)
+	return wf.NewObjLit(fields), nil
 }
 
 func Lit(t interface{}) string {

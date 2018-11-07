@@ -35,7 +35,7 @@ func TestParser(t *testing.T) {
 	  		}
 	  		fire e {
 				a: true,
-				b: true && false,
+				b: true && false
 			}		  
 	}
 	`)
@@ -116,14 +116,24 @@ func TestObjAccessor(t *testing.T) {
 	assertExprParsing(t, MUL(OA(V("A"), "b"), OA(V("B"), "a")), "A.b * B.a")
 }
 
+func TestObjLit(t *testing.T) {
+	assertExprParsing(t, wf.NewObjLit(wf.VarDecls{}), "{}")
+	assertExprParsing(t, wf.NewObjLit(wf.VarDecls{"a": T}), "{a: true}")
+	assertExprParsing(t, wf.NewObjLit(wf.VarDecls{"a": T, "b": F}), "{a: true, b: false}")
+	assertExprParsing(t,
+		wf.NewObjLit(wf.VarDecls{"a": T, "b": wf.NewObjLit(wf.VarDecls{"c": T})}),
+		"{a: true, b: {c: true}}",
+	)
+}
+
 func assertExprParsingErr(t *testing.T, expr string) {
-	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true, } }", expr)
+	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
 	_, err := parse(t, code)
 	assert.Error(t, err)
 }
 
 func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
-	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true, } }", expr)
+	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
 	r, err := parse(t, code)
 	assert.NoError(t, err)
 	w, ok := r.(*wf.WorkflowDecl)

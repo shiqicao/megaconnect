@@ -74,9 +74,9 @@ MonitorVar
   | empty 
   ;
 
-Event : kdEvent "{" EventFieldDecls "}";
+Event : kdEvent id "{" EventFieldDecls "}";
 
-EventFieldDecl : id ":"  Type;
+EventFieldDecl : id ":" Type;
 
 EventFieldDecls 
   : EventFieldDecl
@@ -89,16 +89,22 @@ Type
   | kdBool
   ;
 
-ObjLit : "{" ObjLitFields "}" <<$1, nil>>;
+ObjLit 
+  : "{" ObjLitFields "}" <<$1, nil>>
+  ;
 
 ObjLitField
-  : id ":" Expr "," <<pa.VarDeclAction($0, $2)>>
-  | empty
+  : id ":" Expr <<[]interface{}{$0, $2}, nil>>
+  ;
+
+ObjLitFields_ 
+  : ObjLitFields_ "," ObjLitField <<pa.ObjLitFieldsAction($0, $2)>>
+  | empty                         <<wf.VarDecls{}, nil>>
   ;
 
 ObjLitFields
-  : ObjLitField
-  | ObjLitFields ObjLitField <<pa.VarDeclsAction($0, $1)>>
+  : ObjLitField ObjLitFields_ <<pa.ObjLitFieldsAction($1, $0)>> 
+  | empty                     <<wf.VarDecls{}, nil>>
   ;
 
 VarDecl 
@@ -111,16 +117,6 @@ VarDecls
   | VarDecls VarDecl <<pa.VarDeclsAction($0, $1)>>
   ;
    
-MonitorProperty 
-  : kdChain ":" id
-  | kdCondition ":" Expr  
-  ;
-
-MonitorProperties 
-  : MonitorProperty 
-  | MonitorProperty MonitorProperties
-  ;
-
 Expr
   : Expr "||" Term1 <<wf.NewBinOp(wf.OrOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
   | Expr "&&" Term1 <<wf.NewBinOp(wf.AndOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
@@ -158,7 +154,7 @@ Term5
   : intLit       <<pa.IntLitAction($0)>>
   | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
-  | ObjLit       <<pa.
+  | ObjLit       <<pa.ObjLitAction($0)>>
   | id           <<wf.NewVar(string($0.(*token.Token).Lit)), nil>>
   | "(" Expr ")" <<$1, nil>>
   ;
