@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 
 type ErrorSymbol interface {

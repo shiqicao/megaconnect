@@ -25,6 +25,9 @@ stringLit : '"' { . | '\\' '"' | _escapeChar } '"' ;
 // single-character escapes 
 _escapeChar : '\\' 'n' | '\\' 'r' | '\\' 't' ;
 
+// integer literals
+intLit : '1' - '9' { _digit } | '0';
+
 // comment
 !comment : '/' '/' {.} ;
 
@@ -36,7 +39,7 @@ id : _letter {_letter | _digit} ;
 import (
     pa "github.com/megaspacelab/megaconnect/workflow/parser/utils"
     wf "github.com/megaspacelab/megaconnect/workflow"    
-    "github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
+    "github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 >>
 
@@ -128,7 +131,13 @@ Term3
   ;
 
 Term4
-  : boolLit      <<pa.BoolLitAction($0)>>
+  : Term4 "." id <<pa.ObjAccessorAction($0, $2)>>
+  | Term5
+  ; 
+
+Term5
+  : intLit       <<pa.IntLitAction($0)>>
+  | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
   | id           <<wf.NewVar(string($0.(*token.Token).Lit)), nil>>
   | "(" Expr ")" <<$1, nil>>

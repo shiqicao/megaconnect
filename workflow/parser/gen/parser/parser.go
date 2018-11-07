@@ -6,14 +6,14 @@ import (
 	"bytes"
 	"fmt"
 
-	parseError "github.com/megaspacelab/megaconnect/workflow/parser/goccgen/errors"
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
+	parseError "github.com/megaspacelab/megaconnect/workflow/parser/gen/errors"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 
 const (
-	numProductions = 42
-	numStates      = 174
-	numSymbols     = 51
+	numProductions = 45
+	numStates      = 190
+	numSymbols     = 54
 )
 
 // Stack

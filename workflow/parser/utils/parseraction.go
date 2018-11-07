@@ -12,13 +12,23 @@ package utils
 
 import (
 	"fmt"
+	"math/big"
 
 	wf "github.com/megaspacelab/megaconnect/workflow"
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 
+func IntLitAction(t interface{}) (*wf.IntConst, error) {
+	lit := Lit(t)
+	i, ok := new(big.Int).SetString(lit, 10)
+	if !ok || i == nil {
+		return nil, fmt.Errorf("Failed to parse int %s", lit)
+	}
+	return wf.NewIntConst(i), nil
+}
+
 func BoolLitAction(t interface{}) (*wf.BoolConst, error) {
-	lit := string(t.(*token.Token).Lit)
+	lit := Lit(t)
 	if lit == "true" {
 		return wf.TrueConst, nil
 	} else if lit == "false" {
@@ -28,7 +38,7 @@ func BoolLitAction(t interface{}) (*wf.BoolConst, error) {
 }
 
 func StrLitAction(t interface{}) (*wf.StrConst, error) {
-	lit := string(t.(*token.Token).Lit)
+	lit := Lit(t)
 	if len(lit) < 2 {
 		return nil, fmt.Errorf("")
 	}
@@ -71,6 +81,12 @@ func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecl
 		varDecls[name] = expr
 	}
 	return varDecls, nil
+}
+
+func ObjAccessorAction(expr interface{}, id interface{}) (*wf.ObjAccessor, error) {
+	receiver := expr.(wf.Expr)
+	accessor := Lit(id)
+	return wf.NewObjAccessor(receiver, accessor), nil
 }
 
 func Lit(t interface{}) string {

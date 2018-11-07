@@ -7,14 +7,14 @@ import (
 	"io/ioutil"
 	"unicode/utf8"
 
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/util"
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/util"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 
 const (
 	NoState    = -1
-	NumStates  = 84
-	NumSymbols = 101
+	NumStates  = 88
+	NumSymbols = 104
 )
 
 type Lexer struct {
@@ -183,45 +183,48 @@ Lexer symbols:
 57: '\'
 58: '"'
 59: '"'
-60: '{'
-61: '}'
-62: ':'
-63: ','
-64: '='
-65: '|'
+60: '0'
+61: '{'
+62: '}'
+63: ':'
+64: ','
+65: '='
 66: '|'
-67: '&'
+67: '|'
 68: '&'
-69: '='
+69: '&'
 70: '='
-71: '!'
-72: '='
-73: '>'
+71: '='
+72: '!'
+73: '='
 74: '>'
-75: '='
-76: '<'
+75: '>'
+76: '='
 77: '<'
-78: '='
-79: '+'
-80: '-'
-81: '*'
-82: '/'
-83: '('
-84: ')'
-85: '\'
-86: 'n'
+78: '<'
+79: '='
+80: '+'
+81: '-'
+82: '*'
+83: '/'
+84: '.'
+85: '('
+86: ')'
 87: '\'
-88: 'r'
+88: 'n'
 89: '\'
-90: 't'
-91: ' '
-92: '\t'
-93: '\r'
-94: '\n'
-95: '/'
-96: '/'
-97: '0'-'9'
-98: 'a'-'z'
-99: 'A'-'Z'
-100: .
+90: 'r'
+91: '\'
+92: 't'
+93: ' '
+94: '\t'
+95: '\r'
+96: '\n'
+97: '/'
+98: '/'
+99: '1'-'9'
+100: '0'-'9'
+101: 'a'-'z'
+102: 'A'-'Z'
+103: .
 */

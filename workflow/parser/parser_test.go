@@ -12,14 +12,15 @@ package parser
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	wf "github.com/megaspacelab/megaconnect/workflow"
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/lexer"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/lexer"
 
-	"github.com/megaspacelab/megaconnect/workflow/parser/goccgen/parser"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/parser"
 )
 
 func TestParser(t *testing.T) {
@@ -67,6 +68,9 @@ var (
 	V   = wf.NewVar
 	ADD = B(wf.PlusOp)
 	MUL = B(wf.MultOp)
+	I   = wf.NewIntConstFromI64
+	S   = wf.NewStrConst
+	OA  = wf.NewObjAccessor
 )
 
 func TestExprParsing(t *testing.T) {
@@ -83,10 +87,38 @@ func TestExprParsing(t *testing.T) {
 }
 
 func TestStrLit(t *testing.T) {
-	assertExprParsing(t, wf.NewStrConst(""), "\"\"")
-	assertExprParsing(t, wf.NewStrConst(" "), "\" \"")
-	assertExprParsing(t, wf.NewStrConst("a+b"), "\"a+b\"")
-	assertExprParsing(t, wf.NewStrConst("a"), "\"a\"")
+	assertExprParsing(t, S(""), "\"\"")
+	assertExprParsing(t, S(" "), "\" \"")
+	assertExprParsing(t, S("a+b"), "\"a+b\"")
+	assertExprParsing(t, S("a"), "\"a\"")
+}
+
+func TestIntLit(t *testing.T) {
+	assertExprParsing(t, I(0), "0")
+	assertExprParsing(t, I(1), "1")
+	//assertExprParsing(t, I(-1), "-1")
+	i := "1"
+	for ; len(i) < 20; i = i + i {
+	}
+	expected, ok := new(big.Int).SetString(i, 10)
+	assert.True(t, ok)
+	assertExprParsing(t, wf.NewIntConst(expected), i)
+
+	assertExprParsingErr(t, "01")
+}
+
+func TestObjAccessor(t *testing.T) {
+	assertExprParsing(t, OA(V("A"), "a"), "A.a")
+	assertExprParsing(t, OA(OA(V("A"), "a"), "b"), "A.a.b")
+	assertExprParsing(t, OA(AND(V("A"), V("B")), "a"), "(A && B).a")
+	assertExprParsing(t, AND(V("A"), OA(V("B"), "a")), "A && B.a")
+	assertExprParsing(t, MUL(V("A"), OA(V("B"), "a")), "A * B.a")
+}
+
+func assertExprParsingErr(t *testing.T, expr string) {
+	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true, } }", expr)
+	_, err := parse(t, code)
+	assert.Error(t, err)
 }
 
 func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {

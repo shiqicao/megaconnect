@@ -5,7 +5,7 @@ package parser
 import (
     pa "github.com/megaspacelab/megaconnect/workflow/parser/utils"
     wf "github.com/megaspacelab/megaconnect/workflow"    
-    "github.com/megaspacelab/megaconnect/workflow/parser/goccgen/token"
+    "github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 
 type (
@@ -405,40 +405,70 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Term4 : boolLit	<< pa.BoolLitAction(X[0]) >>`,
+		String: `Term4 : Term4 "." id	<< pa.ObjAccessorAction(X[0], X[2]) >>`,
 		Id:         "Term4",
 		NTType:     17,
 		Index:      38,
+		NumSymbols: 3,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return pa.ObjAccessorAction(X[0], X[2])
+		},
+	},
+	ProdTabEntry{
+		String: `Term4 : Term5	<<  >>`,
+		Id:         "Term4",
+		NTType:     17,
+		Index:      39,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return X[0], nil
+		},
+	},
+	ProdTabEntry{
+		String: `Term5 : intLit	<< pa.IntLitAction(X[0]) >>`,
+		Id:         "Term5",
+		NTType:     18,
+		Index:      40,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return pa.IntLitAction(X[0])
+		},
+	},
+	ProdTabEntry{
+		String: `Term5 : boolLit	<< pa.BoolLitAction(X[0]) >>`,
+		Id:         "Term5",
+		NTType:     18,
+		Index:      41,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.BoolLitAction(X[0])
 		},
 	},
 	ProdTabEntry{
-		String: `Term4 : stringLit	<< pa.StrLitAction(X[0]) >>`,
-		Id:         "Term4",
-		NTType:     17,
-		Index:      39,
+		String: `Term5 : stringLit	<< pa.StrLitAction(X[0]) >>`,
+		Id:         "Term5",
+		NTType:     18,
+		Index:      42,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.StrLitAction(X[0])
 		},
 	},
 	ProdTabEntry{
-		String: `Term4 : id	<< wf.NewVar(string(X[0].(*token.Token).Lit)), nil >>`,
-		Id:         "Term4",
-		NTType:     17,
-		Index:      40,
+		String: `Term5 : id	<< wf.NewVar(string(X[0].(*token.Token).Lit)), nil >>`,
+		Id:         "Term5",
+		NTType:     18,
+		Index:      43,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewVar(string(X[0].(*token.Token).Lit)), nil
 		},
 	},
 	ProdTabEntry{
-		String: `Term4 : "(" Expr ")"	<< X[1], nil >>`,
-		Id:         "Term4",
-		NTType:     17,
-		Index:      41,
+		String: `Term5 : "(" Expr ")"	<< X[1], nil >>`,
+		Id:         "Term5",
+		NTType:     18,
+		Index:      44,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[1], nil
