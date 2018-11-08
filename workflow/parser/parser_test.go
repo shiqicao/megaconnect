@@ -71,6 +71,7 @@ var (
 	I   = wf.NewIntConstFromI64
 	S   = wf.NewStrConst
 	OA  = wf.NewObjAccessor
+	ID  = wf.NewId
 )
 
 func TestExprParsing(t *testing.T) {
@@ -131,21 +132,21 @@ func TestObjLit(t *testing.T) {
 }
 
 func TestEvent(t *testing.T) {
-	assertEventParsing(t, wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy())), "event e {}")
-	assertEventParsing(t, wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType))), "event e {a : int}")
+	assertEventParsing(t, wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy())), "event e {}")
+	assertEventParsing(t, wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType))), "event e {a : int}")
 	assertEventParsing(
 		t,
-		wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.StrType))),
+		wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.StrType))),
 		"event e {a : int, b: string}",
 	)
 	assertEventParsing(
 		t,
-		wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.BoolType))),
+		wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.BoolType))),
 		"event e {a : int, b: bool}",
 	)
 	assertEventParsing(
 		t,
-		wf.NewEventDecl("e", wf.NewObjType(
+		wf.NewEventDecl(ID("e"), wf.NewObjType(
 			wf.NewIdToTy().
 				Put("a", wf.IntType).
 				Put("b", wf.NewObjType(wf.NewIdToTy().Put("c", wf.BoolType)))),

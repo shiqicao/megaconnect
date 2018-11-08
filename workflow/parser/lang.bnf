@@ -42,7 +42,7 @@ id : _letter {_letter | _digit} ;
 import (
     pa "github.com/megaspacelab/megaconnect/workflow/parser/utils"
     wf "github.com/megaspacelab/megaconnect/workflow"    
-    "github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
+    // "github.com/megaspacelab/megaconnect/workflow/parser/gen/token"
 )
 >>
 
@@ -78,7 +78,7 @@ MonitorVar
 
 // Event Declaration
 Event 
-  : kdEvent id "{" ObjFields "}"  <<wf.NewEventDecl(pa.Lit($1), wf.NewObjType($3.(wf.IdToTy))), nil>>
+  : kdEvent id "{" ObjFields "}"  <<wf.NewEventDecl(pa.Id($1), wf.NewObjType($3.(wf.IdToTy))), nil>>
   ;
 
 ObjField 
@@ -103,13 +103,13 @@ ObjFields
 //    kdRun "{" Stmts "}"
 //  <<ps.ActionAction($1, $3, $6) >>;
 
-// EventExpr
-//  : EventExpr "||" EventTerm1 
-//  | EventExpr "&&" EventTerm1 
-//  | EventTerm1
-//  ;
+EventExpr
+  : EventExpr "||" EventTerm1 <<pa.EBinOpAction(wf.OrEOp, $0, $2)>>
+  | EventExpr "&&" EventTerm1 <<pa.EBinOpAction(wf.AndEOp, $0, $2)>>
+  | EventTerm1
+  ;
 
-// EventTerm1 : id <<wf.NewEVar(), nil>>;
+EventTerm1 : id <<pa.EVarAction($0)>>;
 
 Type 
   : kdStr <<wf.StrType, nil>>
@@ -147,30 +147,30 @@ VarDecls
   ;
    
 Expr
-  : Expr "||" Term1 <<wf.NewBinOp(wf.OrOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Expr "&&" Term1 <<wf.NewBinOp(wf.AndOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
+  : Expr "||" Term1 <<pa.BinOpAction(wf.OrOp, $0, $2)>>
+  | Expr "&&" Term1 <<pa.BinOpAction(wf.AndOp, $0, $2)>>
   | Term1
   ;
 
 Term1 
-  : Term1 "==" Term2 <<wf.NewBinOp(wf.EqualOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term1 "!=" Term2 <<wf.NewBinOp(wf.NotEqualOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term1 ">" Term2 <<wf.NewBinOp(wf.GreaterThanOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term1 ">=" Term2 <<wf.NewBinOp(wf.GreaterThanEqualOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term1 "<" Term2 <<wf.NewBinOp(wf.LessThanOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term1 "<=" Term2 <<wf.NewBinOp(wf.LessThanEqualOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
+  : Term1 "==" Term2 <<pa.BinOpAction(wf.EqualOp, $0, $2)>>
+  | Term1 "!=" Term2 <<pa.BinOpAction(wf.NotEqualOp, $0, $2)>>
+  | Term1 ">" Term2 <<pa.BinOpAction(wf.GreaterThanOp, $0, $2)>>
+  | Term1 ">=" Term2 <<pa.BinOpAction(wf.GreaterThanEqualOp, $0, $2)>>
+  | Term1 "<" Term2 <<pa.BinOpAction(wf.LessThanOp, $0, $2)>>
+  | Term1 "<=" Term2 <<pa.BinOpAction(wf.LessThanEqualOp, $0, $2)>>
   | Term2
   ;
 
 Term2
-  : Term2 "+" Term3 <<wf.NewBinOp(wf.PlusOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term2 "-" Term3 <<wf.NewBinOp(wf.MinusOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
+  : Term2 "+" Term3 <<pa.BinOpAction(wf.PlusOp, $0, $2)>>
+  | Term2 "-" Term3 <<pa.BinOpAction(wf.MinusOp, $0, $2)>>
   | Term3 
   ;
 
 Term3 
-  : Term3 "*" Term4 <<wf.NewBinOp(wf.MultOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
-  | Term3 "/" Term4 <<wf.NewBinOp(wf.DivOp, $0.(wf.Expr), $2.(wf.Expr)), nil>>
+  : Term3 "*" Term4 <<pa.BinOpAction(wf.MultOp, $0, $2)>>
+  | Term3 "/" Term4 <<pa.BinOpAction(wf.DivOp, $0, $2)>>
   | Term4
   ;
 
@@ -184,6 +184,6 @@ Term5
   | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
   | ObjLit       <<pa.ObjLitAction($0)>>
-  | id           <<wf.NewVar(string($0.(*token.Token).Lit)), nil>>
+  | id           <<pa.VarAction($0)>>
   | "(" Expr ")" <<$1, nil>>
   ;

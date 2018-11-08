@@ -132,6 +132,30 @@ func ObjLitAction(objFields interface{}) (*wf.ObjLit, error) {
 	return wf.NewObjLit(fields), nil
 }
 
+func VarAction(t interface{}) (*wf.Var, error) {
+	return idAction(t, func(s string) wf.Node { return wf.NewVar(s) }).(*wf.Var), nil
+}
+
+func EVarAction(t interface{}) (*wf.EVar, error) {
+	return idAction(t, func(s string) wf.Node { return wf.NewEVar(s) }).(*wf.EVar), nil
+}
+
+func BinOpAction(op wf.Operator, leftRaw interface{}, rightRaw interface{}) (wf.Expr, error) {
+	left := leftRaw.(wf.Expr)
+	right := rightRaw.(wf.Expr)
+	bin := wf.NewBinOp(op, left, right)
+	mergePos(bin, left, right)
+	return bin, nil
+}
+
+func EBinOpAction(op wf.EventExprOperator, leftRaw interface{}, rightRaw interface{}) (wf.EventExpr, error) {
+	left := leftRaw.(wf.EventExpr)
+	right := rightRaw.(wf.EventExpr)
+	bin := wf.NewEBinOp(op, left, right)
+	mergePos(bin, left, right)
+	return bin, nil
+}
+
 // Lit converts a token to string
 func Lit(t interface{}) string {
 	return string(t.(*token.Token).Lit)
@@ -139,9 +163,26 @@ func Lit(t interface{}) string {
 
 // Id converts a token to workflow.Id
 func Id(t interface{}) *wf.Id {
+	return idAction(t, func(s string) wf.Node { return wf.NewId(s) }).(*wf.Id)
+}
+
+func idAction(t interface{}, builder func(s string) wf.Node) wf.Node {
 	token := t.(*token.Token)
 	id := string(token.Lit)
-	wfid := wf.NewId(id)
-	wfid.SetPos(token.Line, token.Column, token.Line, token.Column+token.Offset)
-	return wfid
+	n := builder(id)
+	setPos(n, token)
+	return n
+}
+
+func setPos(node wf.Node, token *token.Token) {
+	node.SetPos(token.Line, token.Column, token.Line, token.Column+token.Offset)
+}
+
+func mergePos(node wf.Node, start wf.Node, end wf.Node) {
+	s := start.Pos()
+	e := end.Pos()
+	if s == nil || e == nil {
+		return
+	}
+	node.SetPos(s.StartRow, s.StartCol, e.EndRow, e.EndCol)
 }

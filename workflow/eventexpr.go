@@ -12,7 +12,12 @@ package workflow
 
 // EventExpr represents event expression
 type EventExpr interface {
+	Node
 	Equal(EventExpr) bool
+}
+
+type eventExpr struct {
+	node
 }
 
 // EventExprOperator represents operator of event expression
@@ -28,6 +33,7 @@ const (
 
 // EBinOp represents binary operators for event expression
 type EBinOp struct {
+	eventExpr
 	op    EventExprOperator
 	left  EventExpr
 	right EventExpr
@@ -49,7 +55,10 @@ func (e *EBinOp) Equal(x EventExpr) bool {
 }
 
 // EVar represents event variable
-type EVar struct{ name string }
+type EVar struct {
+	eventExpr
+	name string
+}
 
 // NewEVar returns a new instance of event variable
 func NewEVar(name string) *EVar { return &EVar{name: name} }
