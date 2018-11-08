@@ -16,6 +16,20 @@ type Id struct {
 	id string
 }
 
+func NewId(id string) *Id { return &Id{id: id} }
+
+func NewIdB(id []byte) *Id { return NewId(string(id)) }
+
+func (i *Id) String() string { return i.id }
+
+// Equal returns true if two identifiers are equivalent
+func (i *Id) Equal(x *Id) bool {
+	if i != nil && x != nil {
+		return i.id == x.id
+	}
+	return i == x
+}
+
 type idTy struct {
 	id *Id
 	ty Type

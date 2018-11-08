@@ -20,7 +20,7 @@ func TestResolveAction(t *testing.T) {
 	noNamespace := func() *FuncCall { return NewFuncCall(nil, "F") }
 	withNamespace := func(ns string) *FuncCall { return NewFuncCall(NamespacePrefix{ns}, "F") }
 	a := func(f *FuncCall) *ActionDecl {
-		return NewActionDecl("T", EV("a"), Stmts{FIRE("e", NewObjLit(VD("x", f)))})
+		return NewActionDecl(ID("T"), EV("a"), Stmts{FIRE("e", NewObjLit(VD("x", f)))})
 	}
 
 	r := NewResolver(nil, nil)

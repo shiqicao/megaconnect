@@ -566,7 +566,7 @@ func monitorVars() wf.IdToExpr {
 
 func monitor1() *wf.MonitorDecl {
 	return wf.NewMonitorDecl(
-		"TestMonitor",
+		wf.NewId("TestMonitor"),
 		monitorCondition(),
 		monitorVars(),
 		wf.NewFire(
@@ -582,7 +582,7 @@ func monitor1() *wf.MonitorDecl {
 
 func monitor2() *wf.MonitorDecl {
 	return wf.NewMonitorDecl(
-		"TestMonitor2",
+		wf.NewId("TestMonitor2"),
 		monitorCondition(),
 		monitorVars(),
 		wf.NewFire(

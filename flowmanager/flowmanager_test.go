@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/megaspacelab/megaconnect/grpc"
-	"github.com/megaspacelab/megaconnect/workflow"
+	w "github.com/megaspacelab/megaconnect/workflow"
 
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -26,56 +26,56 @@ func (s *FlowManagerSuite) SetupTest() {
 	s.fm = NewFlowManager(log)
 }
 
-func (s *FlowManagerSuite) workflow1() *workflow.WorkflowDecl {
-	wf := workflow.NewWorkflowDecl("TestWorkflow", 1)
-	wf.AddChild(workflow.NewEventDecl(
-		"TestEvent",
-		workflow.NewObjType(workflow.NewIdToTy().Put(
+func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
+	wf := w.NewWorkflowDecl(w.NewId("TestWorkflow"), 1)
+	wf.AddChild(w.NewEventDecl(
+		w.NewId("TestEvent"),
+		w.NewObjType(w.NewIdToTy().Put(
 			"balance",
-			workflow.IntType,
+			w.IntType,
 		)),
 	))
-	wf.AddChild(workflow.NewEventDecl(
-		"TestEvent2",
-		workflow.NewObjType(workflow.NewIdToTy().Put(
+	wf.AddChild(w.NewEventDecl(
+		w.NewId("TestEvent2"),
+		w.NewObjType(w.NewIdToTy().Put(
 			"balance",
-			workflow.IntType,
+			w.IntType,
 		)),
 	))
-	wf.AddChild(workflow.NewMonitorDecl(
-		"TestMonitor",
-		workflow.TrueConst,
-		workflow.NewIdToExpr().Put(
+	wf.AddChild(w.NewMonitorDecl(
+		w.NewId("TestMonitor"),
+		w.TrueConst,
+		w.NewIdToExpr().Put(
 			"balance",
-			workflow.NewIntConstFromI64(100),
+			w.NewIntConstFromI64(100),
 		),
-		workflow.NewFire(
+		w.NewFire(
 			"TestEvent",
-			workflow.NewObjLit(workflow.NewIdToExpr().Put(
+			w.NewObjLit(w.NewIdToExpr().Put(
 				"balance",
-				workflow.NewIntConstFromI64(1),
+				w.NewIntConstFromI64(1),
 			)),
 		),
 		chainID,
 	))
-	wf.AddChild(workflow.NewActionDecl(
-		"TestAction",
-		workflow.NewEVar("TestEvent"),
-		[]workflow.Stmt{
-			workflow.NewFire(
+	wf.AddChild(w.NewActionDecl(
+		w.NewId("TestAction"),
+		w.NewEVar("TestEvent"),
+		[]w.Stmt{
+			w.NewFire(
 				"TestEvent2",
-				workflow.NewProps(workflow.NewVar("TestEvent")),
+				w.NewProps(w.NewVar("TestEvent")),
 			),
 		},
 	))
-	wf.AddChild(workflow.NewActionDecl(
-		"TestAction2",
-		workflow.NewEBinOp(
-			workflow.AndEOp,
-			workflow.NewEVar("TestEvent"),
-			workflow.NewEVar("TestEvent2"),
+	wf.AddChild(w.NewActionDecl(
+		w.NewId("TestAction2"),
+		w.NewEBinOp(
+			w.AndEOp,
+			w.NewEVar("TestEvent"),
+			w.NewEVar("TestEvent2"),
 		),
-		[]workflow.Stmt{},
+		[]w.Stmt{},
 	))
 	return wf
 }
@@ -116,9 +116,9 @@ func (s *FlowManagerSuite) TestReportBlockEvents() {
 	// This should be ignored
 	s.fm.ReportBlockEvents(chainID, config.MonitorsVersion-1, block, nil)
 
-	eventPayload, err := workflow.EncodeObjConst(
-		workflow.NewObjConst(workflow.ObjFields{
-			"balance": workflow.NewIntConstFromI64(1),
+	eventPayload, err := w.EncodeObjConst(
+		w.NewObjConst(w.ObjFields{
+			"balance": w.NewIntConstFromI64(1),
 		}),
 	)
 	s.Require().NoError(err)

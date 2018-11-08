@@ -105,7 +105,7 @@ func compile(ctx *cli.Context) error {
 	)
 
 	monitorEth := wf.NewMonitorDecl(
-		"EthMonitor",
+		wf.NewId("EthMonitor"),
 		expr,
 		vars,
 		wf.NewFire("EthEvent", wf.NewObjLit(wf.NewIdToExpr().Put("height", wf.NewVar("blockHeight")))),
@@ -113,7 +113,7 @@ func compile(ctx *cli.Context) error {
 	)
 
 	monitorExample := wf.NewMonitorDecl(
-		"ExampleMonitor",
+		wf.NewId("ExampleMonitor"),
 		expr,
 		vars,
 		wf.NewFire("ExEvent", wf.NewObjLit(wf.NewIdToExpr().Put("height", wf.NewVar("blockHeight")))),
@@ -121,16 +121,16 @@ func compile(ctx *cli.Context) error {
 	)
 
 	monitorBtc := wf.NewMonitorDecl(
-		"BtcMonitor",
+		wf.NewId("BtcMonitor"),
 		expr,
 		vars,
 		wf.NewFire("BtcEvent", wf.NewObjLit(wf.NewIdToExpr().Put("height", wf.NewVar("blockHeight")))),
 		"Bitcoin",
 	)
 
-	workflow := wf.NewWorkflowDecl(name, 0).
+	workflow := wf.NewWorkflowDecl(wf.NewId(name), 0).
 		AddChild(
-			wf.NewEventDecl("TestEvent0", wf.NewObjType(
+			wf.NewEventDecl(wf.NewId("TestEvent0"), wf.NewObjType(
 				wf.NewIdToTy().
 					Put("example_h", wf.IntType).
 					Put("eth_h", wf.IntType),
@@ -138,25 +138,25 @@ func compile(ctx *cli.Context) error {
 		).
 		AddChild(
 			wf.NewEventDecl(
-				"HeightSumEvent",
+				wf.NewId("HeightSumEvent"),
 				wf.NewObjType(wf.NewIdToTy().Put("heightSum", wf.IntType)),
 			),
 		).
 		AddChild(
-			wf.NewEventDecl("ExEvent", wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
+			wf.NewEventDecl(wf.NewId("ExEvent"), wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
 		).
 		AddChild(
-			wf.NewEventDecl("BtcEvent", wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
+			wf.NewEventDecl(wf.NewId("BtcEvent"), wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
 		).
 		AddChild(
-			wf.NewEventDecl("EthEvent", wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
+			wf.NewEventDecl(wf.NewId("EthEvent"), wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
 		).
 		AddChild(monitorEth).
 		AddChild(monitorExample).
 		AddChild(monitorBtc).
 		AddChild(
 			wf.NewActionDecl(
-				"TestAction1",
+				wf.NewId("TestAction1"),
 				wf.NewEBinOp(wf.AndEOp, wf.NewEVar("ExEvent"), wf.NewEVar("EthEvent")),
 				wf.Stmts{
 					wf.NewFire(
@@ -171,7 +171,7 @@ func compile(ctx *cli.Context) error {
 		).
 		AddChild(
 			wf.NewActionDecl(
-				"JoinAction",
+				wf.NewId("JoinAction"),
 				wf.NewEVar("TestEvent0"),
 				wf.Stmts{
 					wf.NewFire(

@@ -19,7 +19,7 @@ import (
 
 func TestActionDeclTriggerEvents(t *testing.T) {
 	check := func(trigger EventExpr, expected []string) {
-		a := NewActionDecl("a", trigger, Stmts{})
+		a := NewActionDecl(ID("a"), trigger, Stmts{})
 		events := a.TriggerEvents()
 		sort.StringSlice(events).Sort()
 		sort.StringSlice(expected).Sort()

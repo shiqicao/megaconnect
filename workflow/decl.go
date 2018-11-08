@@ -146,7 +146,7 @@ func (f FuncDecls) Copy() FuncDecls {
 // MonitorDecl represents a monitor unit in workflow lang
 type MonitorDecl struct {
 	decl
-	name  string
+	name  *Id
 	cond  Expr
 	vars  IdToExpr
 	event *Fire
@@ -154,7 +154,7 @@ type MonitorDecl struct {
 }
 
 // NewMonitorDecl creates a new MonitorDecl
-func NewMonitorDecl(name string, cond Expr, vars IdToExpr, event *Fire, chain string) *MonitorDecl {
+func NewMonitorDecl(name *Id, cond Expr, vars IdToExpr, event *Fire, chain string) *MonitorDecl {
 	return &MonitorDecl{
 		name:  name,
 		cond:  cond,
@@ -165,7 +165,7 @@ func NewMonitorDecl(name string, cond Expr, vars IdToExpr, event *Fire, chain st
 }
 
 // Name returns monitor name
-func (m *MonitorDecl) Name() string { return m.name }
+func (m *MonitorDecl) Name() *Id { return m.name }
 
 // Chain returns targeted chain
 func (m *MonitorDecl) Chain() string { return m.chain }
@@ -183,7 +183,7 @@ func (m *MonitorDecl) EventName() string { return m.event.eventName }
 func (m *MonitorDecl) Equal(x Decl) bool {
 	y, ok := x.(*MonitorDecl)
 	return ok &&
-		m.Name() == x.Name() &&
+		m.Name().Equal(x.Name()) &&
 		m.Condition().Equal(y.Condition()) &&
 		m.vars.Equal(y.vars) &&
 		m.chain == y.chain &&
@@ -194,7 +194,7 @@ func (m *MonitorDecl) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("monitor {")
 	buf.WriteString("name = ")
-	buf.WriteString(m.Name())
+	buf.WriteString(m.Name().id)
 	buf.WriteString(",")
 	buf.WriteString("condition = ")
 	buf.WriteString(m.Condition().String())
@@ -204,7 +204,7 @@ func (m *MonitorDecl) String() string {
 
 // Decl is an interface for all declarations in a workflow
 type Decl interface {
-	Name() string
+	Name() *Id
 	Parent() *WorkflowDecl
 	setParent(*WorkflowDecl)
 	Equal(Decl) bool
@@ -223,12 +223,12 @@ func (d *decl) Parent() *WorkflowDecl { return d.parent }
 // EventDecl represents an event declaration
 type EventDecl struct {
 	decl
-	name string
+	name *Id
 	ty   *ObjType
 }
 
 // NewEventDecl creates an instance of EventDecl
-func NewEventDecl(name string, ty *ObjType) *EventDecl {
+func NewEventDecl(name *Id, ty *ObjType) *EventDecl {
 	return &EventDecl{
 		name: name,
 		ty:   ty,
@@ -238,22 +238,22 @@ func NewEventDecl(name string, ty *ObjType) *EventDecl {
 // Equal returns true if x is the same event declaration
 func (e *EventDecl) Equal(x Decl) bool {
 	y, ok := x.(*EventDecl)
-	return ok && y.name == e.name && y.ty.Equal(e.ty)
+	return ok && y.name.Equal(e.name) && y.ty.Equal(e.ty)
 }
 
 // Name returns event name
-func (e *EventDecl) Name() string { return e.name }
+func (e *EventDecl) Name() *Id { return e.name }
 
 // WorkflowDecl represents a workflow declaration
 type WorkflowDecl struct {
 	node
 	version  uint32
-	name     string
+	name     *Id
 	children []Decl
 }
 
 // NewWorkflowDecl creates a new instance of WorkflowDecl
-func NewWorkflowDecl(name string, version uint32) *WorkflowDecl {
+func NewWorkflowDecl(name *Id, version uint32) *WorkflowDecl {
 	return &WorkflowDecl{
 		version:  version,
 		name:     name,
@@ -272,14 +272,14 @@ func (w *WorkflowDecl) Equal(x *WorkflowDecl) bool {
 			return false
 		}
 	}
-	return w.version == x.version && w.name == x.name
+	return w.version == x.version && w.name.Equal(x.name)
 }
 
 // Version returns workflow lang version
 func (w *WorkflowDecl) Version() uint32 { return w.version }
 
 // Name returns workflow name
-func (w *WorkflowDecl) Name() string { return w.name }
+func (w *WorkflowDecl) Name() *Id { return w.name }
 
 // EventDecls returns all event declarations
 func (w *WorkflowDecl) EventDecls() (events []*EventDecl) {
@@ -321,7 +321,7 @@ func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
 func (w *WorkflowDecl) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("workflow ")
-	buf.WriteString(w.name)
+	buf.WriteString(w.name.id)
 	buf.WriteString(" {")
 	/*
 		for _, _ := range w.children {
@@ -336,13 +336,13 @@ func (w *WorkflowDecl) String() string {
 // ActionDecl represents an action declaration
 type ActionDecl struct {
 	decl
-	name    string
+	name    *Id
 	trigger EventExpr
 	body    Stmts
 }
 
 // NewActionDecl creates an instance of ActionDecl
-func NewActionDecl(name string, trigger EventExpr, body Stmts) *ActionDecl {
+func NewActionDecl(name *Id, trigger EventExpr, body Stmts) *ActionDecl {
 	return &ActionDecl{
 		name:    name,
 		trigger: trigger,
@@ -353,11 +353,11 @@ func NewActionDecl(name string, trigger EventExpr, body Stmts) *ActionDecl {
 // Equal returns true if x is the same action declaration
 func (a *ActionDecl) Equal(x Decl) bool {
 	y, ok := x.(*ActionDecl)
-	return ok && a.name == y.name && a.trigger.Equal(y.trigger) && a.body.Equal(y.body)
+	return ok && a.name.Equal(y.name) && a.trigger.Equal(y.trigger) && a.body.Equal(y.body)
 }
 
 // Name returns action name
-func (a *ActionDecl) Name() string { return a.name }
+func (a *ActionDecl) Name() *Id { return a.name }
 
 // Trigger returns action trigger
 func (a *ActionDecl) Trigger() EventExpr { return a.trigger }

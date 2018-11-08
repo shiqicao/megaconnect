@@ -35,4 +35,5 @@ var (
 	VD = func(f string, e Expr) IdToExpr { return make(IdToExpr).Put(f, e) }
 	// Variable types
 	VT = func(f string, ty Type) IdToTy { return make(IdToTy).Put(f, ty) }
+	ID = NewId
 )

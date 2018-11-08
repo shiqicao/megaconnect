@@ -51,7 +51,7 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 	if err != nil {
 		return nil, err
 	}
-	wf := NewWorkflowDecl(string(name), version)
+	wf := NewWorkflowDecl(NewIdB(name), version)
 	len, err := d.decodeLength()
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 					return nil, err
 				}
 			}
-			wf.AddChild(NewActionDecl(string(name), expr, stmts))
+			wf.AddChild(NewActionDecl(NewIdB(name), expr, stmts))
 			continue
 		case declKindEvent:
 			name, err := d.decodeBytes()
@@ -100,7 +100,7 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 			if err != nil {
 				return nil, err
 			}
-			wf.AddChild(NewEventDecl(string(name), objTy))
+			wf.AddChild(NewEventDecl(NewIdB(name), objTy))
 			continue
 		default:
 			return nil, &ErrNotSupported{Name: string(kind)}
@@ -131,7 +131,7 @@ func (d *Decoder) DecodeMonitorDecl() (*MonitorDecl, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewMonitorDecl(string(name), cond, vars, event, string(chain)), nil
+	return NewMonitorDecl(NewIdB(name), cond, vars, event, string(chain)), nil
 }
 
 func (d *Decoder) decodeEventExpr() (EventExpr, error) {

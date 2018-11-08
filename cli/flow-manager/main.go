@@ -154,12 +154,15 @@ func reloadWorkflow(fm *flowmanager.FlowManager, log *zap.Logger, file string) e
 		return err
 	}
 
-	if workflow.Name() != path.Base(file) {
-		log.Error("Workflow/file name mismatch", zap.String("workflow", workflow.Name()), zap.String("file", file))
+	if workflow.Name().String() != path.Base(file) {
+		log.Error("Workflow/file name mismatch",
+			zap.Stringer("workflow", workflow.Name()),
+			zap.String("file", file),
+		)
 		return fmt.Errorf("Workflow name %s mismatches file name %s", workflow.Name(), file)
 	}
 	if err = fm.DeployWorkflow(workflow); err != nil {
-		log.Error("Failed to deploy", zap.String("workflow", workflow.Name()), zap.Error(err))
+		log.Error("Failed to deploy", zap.Stringer("workflow", workflow.Name()), zap.Error(err))
 		return err
 	}
 

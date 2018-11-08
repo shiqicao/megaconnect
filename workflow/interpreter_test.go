@@ -297,7 +297,7 @@ func TestEvalAction(t *testing.T) {
 	)()
 
 	r, err := i.EvalAction(
-		NewActionDecl("B", EV("a"), Stmts{FIRE("B", NewObjLit(VD("x", TrueConst)))}),
+		NewActionDecl(ID("B"), EV("a"), Stmts{FIRE("B", NewObjLit(VD("x", TrueConst)))}),
 	)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(r))
@@ -436,23 +436,23 @@ func TestMonitor(t *testing.T) {
 		assert.True(t, r.Equal(fireResult))
 	}
 	assertM(
-		MD("A", T, nil, NewFire("e", NewObjLit(VD("a", T))), "Eth"),
+		MD(ID("A"), T, nil, NewFire("e", NewObjLit(VD("a", T))), "Eth"),
 		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
 	)
 	assertM(
-		MD("A", F, nil, NewFire("e", NewObjLit(VD("a", F))), "Eth"),
+		MD(ID("A"), F, nil, NewFire("e", NewObjLit(VD("a", F))), "Eth"),
 		nil,
 	)
 	assertM(
-		MD("A", T, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", T))), "Eth"),
+		MD(ID("A"), T, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", T))), "Eth"),
 		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
 	)
 	assertM(
-		MD("A", F, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", T))), "Eth"),
+		MD(ID("A"), F, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", T))), "Eth"),
 		nil,
 	)
 	assertM(
-		MD("A", T, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", NewVar("a")))), "Eth"),
+		MD(ID("A"), T, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", NewVar("a")))), "Eth"),
 		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
 	)
 }
