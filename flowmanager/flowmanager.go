@@ -182,7 +182,7 @@ func (fm *FlowManager) processEventWithLock(
 	eventID := EventID(workflowID, eventName)
 
 	for _, action := range fm.actionsIndex[eventID] {
-		fm.log.Debug("Evaluating action", zap.String("action", action.decl.Name()))
+		fm.log.Debug("Evaluating action", zap.Stringer("action", action.decl.Name()))
 		action.observe(eventName, eventPayload)
 
 		env := workflow.NewEnv(action)
@@ -191,14 +191,14 @@ func (fm *FlowManager) processEventWithLock(
 		results, err := intp.EvalAction(action.decl)
 		if err != nil {
 			fm.log.Error("Failed to evaluate action",
-				zap.Error(err), zap.String("action", action.decl.Name()))
+				zap.Error(err), zap.Stringer("action", action.decl.Name()))
 			continue
 		}
 		if results == nil {
 			continue
 		}
 
-		fm.log.Debug("Action triggered", zap.String("action", action.decl.Name()))
+		fm.log.Debug("Action triggered", zap.Stringer("action", action.decl.Name()))
 
 		// Reset action state upon triggering
 		action.reset()

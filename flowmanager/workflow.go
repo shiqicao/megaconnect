@@ -21,12 +21,12 @@ import (
 
 // WorkflowID computes the ID of a workflow.
 func WorkflowID(wf *workflow.WorkflowDecl) string {
-	return wf.Name()
+	return wf.Name().String()
 }
 
 // MonitorID computes the ID of a monitor.
 func MonitorID(wfid string, monitor *workflow.MonitorDecl) string {
-	return strings.Join([]string{wfid, monitor.Name()}, "_")
+	return strings.Join([]string{wfid, monitor.Name().String()}, "_")
 }
 
 // EventID computes the ID of an event.

@@ -78,7 +78,7 @@ func NewEncoder(w io.Writer, sortObjKey bool) *Encoder {
 
 // EncodeMonitorDecl serializes a monitor declaration to binary format
 func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
-	if err := e.encodeString(md.Name()); err != nil {
+	if err := e.encodeId(md.Name()); err != nil {
 		return err
 	}
 	if err := e.EncodeExpr(md.Condition()); err != nil {
@@ -270,6 +270,10 @@ func (e *Encoder) encodeString(s string) error {
 	return e.encodeBytes(unsafe.StringToBytes(s))
 }
 
+func (e *Encoder) encodeId(id *Id) error {
+	return e.encodeString(id.id)
+}
+
 func (e *Encoder) encodeLengthI(n int) {
 	e.encodeLength(uint64(n))
 }
@@ -313,7 +317,7 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 	if err := e.encodeBigEndian(wf.Version()); err != nil {
 		return err
 	}
-	if err := e.encodeString(wf.Name()); err != nil {
+	if err := e.encodeId(wf.Name()); err != nil {
 		return err
 	}
 	e.encodeLengthI(len(wf.children))
@@ -329,7 +333,7 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 				return err
 			}
 		case *ActionDecl:
-			if err = e.encodeString(decl.name); err != nil {
+			if err = e.encodeId(decl.name); err != nil {
 				return err
 			}
 			if err = e.encodeEventExpr(decl.trigger); err != nil {
@@ -343,7 +347,7 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 				}
 			}
 		case *EventDecl:
-			if err = e.encodeString(decl.name); err != nil {
+			if err = e.encodeId(decl.name); err != nil {
 				return err
 			}
 			if err = e.encodeObjType(decl.ty); err != nil {
