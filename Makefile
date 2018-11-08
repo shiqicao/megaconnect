@@ -41,4 +41,4 @@ parser:
 	$(GOCC) -v -a -zip -debug_lexer=true -debug_parser=true  -o workflow/parser/gen -p github.com/megaspacelab/megaconnect/workflow/parser/gen workflow/parser/lang.bnf
 
 cleanparser: 
-	rm -f workflow/parser/goccgen
+	rm -rf workflow/parser/gen
