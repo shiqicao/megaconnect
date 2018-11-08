@@ -47,51 +47,53 @@ func StrLitAction(t interface{}) (*wf.StrConst, error) {
 
 func MonitorAction(
 	name interface{}, chain interface{}, expr interface{},
-	varDecls interface{}, event interface{}, eventObj interface{},
+	varDeclsRaw interface{}, event interface{}, eventObj interface{},
 ) (*wf.MonitorDecl, error) {
-	if varDecls == nil {
-		varDecls = wf.VarDecls{}
+	var varDecls wf.IdToExpr
+	if varDeclsRaw == nil {
+		varDecls = wf.NewIdToExpr()
 	} else {
-		varDecls = varDecls.(wf.VarDecls)
+		varDecls = varDeclsRaw.(wf.IdToExpr)
 	}
-	fire := wf.NewFire(Lit(event), wf.NewObjLit(eventObj.(wf.VarDecls)))
-	md := wf.NewMonitorDecl(Lit(name), expr.(wf.Expr), varDecls.(wf.VarDecls), fire, Lit(chain))
+	fire := wf.NewFire(Lit(event), wf.NewObjLit(eventObj.(wf.IdToExpr)))
+	md := wf.NewMonitorDecl(Id(name), expr.(wf.Expr), varDecls, fire, Lit(chain))
 	return md, nil
 }
 
-func VarDeclAction(nameRaw interface{}, exprRaw interface{}) (wf.VarDecls, error) {
-	vd := make(wf.VarDecls)
-	name := Lit(nameRaw)
+func VarDeclAction(nameRaw interface{}, exprRaw interface{}) (wf.IdToExpr, error) {
+	vd := wf.NewIdToExpr()
+	name := Id(nameRaw)
 	expr := exprRaw.(wf.Expr)
-	vd[name] = expr
+	vd.Add(name, expr)
 	return vd, nil
 }
 
-func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecls, error) {
-	varDecls := varDeclsRaw.(wf.VarDecls)
+func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.IdToExpr, error) {
+	varDecls := varDeclsRaw.(wf.IdToExpr)
 	if varDeclRaw == nil {
 		return varDecls, nil
 	}
-	varDecl := varDeclRaw.(wf.VarDecls)
+	varDecl := varDeclRaw.(wf.IdToExpr)
 	// varDecl should only contain only one item
-	for name, expr := range varDecl {
-		if _, found := varDecls[name]; found {
-			return nil, fmt.Errorf("")
+	for _, decl := range varDecl {
+		if ok := varDecls.Add(decl.Id, decl.Expr); !ok {
+			return nil, &ErrDupDef{Id: decl.Id}
 		}
-		varDecls[name] = expr
 	}
 	return varDecls, nil
 }
 
-func ObjLitFieldsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.VarDecls, error) {
-	varDecls := varDeclsRaw.(wf.VarDecls)
+func ObjLitFieldsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.IdToExpr, error) {
+	varDecls := varDeclsRaw.(wf.IdToExpr)
 	if varDeclRaw == nil {
 		return varDecls, nil
 	}
 	varDecl := varDeclRaw.([]interface{})
-	field := Lit(varDecl[0])
+	field := Id(varDecl[0])
 	expr := varDecl[1].(wf.Expr)
-	varDecls[field] = expr
+	if !varDecls.Add(field, expr) {
+		return nil, &ErrDupDef{Id: field}
+	}
 	return varDecls, nil
 }
 
@@ -102,10 +104,18 @@ func ObjAccessorAction(expr interface{}, id interface{}) (*wf.ObjAccessor, error
 }
 
 func ObjLitAction(objFields interface{}) (*wf.ObjLit, error) {
-	fields := objFields.(wf.VarDecls)
+	fields := objFields.(wf.IdToExpr)
 	return wf.NewObjLit(fields), nil
 }
 
 func Lit(t interface{}) string {
 	return string(t.(*token.Token).Lit)
+}
+
+func Id(t interface{}) *wf.Id {
+	token := t.(*token.Token)
+	id := string(token.Lit)
+	wfid := wf.NewId(id)
+	wfid.SetPos(token.Line, token.Column, token.Line, token.Column+token.Offset)
+	return wfid
 }

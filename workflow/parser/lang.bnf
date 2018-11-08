@@ -47,7 +47,7 @@ import (
 >>
 
 Workflow 
-  : kdWorkflow id "{" Decls "}" << wf.NewWorkflowDecl(pa.Lit($1), 0).AddChildren($3.([]wf.Decl)), nil>>
+  : kdWorkflow id "{" Decls "}" << wf.NewWorkflowDecl(pa.Id($1), 0).AddChildren($3.([]wf.Decl)), nil>>
   ;
 
 Decls 
@@ -99,12 +99,12 @@ ObjLitField
 
 ObjLitFields_ 
   : ObjLitFields_ "," ObjLitField <<pa.ObjLitFieldsAction($0, $2)>>
-  | empty                         <<wf.VarDecls{}, nil>>
+  | empty                         <<wf.NewIdToExpr(), nil>>
   ;
 
 ObjLitFields
   : ObjLitField ObjLitFields_ <<pa.ObjLitFieldsAction($1, $0)>> 
-  | empty                     <<wf.VarDecls{}, nil>>
+  | empty                     <<wf.NewIdToExpr(), nil>>
   ;
 
 VarDecl 

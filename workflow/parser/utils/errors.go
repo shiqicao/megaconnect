@@ -8,21 +8,20 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
 
-package parser
+package utils
+
+import (
+	"fmt"
+
+	wf "github.com/megaspacelab/megaconnect/workflow"
+)
 
 type ParserError interface {
-	//	Pos() *wf.Pos
+	Pos() wf.Pos
 	error
 }
 
-type parserError struct {
-	//	pos *wf.Pos
-}
+type ErrDupDef struct{ Id *wf.Id }
 
-/*
-func Pos() *wf.Pos {
-
-}
-*/
-
-//type
+func (e *ErrDupDef) Pos() wf.Pos   { return *(e.Id.Pos()) }
+func (e *ErrDupDef) Error() string { return fmt.Sprintf("%s is already defined", e.Id.Id()) }

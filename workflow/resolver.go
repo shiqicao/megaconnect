@@ -64,7 +64,7 @@ func (r *Resolver) resolveExpr(expr Expr) error {
 		return r.resolveFuncCall(e)
 	case *ObjLit:
 		for _, expr := range e.fields {
-			if err := r.resolveExpr(expr.expr); err != nil {
+			if err := r.resolveExpr(expr.Expr); err != nil {
 				return err
 			}
 		}

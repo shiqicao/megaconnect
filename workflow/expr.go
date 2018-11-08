@@ -452,7 +452,7 @@ func (o *ObjLit) String() string {
 	for field, value := range o.fields {
 		buf.WriteString(field)
 		buf.WriteString(":")
-		buf.WriteString(value.expr.String())
+		buf.WriteString(value.Expr.String())
 		if len > 1 {
 			buf.WriteString(",")
 		}

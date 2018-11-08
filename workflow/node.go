@@ -23,10 +23,22 @@ type Node interface {
 
 	// Pos returns Pos or nil if a mapping does not exist
 	Pos() *Pos
+
+	SetPos(startRow int, startCol int, endRow int, endCol int)
 }
 
 type node struct {
 	pos *Pos
+}
+
+func (n *node) SetPos(startRow int, startCol int, endRow int, endCol int) {
+	pos := Pos{
+		StartRow: startRow,
+		StartCol: startCol,
+		EndRow:   endRow,
+		EndCol:   endCol,
+	}
+	n.pos = &pos
 }
 
 func (n *node) setPos(pos *Pos) {

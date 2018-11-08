@@ -30,6 +30,9 @@ func (i *Id) Equal(x *Id) bool {
 	return i == x
 }
 
+// Id returns string representation
+func (i *Id) Id() string { return i.id }
+
 type idTy struct {
 	id *Id
 	ty Type
@@ -60,14 +63,14 @@ func (i IdToTy) Copy() IdToTy {
 	return new
 }
 
-type idExpr struct {
-	id   *Id
-	expr Expr
+type IdExpr struct {
+	Id   *Id
+	Expr Expr
 }
 
 // IdToExpr is a list of pair of identifier and expr,
 // and indexed by string representation of identifier.
-type IdToExpr map[string]idExpr
+type IdToExpr map[string]IdExpr
 
 // NewIdToExpr creates an instance of IdToExpr
 func NewIdToExpr() IdToExpr { return make(IdToExpr) }
@@ -78,7 +81,7 @@ func (i IdToExpr) Equal(x IdToExpr) bool {
 		return false
 	}
 	for n, e := range i {
-		if xn, ok := x[n]; !ok || !xn.expr.Equal(e.expr) {
+		if xn, ok := x[n]; !ok || !xn.Expr.Equal(e.Expr) {
 			return false
 		}
 	}
@@ -87,8 +90,20 @@ func (i IdToExpr) Equal(x IdToExpr) bool {
 
 // Put inserts a pair of identifier and expression
 func (i IdToExpr) Put(id string, expr Expr) IdToExpr {
-	i[id] = idExpr{id: &Id{id: id}, expr: expr}
+	i[id] = IdExpr{Id: &Id{id: id}, Expr: expr}
 	return i
+}
+
+// Add inserts a pair of identifer and expression,
+// it returns false if id is not unique.
+// It returns true if add a new pair is succeeded
+func (i IdToExpr) Add(id *Id, expr Expr) bool {
+	_, ok := i[id.id]
+	if ok {
+		return false
+	}
+	i[id.id] = IdExpr{Id: id, Expr: expr}
+	return true
 }
 
 // Copy creates a new instance of IdToExpr

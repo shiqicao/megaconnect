@@ -35,13 +35,13 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Workflow : kdWorkflow id "{" Decls "}"	<< wf.NewWorkflowDecl(pa.Lit(X[1]), 0).AddChildren(X[3].([]wf.Decl)), nil >>`,
+		String: `Workflow : kdWorkflow id "{" Decls "}"	<< wf.NewWorkflowDecl(pa.Id(X[1]), 0).AddChildren(X[3].([]wf.Decl)), nil >>`,
 		Id:         "Workflow",
 		NTType:     1,
 		Index:      1,
 		NumSymbols: 5,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.NewWorkflowDecl(pa.Lit(X[1]), 0).AddChildren(X[3].([]wf.Decl)), nil
+			return wf.NewWorkflowDecl(pa.Id(X[1]), 0).AddChildren(X[3].([]wf.Decl)), nil
 		},
 	},
 	ProdTabEntry{
@@ -225,13 +225,13 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `ObjLitFields_ : empty	<< wf.VarDecls{}, nil >>`,
+		String: `ObjLitFields_ : empty	<< wf.NewIdToExpr(), nil >>`,
 		Id:         "ObjLitFields_",
 		NTType:     12,
 		Index:      20,
 		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.VarDecls{}, nil
+			return wf.NewIdToExpr(), nil
 		},
 	},
 	ProdTabEntry{
@@ -245,13 +245,13 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `ObjLitFields : empty	<< wf.VarDecls{}, nil >>`,
+		String: `ObjLitFields : empty	<< wf.NewIdToExpr(), nil >>`,
 		Id:         "ObjLitFields",
 		NTType:     13,
 		Index:      22,
 		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.VarDecls{}, nil
+			return wf.NewIdToExpr(), nil
 		},
 	},
 	ProdTabEntry{

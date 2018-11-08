@@ -45,10 +45,10 @@ func TestParser(t *testing.T) {
 	assert.NotNil(t, workflow)
 	md := workflow.MonitorDecls()
 	assert.True(t, md[0].Equal(wf.NewMonitorDecl(
-		"a",
+		wf.NewId("a"),
 		wf.TrueConst,
-		wf.VarDecls{"a": wf.TrueConst, "b": wf.FalseConst},
-		wf.NewFire("e", wf.NewObjLit(wf.VarDecls{"a": T, "b": AND(T, F)})),
+		wf.NewIdToExpr().Put("a", T).Put("b", F),
+		wf.NewFire("e", wf.NewObjLit(wf.NewIdToExpr().Put("a", T).Put("b", AND(T, F)))),
 		"Eth",
 	)))
 }
@@ -117,11 +117,15 @@ func TestObjAccessor(t *testing.T) {
 }
 
 func TestObjLit(t *testing.T) {
-	assertExprParsing(t, wf.NewObjLit(wf.VarDecls{}), "{}")
-	assertExprParsing(t, wf.NewObjLit(wf.VarDecls{"a": T}), "{a: true}")
-	assertExprParsing(t, wf.NewObjLit(wf.VarDecls{"a": T, "b": F}), "{a: true, b: false}")
+	assertExprParsing(t, wf.NewObjLit(wf.NewIdToExpr()), "{}")
+	assertExprParsing(t, wf.NewObjLit(wf.NewIdToExpr().Put("a", T)), "{a: true}")
+	assertExprParsing(t, wf.NewObjLit(wf.NewIdToExpr().Put("a", T).Put("b", F)), "{a: true, b: false}")
 	assertExprParsing(t,
-		wf.NewObjLit(wf.VarDecls{"a": T, "b": wf.NewObjLit(wf.VarDecls{"c": T})}),
+		wf.NewObjLit(
+			wf.NewIdToExpr().
+				Put("a", T).
+				Put("b", wf.NewObjLit(wf.NewIdToExpr().Put("c", T))),
+		),
 		"{a: true, b: {c: true}}",
 	)
 }
