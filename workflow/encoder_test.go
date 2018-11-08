@@ -110,9 +110,9 @@ func TestVarEncoding(t *testing.T) {
 }
 
 func TestObjLitEncoding(t *testing.T) {
-	assertExprEncoding(t, NewObjLit(VarDecls{"a": NewIntConstFromI64(1)}))
-	assertExprEncoding(t, NewObjLit(VarDecls{"a": TrueConst, "b": FalseConst}))
-	assertExprEncoding(t, NewObjLit(VarDecls{"a": NewObjLit(VarDecls{"a": NewStrConst("x")})}))
+	assertExprEncoding(t, NewObjLit(VD("a", NewIntConstFromI64(1))))
+	assertExprEncoding(t, NewObjLit(VD("a", TrueConst).Put("b", FalseConst)))
+	assertExprEncoding(t, NewObjLit(VD("a", NewObjLit(VD("a", NewStrConst("x"))))))
 }
 
 func TestBinExpEncoding(t *testing.T) {
@@ -142,8 +142,8 @@ func TestMonitorDeclEncoding(t *testing.T) {
 		})
 	}
 
-	check(MD("a", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth"))
-	check(MD("b", AND(T, F), VarDecls{"x": T}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth"))
+	check(MD("a", T, VD("x", F), NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth"))
+	check(MD("b", AND(T, F), VD("x", T), NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth"))
 }
 
 func TestWorkflowEncoding(t *testing.T) {
@@ -161,23 +161,23 @@ func TestWorkflowEncoding(t *testing.T) {
 	}
 
 	check(NewWorkflowDecl("a", 1).
-		AddChild(MD("b", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")))
+		AddChild(MD("b", T, VD("x", F), NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")))
 	check(NewWorkflowDecl("a", 1).
-		AddChild(MD("b", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")).
-		AddChild(MD("c", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": F})), "Eth")),
+		AddChild(MD("b", T, VD("x", F), NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")).
+		AddChild(MD("c", T, VD("x", F), NewFire("e", NewObjConst(ObjFields{"t": F})), "Eth")),
 	)
 
 	check(NewWorkflowDecl("a", 1).AddChild(NewActionDecl("b", EV("a"), Stmts{NewFire("c", NewObjConst(ObjFields{"d": TrueConst}))})))
 	check(NewWorkflowDecl("a", 1).
-		AddChild(MD("b", T, VarDecls{"x": F}, NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")).
+		AddChild(MD("b", T, VD("x", F), NewFire("e", NewObjConst(ObjFields{"t": T})), "Eth")).
 		AddChild(NewActionDecl("c", EAND(EV("a"), EV("b")), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})),
 	)
 
-	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": IntType}))))
-	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"a": NewObjType(ObjFieldTypes{"a": StrType})}))))
+	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(VT("a", IntType)))))
+	check(NewWorkflowDecl("a", 1).AddChild(NewEventDecl("b", NewObjType(VT("a", NewObjType(VT("a", StrType)))))))
 	check(NewWorkflowDecl("a", 1).
 		AddChild(NewActionDecl("c", EOR(EV("a"), EAND(EV("a"), EV("b"))), Stmts{NewFire("c", NewObjConst(ObjFields{"d": NewIntConstFromI64(1)}))})).
-		AddChild(NewEventDecl("b", NewObjType(ObjFieldTypes{"b": BoolType, "a": NewObjType(ObjFieldTypes{"a": StrType})}))),
+		AddChild(NewEventDecl("b", NewObjType(VT("b", BoolType).Put("a", NewObjType(VT("a", StrType)))))),
 	)
 }
 

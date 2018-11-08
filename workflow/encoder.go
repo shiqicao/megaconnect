@@ -212,13 +212,13 @@ func (e *Encoder) encodeObjLit(o *ObjLit) error {
 	return e.encodeVarDecls(o.fields)
 }
 
-func (e *Encoder) encodeVarDecls(vars VarDecls) error {
+func (e *Encoder) encodeVarDecls(vars IdToExpr) error {
 	e.encodeLengthI(len(vars))
-	for name, expr := range vars {
-		if err := e.encodeString(name); err != nil {
+	for key, value := range vars {
+		if err := e.encodeString(key); err != nil {
 			return err
 		}
-		if err := e.EncodeExpr(expr); err != nil {
+		if err := e.EncodeExpr(value.expr); err != nil {
 			return err
 		}
 	}
@@ -255,7 +255,7 @@ func (e *Encoder) encodeObjType(ty *ObjType) error {
 		if err := e.encodeString(f); err != nil {
 			return err
 		}
-		if err := e.encodeType(t); err != nil {
+		if err := e.encodeType(t.ty); err != nil {
 			return err
 		}
 	}

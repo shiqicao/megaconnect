@@ -21,31 +21,19 @@ type Type interface {
 	Methods() FuncDecls
 }
 
-// ObjFieldTypes defines a mapping from field name to its type
-type ObjFieldTypes map[string]Type
-
-// Copy returns a new ObjFieldTypes
-func (o ObjFieldTypes) Copy() ObjFieldTypes {
-	result := make(map[string]Type)
-	for f, ty := range o {
-		result[f] = ty
-	}
-	return result
-}
-
 // ObjType is a type of non-primitive type
 type ObjType struct {
-	fields ObjFieldTypes
+	fields IdToTy
 }
 
 // NewObjType creates a new ObjType
-func NewObjType(fields ObjFieldTypes) *ObjType { return &ObjType{fields: fields.Copy()} }
+func NewObjType(fields IdToTy) *ObjType { return &ObjType{fields: fields.Copy()} }
 
 // FieldsCount return number of fields
 func (o *ObjType) FieldsCount() int { return len(o.fields) }
 
 // Fields returns a new copy of field name to type mapping
-func (o *ObjType) Fields() ObjFieldTypes { return o.fields.Copy() }
+func (o *ObjType) Fields() IdToTy { return o.fields.Copy() }
 
 // Methods returns nil, ObjType current does not support method
 func (o *ObjType) Methods() FuncDecls { return nil }
@@ -57,7 +45,7 @@ func (o *ObjType) String() string {
 	for f, ty := range o.fields {
 		buf.WriteString(f)
 		buf.WriteString(": ")
-		buf.WriteString(ty.String())
+		buf.WriteString(ty.ty.String())
 		if i != 1 {
 			buf.WriteString(",")
 		}
@@ -78,7 +66,7 @@ func (o *ObjType) Equal(ty Type) bool {
 	}
 
 	for field, ty := range o.fields {
-		if fieldTy, ok := oty.fields[field]; !ok || !fieldTy.Equal(ty) {
+		if fieldTy, ok := oty.fields[field]; !ok || !fieldTy.ty.Equal(ty.ty) {
 			return false
 		}
 	}

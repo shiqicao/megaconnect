@@ -223,10 +223,7 @@ func TestSymbolResolve(t *testing.T) {
 					[]*ParamDecl{
 						NewParamDecl("bar", StrType),
 					},
-					NewObjType(map[string]Type{
-						"size": IntType,
-						"text": StrType,
-					}),
+					NewObjType(VT("size", IntType).Put("text", StrType)),
 					func(env *Env, args map[string]Const) (Const, error) {
 						bar := args["bar"]
 						barStr := bar.(*StrConst)
@@ -300,7 +297,7 @@ func TestEvalAction(t *testing.T) {
 	)()
 
 	r, err := i.EvalAction(
-		NewActionDecl("B", EV("a"), Stmts{FIRE("B", NewObjLit(VarDecls{"x": TrueConst}))}),
+		NewActionDecl("B", EV("a"), Stmts{FIRE("B", NewObjLit(VD("x", TrueConst)))}),
 	)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(r))
@@ -422,7 +419,7 @@ func TestObjLit(t *testing.T) {
 	ib := newInterpreterBuilder()
 	ib.assertExpEval(t,
 		NewObjConst(ObjFields{"a": TrueConst}),
-		NewObjLit(VarDecls{"a": NewBinOp(EqualOp, FalseConst, FalseConst)}),
+		NewObjLit(VD("a", NewBinOp(EqualOp, FalseConst, FalseConst))),
 	)
 }
 
@@ -439,23 +436,23 @@ func TestMonitor(t *testing.T) {
 		assert.True(t, r.Equal(fireResult))
 	}
 	assertM(
-		MD("A", T, nil, NewFire("e", NewObjLit(VarDecls{"a": T})), "Eth"),
+		MD("A", T, nil, NewFire("e", NewObjLit(VD("a", T))), "Eth"),
 		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
 	)
 	assertM(
-		MD("A", F, nil, NewFire("e", NewObjLit(VarDecls{"a": F})), "Eth"),
+		MD("A", F, nil, NewFire("e", NewObjLit(VD("a", F))), "Eth"),
 		nil,
 	)
 	assertM(
-		MD("A", T, VarDecls{"a": OR(T, F)}, NewFire("e", NewObjLit(VarDecls{"a": T})), "Eth"),
+		MD("A", T, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", T))), "Eth"),
 		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
 	)
 	assertM(
-		MD("A", F, VarDecls{"a": OR(T, F)}, NewFire("e", NewObjLit(VarDecls{"a": T})), "Eth"),
+		MD("A", F, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", T))), "Eth"),
 		nil,
 	)
 	assertM(
-		MD("A", T, VarDecls{"a": OR(T, F)}, NewFire("e", NewObjLit(VarDecls{"a": NewVar("a")})), "Eth"),
+		MD("A", T, VD("a", OR(T, F)), NewFire("e", NewObjLit(VD("a", NewVar("a")))), "Eth"),
 		NewFireEventResult("e", NewObjConst(ObjFields{"a": T})),
 	)
 }

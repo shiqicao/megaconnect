@@ -31,4 +31,8 @@ var (
 	MD   = NewMonitorDecl
 	V    = NewVar
 	P    = func(a string) *Props { return NewProps(V(a)) }
+	// Variable declaration
+	VD = func(f string, e Expr) IdToExpr { return make(IdToExpr).Put(f, e) }
+	// Variable types
+	VT = func(f string, ty Type) IdToTy { return make(IdToTy).Put(f, ty) }
 )

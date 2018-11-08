@@ -12,6 +12,7 @@ package workflow
 
 // UniOp represents unary operators like "!", "-", etc
 type UniOp struct {
+	expr
 	op      Operator
 	operant Expr
 }
@@ -40,6 +41,7 @@ func (u *UniOp) Equal(expr Expr) bool {
 
 // BinOp represents binary operators like "<", "&&", etc.
 type BinOp struct {
+	expr
 	op    Operator
 	left  Expr
 	right Expr
