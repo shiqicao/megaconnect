@@ -130,6 +130,30 @@ func TestObjLit(t *testing.T) {
 	)
 }
 
+func TestEvent(t *testing.T) {
+	assertEventParsing(t, wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy())), "event e {}")
+	assertEventParsing(t, wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType))), "event e {a : int}")
+	assertEventParsing(
+		t,
+		wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.StrType))),
+		"event e {a : int, b: string}",
+	)
+	assertEventParsing(
+		t,
+		wf.NewEventDecl("e", wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.BoolType))),
+		"event e {a : int, b: bool}",
+	)
+	assertEventParsing(
+		t,
+		wf.NewEventDecl("e", wf.NewObjType(
+			wf.NewIdToTy().
+				Put("a", wf.IntType).
+				Put("b", wf.NewObjType(wf.NewIdToTy().Put("c", wf.BoolType)))),
+		),
+		"event e {a : int, b: {c : bool}}",
+	)
+}
+
 func assertExprParsingErr(t *testing.T, expr string) {
 	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
 	_, err := parse(t, code)
@@ -158,6 +182,26 @@ func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
 		)
 	}
 	assert.True(t, md.Condition().Equal(expected))
+}
+
+func assertEventParsing(t *testing.T, expected *wf.EventDecl, event string) {
+	code := fmt.Sprintf("workflow w { %s }", event)
+	r, err := parse(t, code)
+	assert.NoError(t, err)
+	w, ok := r.(*wf.WorkflowDecl)
+	assert.True(t, ok)
+	assert.NotNil(t, w)
+	ed := w.EventDecls()[0]
+	assert.NotNil(t, ed)
+	if !ed.Equal(expected) {
+		/* TODO: add String to EventDecl
+		t.Logf(
+			"Actual Parsed Event(%T): %s",
+			ed.String()
+		)
+		*/
+	}
+	assert.True(t, ed.Equal(expected))
 }
 
 func parse(t *testing.T, code string) (interface{}, error) {

@@ -51,6 +51,18 @@ func (i IdToTy) Put(id string, ty Type) IdToTy {
 	return i
 }
 
+// Add inserts a pair of identifer and type,
+// it returns false if id is not unique.
+// It returns true if add a new pair is succeeded
+func (i IdToTy) Add(id *Id, ty Type) bool {
+	_, ok := i[id.id]
+	if ok {
+		return false
+	}
+	i[id.id] = idTy{id: id, ty: ty}
+	return true
+}
+
 // Copy creates a new instance of IdToTy
 func (i IdToTy) Copy() IdToTy {
 	if i == nil {

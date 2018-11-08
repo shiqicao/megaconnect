@@ -97,6 +97,20 @@ func ObjLitFieldsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.IdT
 	return varDecls, nil
 }
 
+func ObjFieldsAction(fieldDeclsRaw interface{}, fieldDeclRaw interface{}) (wf.IdToTy, error) {
+	fieldDecls := fieldDeclsRaw.(wf.IdToTy)
+	if fieldDeclRaw == nil {
+		return fieldDecls, nil
+	}
+	fieldDecl := fieldDeclRaw.([]interface{})
+	field := Id(fieldDecl[0])
+	ty := fieldDecl[1].(wf.Type)
+	if !fieldDecls.Add(field, ty) {
+		return nil, &ErrDupDef{Id: field}
+	}
+	return fieldDecls, nil
+}
+
 func ObjAccessorAction(expr interface{}, id interface{}) (*wf.ObjAccessor, error) {
 	receiver := expr.(wf.Expr)
 	accessor := Lit(id)

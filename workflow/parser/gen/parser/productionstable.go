@@ -125,80 +125,110 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Event : kdEvent id "{" EventFieldDecls "}"	<<  >>`,
+		String: `Event : kdEvent id "{" ObjFields "}"	<< wf.NewEventDecl(pa.Lit(X[1]), wf.NewObjType(X[3].(wf.IdToTy))), nil >>`,
 		Id:         "Event",
 		NTType:     6,
 		Index:      10,
 		NumSymbols: 5,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return wf.NewEventDecl(pa.Lit(X[1]), wf.NewObjType(X[3].(wf.IdToTy))), nil
 		},
 	},
 	ProdTabEntry{
-		String: `EventFieldDecl : id ":" Type	<<  >>`,
-		Id:         "EventFieldDecl",
+		String: `ObjField : id ":" Type	<< []interface{}{X[0], X[2]}, nil >>`,
+		Id:         "ObjField",
 		NTType:     7,
 		Index:      11,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return []interface{}{X[0], X[2]}, nil
 		},
 	},
 	ProdTabEntry{
-		String: `EventFieldDecls : EventFieldDecl	<<  >>`,
-		Id:         "EventFieldDecls",
+		String: `ObjFields_ : ObjFields_ "," ObjField	<< pa.ObjFieldsAction(X[0], X[2]) >>`,
+		Id:         "ObjFields_",
 		NTType:     8,
 		Index:      12,
-		NumSymbols: 1,
+		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return pa.ObjFieldsAction(X[0], X[2])
 		},
 	},
 	ProdTabEntry{
-		String: `EventFieldDecls : EventFieldDecls EventFieldDecl	<<  >>`,
-		Id:         "EventFieldDecls",
+		String: `ObjFields_ : empty	<< wf.NewIdToTy(), nil >>`,
+		Id:         "ObjFields_",
 		NTType:     8,
 		Index:      13,
-		NumSymbols: 2,
+		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return wf.NewIdToTy(), nil
 		},
 	},
 	ProdTabEntry{
-		String: `Type : kdStr	<<  >>`,
-		Id:         "Type",
+		String: `ObjFields : ObjField ObjFields_	<< pa.ObjFieldsAction(X[1], X[0]) >>`,
+		Id:         "ObjFields",
 		NTType:     9,
 		Index:      14,
-		NumSymbols: 1,
+		NumSymbols: 2,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return pa.ObjFieldsAction(X[1], X[0])
 		},
 	},
 	ProdTabEntry{
-		String: `Type : kdInt	<<  >>`,
-		Id:         "Type",
+		String: `ObjFields : empty	<< wf.NewIdToTy(), nil >>`,
+		Id:         "ObjFields",
 		NTType:     9,
 		Index:      15,
-		NumSymbols: 1,
+		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return wf.NewIdToTy(), nil
 		},
 	},
 	ProdTabEntry{
-		String: `Type : kdBool	<<  >>`,
+		String: `Type : kdStr	<< wf.StrType, nil >>`,
 		Id:         "Type",
-		NTType:     9,
+		NTType:     10,
 		Index:      16,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
+			return wf.StrType, nil
+		},
+	},
+	ProdTabEntry{
+		String: `Type : kdInt	<< wf.IntType, nil >>`,
+		Id:         "Type",
+		NTType:     10,
+		Index:      17,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.IntType, nil
+		},
+	},
+	ProdTabEntry{
+		String: `Type : kdBool	<< wf.BoolType, nil >>`,
+		Id:         "Type",
+		NTType:     10,
+		Index:      18,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.BoolType, nil
+		},
+	},
+	ProdTabEntry{
+		String: `Type : "{" ObjFields "}"	<< wf.NewObjType(X[1].(wf.IdToTy)), nil >>`,
+		Id:         "Type",
+		NTType:     10,
+		Index:      19,
+		NumSymbols: 3,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.NewObjType(X[1].(wf.IdToTy)), nil
 		},
 	},
 	ProdTabEntry{
 		String: `ObjLit : "{" ObjLitFields "}"	<< X[1], nil >>`,
 		Id:         "ObjLit",
-		NTType:     10,
-		Index:      17,
+		NTType:     11,
+		Index:      20,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[1], nil
@@ -207,8 +237,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `ObjLitField : id ":" Expr	<< []interface{}{X[0], X[2]}, nil >>`,
 		Id:         "ObjLitField",
-		NTType:     11,
-		Index:      18,
+		NTType:     12,
+		Index:      21,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return []interface{}{X[0], X[2]}, nil
@@ -217,8 +247,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `ObjLitFields_ : ObjLitFields_ "," ObjLitField	<< pa.ObjLitFieldsAction(X[0], X[2]) >>`,
 		Id:         "ObjLitFields_",
-		NTType:     12,
-		Index:      19,
+		NTType:     13,
+		Index:      22,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.ObjLitFieldsAction(X[0], X[2])
@@ -227,8 +257,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `ObjLitFields_ : empty	<< wf.NewIdToExpr(), nil >>`,
 		Id:         "ObjLitFields_",
-		NTType:     12,
-		Index:      20,
+		NTType:     13,
+		Index:      23,
 		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewIdToExpr(), nil
@@ -237,8 +267,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `ObjLitFields : ObjLitField ObjLitFields_	<< pa.ObjLitFieldsAction(X[1], X[0]) >>`,
 		Id:         "ObjLitFields",
-		NTType:     13,
-		Index:      21,
+		NTType:     14,
+		Index:      24,
 		NumSymbols: 2,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.ObjLitFieldsAction(X[1], X[0])
@@ -247,8 +277,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `ObjLitFields : empty	<< wf.NewIdToExpr(), nil >>`,
 		Id:         "ObjLitFields",
-		NTType:     13,
-		Index:      22,
+		NTType:     14,
+		Index:      25,
 		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewIdToExpr(), nil
@@ -257,8 +287,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `VarDecl : id "=" Expr	<< pa.VarDeclAction(X[0], X[2]) >>`,
 		Id:         "VarDecl",
-		NTType:     14,
-		Index:      23,
+		NTType:     15,
+		Index:      26,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.VarDeclAction(X[0], X[2])
@@ -267,8 +297,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `VarDecl : empty	<<  >>`,
 		Id:         "VarDecl",
-		NTType:     14,
-		Index:      24,
+		NTType:     15,
+		Index:      27,
 		NumSymbols: 0,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return nil, nil
@@ -277,8 +307,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `VarDecls : VarDecl	<<  >>`,
 		Id:         "VarDecls",
-		NTType:     15,
-		Index:      25,
+		NTType:     16,
+		Index:      28,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[0], nil
@@ -287,8 +317,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `VarDecls : VarDecls VarDecl	<< pa.VarDeclsAction(X[0], X[1]) >>`,
 		Id:         "VarDecls",
-		NTType:     15,
-		Index:      26,
+		NTType:     16,
+		Index:      29,
 		NumSymbols: 2,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.VarDeclsAction(X[0], X[1])
@@ -297,8 +327,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Expr : Expr "||" Term1	<< wf.NewBinOp(wf.OrOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Expr",
-		NTType:     16,
-		Index:      27,
+		NTType:     17,
+		Index:      30,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.OrOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -307,8 +337,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Expr : Expr "&&" Term1	<< wf.NewBinOp(wf.AndOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Expr",
-		NTType:     16,
-		Index:      28,
+		NTType:     17,
+		Index:      31,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.AndOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -317,8 +347,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Expr : Term1	<<  >>`,
 		Id:         "Expr",
-		NTType:     16,
-		Index:      29,
+		NTType:     17,
+		Index:      32,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[0], nil
@@ -327,8 +357,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term1 "==" Term2	<< wf.NewBinOp(wf.EqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      30,
+		NTType:     18,
+		Index:      33,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.EqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -337,8 +367,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term1 "!=" Term2	<< wf.NewBinOp(wf.NotEqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      31,
+		NTType:     18,
+		Index:      34,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.NotEqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -347,8 +377,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term1 ">" Term2	<< wf.NewBinOp(wf.GreaterThanOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      32,
+		NTType:     18,
+		Index:      35,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.GreaterThanOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -357,8 +387,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term1 ">=" Term2	<< wf.NewBinOp(wf.GreaterThanEqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      33,
+		NTType:     18,
+		Index:      36,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.GreaterThanEqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -367,8 +397,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term1 "<" Term2	<< wf.NewBinOp(wf.LessThanOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      34,
+		NTType:     18,
+		Index:      37,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.LessThanOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -377,8 +407,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term1 "<=" Term2	<< wf.NewBinOp(wf.LessThanEqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      35,
+		NTType:     18,
+		Index:      38,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewBinOp(wf.LessThanEqualOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
@@ -387,36 +417,6 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term1 : Term2	<<  >>`,
 		Id:         "Term1",
-		NTType:     17,
-		Index:      36,
-		NumSymbols: 1,
-		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return X[0], nil
-		},
-	},
-	ProdTabEntry{
-		String: `Term2 : Term2 "+" Term3	<< wf.NewBinOp(wf.PlusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
-		Id:         "Term2",
-		NTType:     18,
-		Index:      37,
-		NumSymbols: 3,
-		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.NewBinOp(wf.PlusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
-		},
-	},
-	ProdTabEntry{
-		String: `Term2 : Term2 "-" Term3	<< wf.NewBinOp(wf.MinusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
-		Id:         "Term2",
-		NTType:     18,
-		Index:      38,
-		NumSymbols: 3,
-		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.NewBinOp(wf.MinusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
-		},
-	},
-	ProdTabEntry{
-		String: `Term2 : Term3	<<  >>`,
-		Id:         "Term2",
 		NTType:     18,
 		Index:      39,
 		NumSymbols: 1,
@@ -425,28 +425,28 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Term3 : Term3 "*" Term4	<< wf.NewBinOp(wf.MultOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
-		Id:         "Term3",
+		String: `Term2 : Term2 "+" Term3	<< wf.NewBinOp(wf.PlusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
+		Id:         "Term2",
 		NTType:     19,
 		Index:      40,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.NewBinOp(wf.MultOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
+			return wf.NewBinOp(wf.PlusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
 		},
 	},
 	ProdTabEntry{
-		String: `Term3 : Term3 "/" Term4	<< wf.NewBinOp(wf.DivOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
-		Id:         "Term3",
+		String: `Term2 : Term2 "-" Term3	<< wf.NewBinOp(wf.MinusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
+		Id:         "Term2",
 		NTType:     19,
 		Index:      41,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.NewBinOp(wf.DivOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
+			return wf.NewBinOp(wf.MinusOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
 		},
 	},
 	ProdTabEntry{
-		String: `Term3 : Term4	<<  >>`,
-		Id:         "Term3",
+		String: `Term2 : Term3	<<  >>`,
+		Id:         "Term2",
 		NTType:     19,
 		Index:      42,
 		NumSymbols: 1,
@@ -455,10 +455,40 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Term4 : Term4 "." id	<< pa.ObjAccessorAction(X[0], X[2]) >>`,
-		Id:         "Term4",
+		String: `Term3 : Term3 "*" Term4	<< wf.NewBinOp(wf.MultOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
+		Id:         "Term3",
 		NTType:     20,
 		Index:      43,
+		NumSymbols: 3,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.NewBinOp(wf.MultOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
+		},
+	},
+	ProdTabEntry{
+		String: `Term3 : Term3 "/" Term4	<< wf.NewBinOp(wf.DivOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil >>`,
+		Id:         "Term3",
+		NTType:     20,
+		Index:      44,
+		NumSymbols: 3,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.NewBinOp(wf.DivOp, X[0].(wf.Expr), X[2].(wf.Expr)), nil
+		},
+	},
+	ProdTabEntry{
+		String: `Term3 : Term4	<<  >>`,
+		Id:         "Term3",
+		NTType:     20,
+		Index:      45,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return X[0], nil
+		},
+	},
+	ProdTabEntry{
+		String: `Term4 : Term4 "." id	<< pa.ObjAccessorAction(X[0], X[2]) >>`,
+		Id:         "Term4",
+		NTType:     21,
+		Index:      46,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.ObjAccessorAction(X[0], X[2])
@@ -467,8 +497,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term4 : Term5	<<  >>`,
 		Id:         "Term4",
-		NTType:     20,
-		Index:      44,
+		NTType:     21,
+		Index:      47,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[0], nil
@@ -477,8 +507,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term5 : intLit	<< pa.IntLitAction(X[0]) >>`,
 		Id:         "Term5",
-		NTType:     21,
-		Index:      45,
+		NTType:     22,
+		Index:      48,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.IntLitAction(X[0])
@@ -487,8 +517,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term5 : boolLit	<< pa.BoolLitAction(X[0]) >>`,
 		Id:         "Term5",
-		NTType:     21,
-		Index:      46,
+		NTType:     22,
+		Index:      49,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.BoolLitAction(X[0])
@@ -497,8 +527,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term5 : stringLit	<< pa.StrLitAction(X[0]) >>`,
 		Id:         "Term5",
-		NTType:     21,
-		Index:      47,
+		NTType:     22,
+		Index:      50,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.StrLitAction(X[0])
@@ -507,8 +537,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term5 : ObjLit	<< pa.ObjLitAction(X[0]) >>`,
 		Id:         "Term5",
-		NTType:     21,
-		Index:      48,
+		NTType:     22,
+		Index:      51,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.ObjLitAction(X[0])
@@ -517,8 +547,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term5 : id	<< wf.NewVar(string(X[0].(*token.Token).Lit)), nil >>`,
 		Id:         "Term5",
-		NTType:     21,
-		Index:      49,
+		NTType:     22,
+		Index:      52,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return wf.NewVar(string(X[0].(*token.Token).Lit)), nil
@@ -527,8 +557,8 @@ var productionsTable = ProdTab{
 	ProdTabEntry{
 		String: `Term5 : "(" Expr ")"	<< X[1], nil >>`,
 		Id:         "Term5",
-		NTType:     21,
-		Index:      50,
+		NTType:     22,
+		Index:      53,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[1], nil

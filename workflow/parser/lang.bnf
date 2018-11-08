@@ -74,19 +74,30 @@ MonitorVar
   | empty 
   ;
 
-Event : kdEvent id "{" EventFieldDecls "}";
+// Event Declaration
+Event 
+  : kdEvent id "{" ObjFields "}"  <<wf.NewEventDecl(pa.Lit($1), wf.NewObjType($3.(wf.IdToTy))), nil>>
+  ;
 
-EventFieldDecl : id ":" Type;
+ObjField 
+  : id ":" Type <<[]interface{}{$0, $2}, nil>>
+  ;
 
-EventFieldDecls 
-  : EventFieldDecl
-  | EventFieldDecls EventFieldDecl
+ObjFields_ 
+  : ObjFields_ "," ObjField <<pa.ObjFieldsAction($0, $2)>>
+  | empty                   <<wf.NewIdToTy(), nil>>
+  ;
+
+ObjFields 
+  : ObjField ObjFields_  <<pa.ObjFieldsAction($1, $0)>>
+  | empty                <<wf.NewIdToTy(), nil>>
   ;
 
 Type 
-  : kdStr 
-  | kdInt 
-  | kdBool
+  : kdStr <<wf.StrType, nil>>
+  | kdInt <<wf.IntType, nil>>
+  | kdBool <<wf.BoolType, nil>>
+  | "{" ObjFields "}" <<wf.NewObjType($1.(wf.IdToTy)), nil>>
   ;
 
 ObjLit 
