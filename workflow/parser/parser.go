@@ -10,8 +10,32 @@
 
 package parser
 
-type Parser struct{}
+import (
+	"fmt"
 
-func New() *Parser {
-	return &Parser{}
+	wf "github.com/megaspacelab/megaconnect/workflow"
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/lexer"
+	p "github.com/megaspacelab/megaconnect/workflow/parser/gen/parser"
+)
+
+// Parse wraps generated parser and improve error message
+func Parse(src string) (*wf.WorkflowDecl, error) {
+	lexer, err := lexer.NewLexerFile(src)
+	if err != nil {
+		return nil, err
+	}
+	ast, err := p.NewParser().Parse(lexer)
+	if err != nil {
+		return nil, translateErr(err)
+	}
+	w, ok := ast.(*wf.WorkflowDecl)
+	if !ok {
+		return nil, fmt.Errorf("Failed to parser workflow, parser returns %T ", ast)
+	}
+	return w, nil
+}
+
+func translateErr(err error) error {
+	// TODO: improve error msg
+	return err
 }
