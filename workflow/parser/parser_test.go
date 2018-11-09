@@ -61,18 +61,25 @@ var (
 			return wf.NewBinOp(op, x, y)
 		}
 	}
-	AND = B(wf.AndOp)
-	OR  = B(wf.OrOp)
-	EQ  = B(wf.EqualOp)
-	GT  = B(wf.GreaterThanOp)
-	V   = wf.NewVar
-	ADD = B(wf.PlusOp)
-	MUL = B(wf.MultOp)
-	I   = wf.NewIntConstFromI64
-	S   = wf.NewStrConst
-	OA  = wf.NewObjAccessor
-	ID  = wf.NewId
-	FC  = wf.NewFuncCall
+	AND  = B(wf.AndOp)
+	OR   = B(wf.OrOp)
+	EQ   = B(wf.EqualOp)
+	GT   = B(wf.GreaterThanOp)
+	V    = wf.NewVar
+	ADD  = B(wf.PlusOp)
+	MUL  = B(wf.MultOp)
+	I    = wf.NewIntConstFromI64
+	S    = wf.NewStrConst
+	OA   = wf.NewObjAccessor
+	ID   = wf.NewId
+	FC   = wf.NewFuncCall
+	AD   = wf.NewActionDecl
+	FIRE = wf.NewFire
+	OL   = wf.NewObjLit
+	IE   = wf.NewIdToExpr
+	IE1  = func(id string, e wf.Expr) wf.IdToExpr {
+		return wf.NewIdToExpr().Put(id, e)
+	}
 
 	// EventExpr
 	EV = wf.NewEVar
@@ -169,21 +176,34 @@ func TestEvent(t *testing.T) {
 func TestAction(t *testing.T) {
 	assertActionParsing(
 		t,
-		wf.NewActionDecl(
+		AD(
 			ID("a"),
-			wf.NewEVar("b"),
+			EV("b"),
 			wf.Stmts{
-				wf.NewFire("c", wf.NewObjLit(wf.NewIdToExpr().Put("d", wf.TrueConst))),
-				wf.NewFire("c", wf.NewObjLit(wf.NewIdToExpr().Put("d", wf.TrueConst))),
+				FIRE("c", OL(IE1("d", T))),
+				FIRE("c", OL(IE1("d", T))),
 			},
 		),
 		`action a 
 			trigger b
 			run {
-				fire c {d: true} 
-				fire c {d: true}				
+				fire c {d: true};
+				fire c {d: true};				
 			}
 		`,
+	)
+}
+
+func TestStmts(t *testing.T) {
+	assertStmtParsing(t, wf.Stmts{}, "")
+	assertStmtParsing(t, wf.Stmts{FIRE("e", OL(IE()))}, "fire e {};")
+	assertStmtParsing(t, wf.Stmts{FIRE("e", FC(nil, "f"))}, "fire e f();")
+	assertStmtParsing(t,
+		wf.Stmts{
+			FIRE("e", FC(nil, "f")),
+			FIRE("a", OL(IE1("a", T))),
+		},
+		"fire e f();fire a {a: true};",
 	)
 }
 
@@ -254,6 +274,14 @@ func assertActionParsing(t *testing.T, expected *wf.ActionDecl, action string) {
 	act := w.ActionDecls()[0]
 	assert.NotNil(t, act)
 	assert.True(t, act.Equal(expected))
+}
+
+func assertStmtParsing(t *testing.T, expected wf.Stmts, stmts string) {
+	code := fmt.Sprintf("workflow w { action a trigger a run{ %s } }", stmts)
+	w := assertWorkflowParsing(t, code)
+	action := w.ActionDecls()[0]
+	assert.NotNil(t, action)
+	assert.True(t, action.Body().Equal(expected))
 }
 
 func assertEventExprParsing(t *testing.T, expected wf.EventExpr, expr string) {

@@ -109,14 +109,9 @@ Stmt
   : kdFire id Expr <<pa.FireAction($1, $2, pa.Pos($0))>>
   ;
 
-Stmts_
-  : Stmts_ Stmt <<append($0.(wf.Stmts), $1.(wf.Stmt)), nil>>
-  | empty       <<wf.Stmts{}, nil>>
-  ; 
-
 Stmts
-  : Stmt Stmts_  <<append($1.(wf.Stmts), $0.(wf.Stmt)), nil>>
-  | empty        <<wf.Stmts{}, nil>>
+  : Stmts Stmt ";"  <<append($0.(wf.Stmts), $1.(wf.Stmt)), nil>>
+  | empty           <<wf.Stmts{}, nil>>
   ;
 
 
