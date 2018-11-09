@@ -77,9 +77,9 @@ func (r *Resolver) resolveFuncCall(fun *FuncCall) error {
 	if ns.IsEmpty() && !r.defaultNamespace.IsEmpty() {
 		ns = r.defaultNamespace
 	}
-	decl := resolveFun(r.libs, fun.Name(), ns)
+	decl := resolveFun(r.libs, fun.Name().id, ns)
 	if decl == nil {
-		return &ErrSymbolNotResolved{Symbol: fun.Name()}
+		return &ErrSymbolNotResolved{Symbol: fun.Name().id}
 	}
 	fun.SetDecl(decl)
 	return nil
@@ -93,7 +93,7 @@ func resolveFun(nss []*NamespaceDecl, name string, prefix NamespacePrefix) *Func
 	cur := prefix[0]
 	var ns *NamespaceDecl
 	for _, n := range nss {
-		if cur == n.name {
+		if cur.id == n.name {
 			ns = n
 			break
 		}

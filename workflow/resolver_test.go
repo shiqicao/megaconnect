@@ -17,15 +17,15 @@ import (
 )
 
 func TestResolveAction(t *testing.T) {
-	noNamespace := func() *FuncCall { return NewFuncCall(nil, "F") }
-	withNamespace := func(ns string) *FuncCall { return NewFuncCall(NamespacePrefix{ns}, "F") }
+	noNamespace := func() *FuncCall { return NewFuncCall(nil, ID("F")) }
+	withNamespace := func(ns *Id) *FuncCall { return NewFuncCall(NamespacePrefix{ns}, ID("F")) }
 	a := func(f *FuncCall) *ActionDecl {
 		return NewActionDecl(ID("T"), EV("a"), Stmts{FIRE("e", NewObjLit(VD("x", f)))})
 	}
 
 	r := NewResolver(nil, nil)
 	assert.Error(t, r.resolveAction(a(noNamespace())))
-	assert.Error(t, r.resolveAction(a(withNamespace("A"))))
+	assert.Error(t, r.resolveAction(a(withNamespace(ID("A")))))
 
 	lib := []*NamespaceDecl{
 		NewNamespaceDecl("A").AddFunc(
@@ -40,22 +40,22 @@ func TestResolveAction(t *testing.T) {
 
 	r = NewResolver(lib, nil)
 	assert.Error(t, r.resolveAction(a(noNamespace())))
-	f := withNamespace("A")
+	f := withNamespace(ID("A"))
 	assert.NoError(t, r.resolveAction(a(f)))
 	assert.NotNil(t, f.decl)
 
-	r = NewResolver(lib, NamespacePrefix{"A"})
+	r = NewResolver(lib, NamespacePrefix{ID("A")})
 	f = noNamespace()
 	assert.NoError(t, r.resolveAction(a(f)))
 	assert.NotNil(t, f.decl)
 
-	f = withNamespace("A")
+	f = withNamespace(ID("A"))
 	assert.NoError(t, r.resolveAction(a(f)))
 	assert.NotNil(t, f.decl)
 }
 
 func TestResolveFuncCall(t *testing.T) {
-	withNamespace := func(nss ...string) *FuncCall { return NewFuncCall(NamespacePrefix(nss), "F") }
+	withNamespace := func(nss ...*Id) *FuncCall { return NewFuncCall(NamespacePrefix(nss), ID("F")) }
 	A := NewNamespaceDecl("A").AddFunc(
 		NewFuncDecl(
 			"F",
@@ -67,19 +67,19 @@ func TestResolveFuncCall(t *testing.T) {
 
 	lib := []*NamespaceDecl{A}
 	r := NewResolver(lib, nil)
-	f := withNamespace("A")
+	f := withNamespace(ID("A"))
 	assert.NoError(t, r.resolveFuncCall(f))
 	assert.NotNil(t, f.decl)
 
-	f = withNamespace("B", "A")
+	f = withNamespace(ID("B"), ID("A"))
 	assert.Error(t, r.resolveFuncCall(f))
 
 	lib = []*NamespaceDecl{NewNamespaceDecl("B").AddChild(A)}
 	r = NewResolver(lib, nil)
-	f = withNamespace("A")
+	f = withNamespace(ID("A"))
 	assert.Error(t, r.resolveFuncCall(f))
 
-	f = withNamespace("B", "A")
+	f = withNamespace(ID("B"), ID("A"))
 	assert.NoError(t, r.resolveFuncCall(f))
 	assert.NotNil(t, f.decl)
 }

@@ -253,9 +253,9 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			nss = append(nss, string(ns))
+			nss = append(nss, NewIdB(ns))
 		}
-		return NewFuncCall(nss, string(name), args...), nil
+		return NewFuncCall(nss, NewIdB(name), args...), nil
 	case exprKindObjAccessor:
 		receiver, err := d.DecodeExpr()
 		if err != nil {

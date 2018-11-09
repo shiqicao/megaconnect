@@ -248,7 +248,7 @@ func TestSymbolResolve(t *testing.T) {
 		},
 	}
 
-	callFoo := NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
+	callFoo := NewFuncCall(NamespacePrefix{ID("TEST")}, ID("foo"), NewStrConst("bar"))
 	result := NewObjConst(
 		map[string]Const{
 			"size": NewIntConstFromI64(int64(len("bar"))),
@@ -258,8 +258,8 @@ func TestSymbolResolve(t *testing.T) {
 	ib := newInterpreterBuilder()
 	ib.withLibs(prelude).assertExpEval(t, result, callFoo)
 
-	callBar := NewFuncCall(NamespacePrefix{"TEST"}, "bar")
-	callFooBar := NewFuncCall(NamespacePrefix{"TEST"}, "foo", callBar)
+	callBar := NewFuncCall(NamespacePrefix{ID("TEST")}, ID("bar"))
+	callFooBar := NewFuncCall(NamespacePrefix{ID("TEST")}, ID("foo"), callBar)
 
 	result = NewObjConst(
 		map[string]Const{
@@ -270,7 +270,7 @@ func TestSymbolResolve(t *testing.T) {
 
 	ib.withLibs(prelude).assertExpEval(t, result, callFooBar)
 
-	callFoo = NewFuncCall(NamespacePrefix{"TEST"}, "foo", NewStrConst("bar"))
+	callFoo = NewFuncCall(NamespacePrefix{ID("TEST")}, ID("foo"), NewStrConst("bar"))
 	ib.withLibs(prelude).assertExpEval(t, NewStrConst("bar"), NewObjAccessor(
 		callFoo,
 		"text",
@@ -490,7 +490,7 @@ func TestCache(t *testing.T) {
 			},
 		},
 	}
-	funcCall := NewFuncCall(NamespacePrefix{"TEST"}, "foo")
+	funcCall := NewFuncCall(NamespacePrefix{ID("TEST")}, ID("foo"))
 	ib := newInterpreterBuilder().withLibs(prelude)
 
 	cache := &MockCache{}

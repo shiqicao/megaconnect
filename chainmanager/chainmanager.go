@@ -353,7 +353,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	interpreter := wf.NewInterpreter(
 		wf.NewEnv(nil),
 		cache,
-		wf.NewResolver([]*wf.NamespaceDecl{api}, wf.NamespacePrefix{e.id}),
+		wf.NewResolver([]*wf.NamespaceDecl{api}, wf.NamespacePrefix{wf.NewId(e.id)}),
 		e.logger,
 	)
 	events := []*mgrpc.Event{}

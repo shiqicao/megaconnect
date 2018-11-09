@@ -258,12 +258,12 @@ func (i *Interpreter) evalObjAccessor(accessor *ObjAccessor) (Const, error) {
 func (i *Interpreter) evalFuncCall(funcCall *FuncCall) (Const, error) {
 	decl := funcCall.Decl()
 	if decl == nil {
-		return nil, &ErrSymbolNotResolved{Symbol: funcCall.Name()}
+		return nil, &ErrSymbolNotResolved{Symbol: funcCall.Name().id}
 	}
 	args := funcCall.Args()
 	params := decl.Params()
 	if len(args) != len(params) {
-		return nil, &ErrArgLenMismatch{FuncName: funcCall.Name(), ArgLen: len(args), ParamLen: len(params)}
+		return nil, &ErrArgLenMismatch{FuncName: funcCall.Name().id, ArgLen: len(args), ParamLen: len(params)}
 	}
 	return i.evalFuncDecl(decl, args)
 }

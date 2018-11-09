@@ -81,7 +81,7 @@ func compile(ctx *cli.Context) error {
 	vars := wf.NewIdToExpr().Put(
 		"blockHeight",
 		wf.NewObjAccessor(
-			wf.NewFuncCall(nil, "GetBlock"),
+			wf.NewFuncCall(nil, wf.NewId("GetBlock")),
 			"height",
 		),
 	)
@@ -89,13 +89,13 @@ func compile(ctx *cli.Context) error {
 		wf.NotEqualOp,
 		wf.NewFuncCall(
 			nil,
-			"GetBalance",
+			wf.NewId("GetBalance"),
 			wf.NewStrConst(addr),
 			wf.NewVar("blockHeight"),
 		),
 		wf.NewFuncCall(
 			nil,
-			"GetBalance",
+			wf.NewId("GetBalance"),
 			wf.NewStrConst(addr),
 			wf.NewBinOp(wf.MinusOp,
 				wf.NewVar("blockHeight"),
