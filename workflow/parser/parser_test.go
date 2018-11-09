@@ -155,6 +155,27 @@ func TestEvent(t *testing.T) {
 	)
 }
 
+func TestAction(t *testing.T) {
+	assertActionParsing(
+		t,
+		wf.NewActionDecl(
+			ID("a"),
+			wf.NewEVar("b"),
+			wf.Stmts{
+				wf.NewFire("c", wf.NewObjLit(wf.NewIdToExpr().Put("d", wf.TrueConst))),
+				wf.NewFire("c", wf.NewObjLit(wf.NewIdToExpr().Put("d", wf.TrueConst))),
+			},
+		),
+		`action a 
+			trigger b
+			run {
+				fire c {d: true} 
+				fire c {d: true}				
+			}
+		`,
+	)
+}
+
 func assertExprParsingErr(t *testing.T, expr string) {
 	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
 	_, err := parse(t, code)
@@ -203,6 +224,18 @@ func assertEventParsing(t *testing.T, expected *wf.EventDecl, event string) {
 		*/
 	}
 	assert.True(t, ed.Equal(expected))
+}
+
+func assertActionParsing(t *testing.T, expected *wf.ActionDecl, action string) {
+	code := fmt.Sprintf("workflow w { %s }", action)
+	r, err := parse(t, code)
+	assert.NoError(t, err)
+	w, ok := r.(*wf.WorkflowDecl)
+	assert.True(t, ok)
+	assert.NotNil(t, w)
+	act := w.ActionDecls()[0]
+	assert.NotNil(t, act)
+	assert.True(t, act.Equal(expected))
 }
 
 func parse(t *testing.T, code string) (interface{}, error) {

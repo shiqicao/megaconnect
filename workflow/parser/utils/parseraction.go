@@ -144,7 +144,7 @@ func BinOpAction(op wf.Operator, leftRaw interface{}, rightRaw interface{}) (wf.
 	left := leftRaw.(wf.Expr)
 	right := rightRaw.(wf.Expr)
 	bin := wf.NewBinOp(op, left, right)
-	mergePos(bin, left, right)
+	mergePosByNodes(bin, left, right)
 	return bin, nil
 }
 
@@ -152,8 +152,16 @@ func EBinOpAction(op wf.EventExprOperator, leftRaw interface{}, rightRaw interfa
 	left := leftRaw.(wf.EventExpr)
 	right := rightRaw.(wf.EventExpr)
 	bin := wf.NewEBinOp(op, left, right)
-	mergePos(bin, left, right)
+	mergePosByNodes(bin, left, right)
 	return bin, nil
+}
+
+func FireAction(id interface{}, eventObj interface{}, start wf.Pos) (*wf.Fire, error) {
+	eventName := Lit(id)
+	obj := eventObj.(wf.Expr)
+	fire := wf.NewFire(eventName, obj)
+	mergePos(fire, &start, obj.Pos())
+	return fire, nil
 }
 
 // Lit converts a token to string
@@ -164,6 +172,23 @@ func Lit(t interface{}) string {
 // Id converts a token to workflow.Id
 func Id(t interface{}) *wf.Id {
 	return idAction(t, func(s string) wf.Node { return wf.NewId(s) }).(*wf.Id)
+}
+
+func Pos(t interface{}) wf.Pos {
+	token := t.(*token.Token)
+	return wf.Pos{
+		StartRow: token.Line,
+		StartCol: token.Column,
+		EndRow:   token.Line,
+		EndCol:   token.Column + token.Offset,
+	}
+}
+
+func ActionAction(id interface{}, eexpr interface{}, stmts interface{}, start interface{}, end interface{}) (*wf.ActionDecl, error) {
+	action := wf.NewActionDecl(Id(id), eexpr.(wf.EventExpr), stmts.(wf.Stmts))
+	s, e := Pos(start), Pos(end)
+	mergePos(action, &s, &e)
+	return action, nil
 }
 
 func idAction(t interface{}, builder func(s string) wf.Node) wf.Node {
@@ -178,11 +203,13 @@ func setPos(node wf.Node, token *token.Token) {
 	node.SetPos(token.Line, token.Column, token.Line, token.Column+token.Offset)
 }
 
-func mergePos(node wf.Node, start wf.Node, end wf.Node) {
-	s := start.Pos()
-	e := end.Pos()
+func mergePos(node wf.Node, s *wf.Pos, e *wf.Pos) {
 	if s == nil || e == nil {
 		return
 	}
 	node.SetPos(s.StartRow, s.StartCol, e.EndRow, e.EndCol)
+}
+
+func mergePosByNodes(node wf.Node, start wf.Node, end wf.Node) {
+	mergePos(node, start.Pos(), end.Pos())
 }

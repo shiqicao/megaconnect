@@ -15,6 +15,8 @@ kdFire : 'f' 'i' 'r' 'e';
 kdInt : 'i' 'n' 't';
 kdStr : 's' 't' 'r' 'i' 'n' 'g';
 kdBool : 'b' 'o' 'o' 'l';
+kdRun : 'r' 'u' 'n';
+kdTrigger : 't' 'r' 'i' 'g' 'g' 'e' 'r';
 
 // letter and digit
 _digit : '0' - '9' ;
@@ -36,6 +38,9 @@ intLit : '1' - '9' { _digit } | '0';
 
 // identifier 
 id : _letter {_letter | _digit} ;
+
+// newline
+newline : '\n' ;
 
 // SYNTAX
 <<
@@ -59,6 +64,7 @@ Decls
 Decl
   : Monitor
   | Event
+  | Action
   | empty
   ;
 
@@ -96,12 +102,26 @@ ObjFields
   ;
 
 // Action Declaration
-//
-// Action :
-//  kdAction id
-//    kdTrigger EventExpr
-//    kdRun "{" Stmts "}"
-//  <<ps.ActionAction($1, $3, $6) >>;
+Action :
+  kdAction id
+    kdTrigger EventExpr
+    kdRun "{" Stmts "}"
+  <<pa.ActionAction($1, $3, $6, $0, $7) >>;
+
+Stmt 
+  : kdFire id Expr <<pa.FireAction($1, $2, pa.Pos($0))>>
+  ;
+
+Stmts_
+  : Stmts_ Stmt <<append($0.(wf.Stmts), $1.(wf.Stmt)), nil>>
+  | empty       <<wf.Stmts{}, nil>>
+  ; 
+
+Stmts
+  : Stmt Stmts_  <<append($1.(wf.Stmts), $0.(wf.Stmt)), nil>>
+  | empty        <<wf.Stmts{}, nil>>
+  ;
+
 
 EventExpr
   : EventExpr "||" EventTerm1 <<pa.EBinOpAction(wf.OrEOp, $0, $2)>>
