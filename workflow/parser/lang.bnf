@@ -39,9 +39,6 @@ intLit : '1' - '9' { _digit } | '0';
 // identifier 
 id : _letter {_letter | _digit} ;
 
-// newline
-newline : '\n' ;
-
 // SYNTAX
 <<
 import (
@@ -206,7 +203,30 @@ Term5
   : intLit       <<pa.IntLitAction($0)>>
   | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
+  | FuncCall     <<$0, nil>>
   | ObjLit       <<pa.ObjLitAction($0)>>
   | id           <<pa.VarAction($0)>>
   | "(" Expr ")" <<$1, nil>>
   ;
+
+FuncCall 
+  : id "(" Args ")" <<pa.FuncCallAction($0, $2)>>
+  ;
+
+Args_ 
+  : Args_ "," Expr <<append($0.(wf.Args), $2.(wf.Expr)), nil>>
+  | empty          <<wf.Args{}, nil>>
+  ;
+
+Args 
+  : Expr Args_  <<append(wf.Args{$0.(wf.Expr)}, $1.(wf.Args)...), nil>>
+  | empty      <<wf.Args{}, nil>>
+  ;
+
+// TODO: enable namespace after change namespace to wf.Id
+// Namespace: id "." <<pa.Id($0), nil>>;
+
+// Namespaces
+//  : Namespaces Namespace  <<append($0.(wf.NamespacePrefix), $1.(*wf.Id)), nil>>
+//  | empty                 <<wf.NamespacePrefix{}, nil>>
+//  ;

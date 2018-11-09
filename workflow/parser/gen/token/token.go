@@ -99,7 +99,6 @@ var TokMap = TokenMap{
 		"intLit",
 		"boolLit",
 		"stringLit",
-		"newline",
 	},
 
 	idMap: map[string]Type{
@@ -143,6 +142,5 @@ var TokMap = TokenMap{
 		"intLit":      37,
 		"boolLit":     38,
 		"stringLit":   39,
-		"newline":     40,
 	},
 }

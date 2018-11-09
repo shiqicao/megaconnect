@@ -191,6 +191,12 @@ func ActionAction(id interface{}, eexpr interface{}, stmts interface{}, start in
 	return action, nil
 }
 
+func FuncCallAction(id interface{}, argsRaw interface{}) (*wf.FuncCall, error) {
+	name := Lit(id)
+	args := argsRaw.(wf.Args)
+	return wf.NewFuncCall(wf.NamespacePrefix{}, name, args...), nil
+}
+
 func idAction(t interface{}, builder func(s string) wf.Node) wf.Node {
 	token := t.(*token.Token)
 	id := string(token.Lit)

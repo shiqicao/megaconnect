@@ -655,10 +655,20 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Term5 : ObjLit	<< pa.ObjLitAction(X[0]) >>`,
+		String: `Term5 : FuncCall	<< X[0], nil >>`,
 		Id:         "Term5",
 		NTType:     28,
 		Index:      63,
+		NumSymbols: 1,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return X[0], nil
+		},
+	},
+	ProdTabEntry{
+		String: `Term5 : ObjLit	<< pa.ObjLitAction(X[0]) >>`,
+		Id:         "Term5",
+		NTType:     28,
+		Index:      64,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.ObjLitAction(X[0])
@@ -668,7 +678,7 @@ var productionsTable = ProdTab{
 		String: `Term5 : id	<< pa.VarAction(X[0]) >>`,
 		Id:         "Term5",
 		NTType:     28,
-		Index:      64,
+		Index:      65,
 		NumSymbols: 1,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return pa.VarAction(X[0])
@@ -678,10 +688,60 @@ var productionsTable = ProdTab{
 		String: `Term5 : "(" Expr ")"	<< X[1], nil >>`,
 		Id:         "Term5",
 		NTType:     28,
-		Index:      65,
+		Index:      66,
 		NumSymbols: 3,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
 			return X[1], nil
+		},
+	},
+	ProdTabEntry{
+		String: `FuncCall : id "(" Args ")"	<< pa.FuncCallAction(X[0], X[2]) >>`,
+		Id:         "FuncCall",
+		NTType:     29,
+		Index:      67,
+		NumSymbols: 4,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return pa.FuncCallAction(X[0], X[2])
+		},
+	},
+	ProdTabEntry{
+		String: `Args_ : Args_ "," Expr	<< append(X[0].(wf.Args), X[2].(wf.Expr)), nil >>`,
+		Id:         "Args_",
+		NTType:     30,
+		Index:      68,
+		NumSymbols: 3,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return append(X[0].(wf.Args), X[2].(wf.Expr)), nil
+		},
+	},
+	ProdTabEntry{
+		String: `Args_ : empty	<< wf.Args{}, nil >>`,
+		Id:         "Args_",
+		NTType:     30,
+		Index:      69,
+		NumSymbols: 0,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.Args{}, nil
+		},
+	},
+	ProdTabEntry{
+		String: `Args : Expr Args_	<< append(wf.Args{X[0].(wf.Expr)}, X[1].(wf.Args)...), nil >>`,
+		Id:         "Args",
+		NTType:     31,
+		Index:      70,
+		NumSymbols: 2,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return append(wf.Args{X[0].(wf.Expr)}, X[1].(wf.Args)...), nil
+		},
+	},
+	ProdTabEntry{
+		String: `Args : empty	<< wf.Args{}, nil >>`,
+		Id:         "Args",
+		NTType:     31,
+		Index:      71,
+		NumSymbols: 0,
+		ReduceFunc: func(X []Attrib) (Attrib, error) {
+			return wf.Args{}, nil
 		},
 	},
 }

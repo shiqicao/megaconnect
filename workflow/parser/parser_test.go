@@ -72,6 +72,7 @@ var (
 	S   = wf.NewStrConst
 	OA  = wf.NewObjAccessor
 	ID  = wf.NewId
+	FC  = wf.NewFuncCall
 
 	// EventExpr
 	EV = wf.NewEVar
@@ -193,6 +194,16 @@ func TestEventExpr(t *testing.T) {
 	assertEventExprParsing(t, EAND(EOR(EV("a"), EV("b")), EV("c")), "a || b && c")
 	assertEventExprParsing(t, EOR(EV("a"), EAND(EV("b"), EV("c"))), "a || (b && c)")
 	assertEventExprParsing(t, EOR(EOR(EV("a"), EV("b")), EV("c")), "a || b || c")
+}
+
+func TestFuncCall(t *testing.T) {
+	assertExprParsing(t, FC(nil, "a"), "a()")
+	assertExprParsing(t, FC(nil, "a", V("b")), "a(b)")
+	assertExprParsing(t, FC(nil, "a", V("b"), V("c")), "a(b, c)")
+	assertExprParsing(t, FC(nil, "a", V("b"), V("c"), V("d")), "a(b, c, d)")
+	assertExprParsing(t, FC(nil, "a", V("b"), FC(nil, "c")), "a(b, c())")
+	assertExprParsing(t, FC(nil, "a", OA(V("b"), "c"), FC(nil, "c")), "a(b.c, c())")
+	assertExprParsing(t, OA(FC(nil, "a"), "b"), "a().b")
 }
 
 func assertExprParsingErr(t *testing.T, expr string) {
