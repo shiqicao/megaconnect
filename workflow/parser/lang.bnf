@@ -129,7 +129,10 @@ EventExpr
   | EventTerm1
   ;
 
-EventTerm1 : id <<pa.EVarAction($0)>>;
+EventTerm1 
+  : id                <<pa.EVarAction($0)>>
+  | "(" EventExpr ")" <<$1, nil>>
+  ;
 
 Type 
   : kdStr <<wf.StrType, nil>>

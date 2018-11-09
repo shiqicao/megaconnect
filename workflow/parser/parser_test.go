@@ -72,6 +72,16 @@ var (
 	S   = wf.NewStrConst
 	OA  = wf.NewObjAccessor
 	ID  = wf.NewId
+
+	// EventExpr
+	EV = wf.NewEVar
+	EB = func(op wf.EventExprOperator) func(x wf.EventExpr, y wf.EventExpr) wf.EventExpr {
+		return func(x wf.EventExpr, y wf.EventExpr) wf.EventExpr {
+			return wf.NewEBinOp(op, x, y)
+		}
+	}
+	EAND = EB(wf.AndEOp)
+	EOR  = EB(wf.OrEOp)
 )
 
 func TestExprParsing(t *testing.T) {
@@ -176,6 +186,15 @@ func TestAction(t *testing.T) {
 	)
 }
 
+func TestEventExpr(t *testing.T) {
+	assertEventExprParsing(t, EV("a"), "a")
+	assertEventExprParsing(t, EAND(EV("a"), EV("b")), "a && b")
+	assertEventExprParsing(t, EOR(EV("a"), EV("b")), "a || b")
+	assertEventExprParsing(t, EAND(EOR(EV("a"), EV("b")), EV("c")), "a || b && c")
+	assertEventExprParsing(t, EOR(EV("a"), EAND(EV("b"), EV("c"))), "a || (b && c)")
+	assertEventExprParsing(t, EOR(EOR(EV("a"), EV("b")), EV("c")), "a || b || c")
+}
+
 func assertExprParsingErr(t *testing.T, expr string) {
 	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
 	_, err := parse(t, code)
@@ -184,11 +203,7 @@ func assertExprParsingErr(t *testing.T, expr string) {
 
 func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
 	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
-	r, err := parse(t, code)
-	assert.NoError(t, err)
-	w, ok := r.(*wf.WorkflowDecl)
-	assert.True(t, ok)
-	assert.NotNil(t, w)
+	w := assertWorkflowParsing(t, code)
 	md := w.MonitorDecls()[0]
 	assert.NotNil(t, md)
 	if !md.Condition().Equal(expected) {
@@ -208,11 +223,7 @@ func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
 
 func assertEventParsing(t *testing.T, expected *wf.EventDecl, event string) {
 	code := fmt.Sprintf("workflow w { %s }", event)
-	r, err := parse(t, code)
-	assert.NoError(t, err)
-	w, ok := r.(*wf.WorkflowDecl)
-	assert.True(t, ok)
-	assert.NotNil(t, w)
+	w := assertWorkflowParsing(t, code)
 	ed := w.EventDecls()[0]
 	assert.NotNil(t, ed)
 	if !ed.Equal(expected) {
@@ -228,14 +239,27 @@ func assertEventParsing(t *testing.T, expected *wf.EventDecl, event string) {
 
 func assertActionParsing(t *testing.T, expected *wf.ActionDecl, action string) {
 	code := fmt.Sprintf("workflow w { %s }", action)
-	r, err := parse(t, code)
-	assert.NoError(t, err)
-	w, ok := r.(*wf.WorkflowDecl)
-	assert.True(t, ok)
-	assert.NotNil(t, w)
+	w := assertWorkflowParsing(t, code)
 	act := w.ActionDecls()[0]
 	assert.NotNil(t, act)
 	assert.True(t, act.Equal(expected))
+}
+
+func assertEventExprParsing(t *testing.T, expected wf.EventExpr, expr string) {
+	code := fmt.Sprintf("workflow w { action a trigger %s run{} }", expr)
+	w := assertWorkflowParsing(t, code)
+	action := w.ActionDecls()[0]
+	assert.NotNil(t, action)
+	assert.True(t, action.Trigger().Equal(expected))
+}
+
+func assertWorkflowParsing(t *testing.T, w string) *wf.WorkflowDecl {
+	r, err := parse(t, w)
+	assert.NoError(t, err)
+	wfl, ok := r.(*wf.WorkflowDecl)
+	assert.True(t, ok)
+	assert.NotNil(t, wfl)
+	return wfl
 }
 
 func parse(t *testing.T, code string) (interface{}, error) {
