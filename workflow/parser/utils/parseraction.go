@@ -192,7 +192,7 @@ func ActionAction(id interface{}, eexpr interface{}, stmts interface{}, start in
 }
 
 func FuncCallAction(id interface{}, argsRaw interface{}) (*wf.FuncCall, error) {
-	name := Lit(id)
+	name := Id(id)
 	args := argsRaw.(wf.Args)
 	return wf.NewFuncCall(wf.NamespacePrefix{}, name, args...), nil
 }

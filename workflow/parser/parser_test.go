@@ -61,18 +61,20 @@ var (
 			return wf.NewBinOp(op, x, y)
 		}
 	}
-	AND  = B(wf.AndOp)
-	OR   = B(wf.OrOp)
-	EQ   = B(wf.EqualOp)
-	GT   = B(wf.GreaterThanOp)
-	V    = wf.NewVar
-	ADD  = B(wf.PlusOp)
-	MUL  = B(wf.MultOp)
-	I    = wf.NewIntConstFromI64
-	S    = wf.NewStrConst
-	OA   = wf.NewObjAccessor
-	ID   = wf.NewId
-	FC   = wf.NewFuncCall
+	AND = B(wf.AndOp)
+	OR  = B(wf.OrOp)
+	EQ  = B(wf.EqualOp)
+	GT  = B(wf.GreaterThanOp)
+	V   = wf.NewVar
+	ADD = B(wf.PlusOp)
+	MUL = B(wf.MultOp)
+	I   = wf.NewIntConstFromI64
+	S   = wf.NewStrConst
+	OA  = wf.NewObjAccessor
+	ID  = wf.NewId
+	FC  = func(ns wf.NamespacePrefix, id string, args ...wf.Expr) *wf.FuncCall {
+		return wf.NewFuncCall(ns, ID(id), args...)
+	}
 	AD   = wf.NewActionDecl
 	FIRE = wf.NewFire
 	OL   = wf.NewObjLit
