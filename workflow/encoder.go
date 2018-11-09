@@ -154,7 +154,7 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		}
 		return e.EncodeExpr(expr.Operant())
 	case *FuncCall:
-		if err = e.encodeString(expr.Name()); err != nil {
+		if err = e.encodeString(expr.Name().id); err != nil {
 			return err
 		}
 		e.encodeLengthI(len(expr.Args()))
@@ -165,7 +165,7 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 		}
 		e.encodeLengthI(len(expr.NamespacePrefix()))
 		for _, n := range expr.NamespacePrefix() {
-			if err = e.encodeString(n); err != nil {
+			if err = e.encodeString(n.id); err != nil {
 				return err
 			}
 		}

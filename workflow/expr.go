@@ -66,13 +66,13 @@ func (a Args) Equal(b Args) bool {
 type FuncCall struct {
 	expr
 	decl *FuncDecl
-	name string
+	name *Id
 	args Args
 	ns   NamespacePrefix
 }
 
 // NewFuncCall returns a new FuncCall
-func NewFuncCall(ns NamespacePrefix, name string, args ...Expr) *FuncCall {
+func NewFuncCall(ns NamespacePrefix, name *Id, args ...Expr) *FuncCall {
 	return &FuncCall{
 		name: name,
 		args: Args(args).Copy(),
@@ -84,7 +84,7 @@ func NewFuncCall(ns NamespacePrefix, name string, args ...Expr) *FuncCall {
 func (f *FuncCall) NamespacePrefix() NamespacePrefix { return f.ns.Copy() }
 
 // Name returns the function name
-func (f *FuncCall) Name() string { return f.name }
+func (f *FuncCall) Name() *Id { return f.name }
 
 // Args returns a copy of function arguments
 func (f *FuncCall) Args() Args { return f.args.Copy() }
@@ -99,7 +99,7 @@ func (f *FuncCall) SetDecl(decl *FuncDecl) { f.decl = decl }
 func (f *FuncCall) String() string {
 	var buf bytes.Buffer
 	buf.WriteString(f.ns.String())
-	buf.WriteString(f.name)
+	buf.WriteString(f.name.id)
 	buf.WriteString("(")
 	last := len(f.args) - 1
 	for i, p := range f.args {
@@ -116,7 +116,7 @@ func (f *FuncCall) String() string {
 func (f *FuncCall) Equal(expr Expr) bool {
 	y, ok := expr.(*FuncCall)
 	return ok &&
-		f.Name() == y.Name() &&
+		f.Name().Equal(y.Name()) &&
 		f.Args().Equal(y.Args()) &&
 		f.NamespacePrefix().Equal(y.NamespacePrefix())
 }
@@ -324,7 +324,7 @@ func (o *ObjConst) Equal(x Expr) bool {
 }
 
 // NamespacePrefix represents a namespace hierarchy
-type NamespacePrefix []string
+type NamespacePrefix []*Id
 
 // IsEmpty returns true if namespace is empty
 func (n NamespacePrefix) IsEmpty() bool { return len(n) == 0 }
@@ -332,8 +332,8 @@ func (n NamespacePrefix) IsEmpty() bool { return len(n) == 0 }
 func (n NamespacePrefix) String() string {
 	var buf bytes.Buffer
 	for _, ns := range n {
-		buf.WriteString(ns)
-		buf.WriteString("::")
+		buf.WriteString(ns.id)
+		buf.WriteString(".")
 	}
 	return buf.String()
 }
@@ -344,7 +344,7 @@ func (n NamespacePrefix) Equal(m NamespacePrefix) bool {
 		return false
 	}
 	for i := 0; i < len(n); i++ {
-		if n[i] != m[i] {
+		if !n[i].Equal(m[i]) {
 			return false
 		}
 	}

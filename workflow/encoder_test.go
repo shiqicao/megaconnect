@@ -19,14 +19,14 @@ import (
 )
 
 func TestFuncCallEncoding(t *testing.T) {
-	assertExprEncoding(t, NewFuncCall(nil, "T", TrueConst))
-	assertExprEncoding(t, NewFuncCall(nil, "T", TrueConst))
-	assertExprEncoding(t, NewFuncCall(NamespacePrefix{"a", "b"}, "T", TrueConst))
-	assertExprEncoding(t, NewFuncCall(nil, "T", NewFuncCall(nil, "T", TrueConst)))
+	assertExprEncoding(t, NewFuncCall(nil, ID("T"), TrueConst))
+	assertExprEncoding(t, NewFuncCall(nil, ID("T"), TrueConst))
+	assertExprEncoding(t, NewFuncCall(NamespacePrefix{ID("a"), ID("b")}, ID("T"), TrueConst))
+	assertExprEncoding(t, NewFuncCall(nil, ID("T"), NewFuncCall(nil, ID("T"), TrueConst)))
 	assertExprEncoding(t, NewFuncCall(
-		NamespacePrefix{"a", "b"},
-		"T",
-		NewFuncCall(NamespacePrefix{"a", "b"}, "T", GetBoolConst(true)),
+		NamespacePrefix{ID("a"), ID("b")},
+		ID("T"),
+		NewFuncCall(NamespacePrefix{ID("a"), ID("b")}, ID("T"), GetBoolConst(true)),
 		GetBoolConst(true),
 	))
 }
@@ -81,7 +81,7 @@ func TestObjEncoding(t *testing.T) {
 func TestObjAccessorEncoding(t *testing.T) {
 	assertExprEncoding(t,
 		NewObjAccessor(
-			NewFuncCall(nil, "Test", TrueConst),
+			NewFuncCall(nil, ID("Test"), TrueConst),
 			"a",
 		))
 	assertExprEncoding(t,

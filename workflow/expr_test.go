@@ -112,16 +112,16 @@ func TestExprEquality(t *testing.T) {
 	))
 
 	// FuncCall
-	assert.True(t, NewFuncCall(NamespacePrefix{}, "F").Equal(NewFuncCall(NamespacePrefix{}, "F")))
-	assert.True(t, NewFuncCall(NamespacePrefix{"B"}, "F").Equal(NewFuncCall(NamespacePrefix{"B"}, "F")))
-	assert.True(t, NewFuncCall(NamespacePrefix{"B", "B2"}, "F").Equal(NewFuncCall(NamespacePrefix{"B", "B2"}, "F")))
-	assert.True(t, NewFuncCall(NamespacePrefix{"B"}, "F", TrueConst).Equal(NewFuncCall(NamespacePrefix{"B"}, "F", TrueConst)))
+	assert.True(t, NewFuncCall(NamespacePrefix{}, ID("F")).Equal(NewFuncCall(NamespacePrefix{}, ID("F"))))
+	assert.True(t, NewFuncCall(NamespacePrefix{ID("B")}, ID("F")).Equal(NewFuncCall(NamespacePrefix{ID("B")}, ID("F"))))
+	assert.True(t, NewFuncCall(NamespacePrefix{ID("B"), ID("B2")}, ID("F")).Equal(NewFuncCall(NamespacePrefix{ID("B"), ID("B2")}, ID("F"))))
+	assert.True(t, NewFuncCall(NamespacePrefix{ID("B")}, ID("F"), TrueConst).Equal(NewFuncCall(NamespacePrefix{ID("B")}, ID("F"), TrueConst)))
 
-	assert.False(t, NewFuncCall(nil, "F").Equal(NewFuncCall(nil, "G")))
-	assert.True(t, NewFuncCall(NamespacePrefix{"B"}, "F").Equal(NewFuncCall(NamespacePrefix{"B"}, "F")))
-	assert.False(t, NewFuncCall(NamespacePrefix{"B", "B2"}, "F").Equal(NewFuncCall(NamespacePrefix{"B", "A2"}, "F")))
-	assert.False(t, NewFuncCall(NamespacePrefix{"B"}, "F", TrueConst).Equal(NewFuncCall(NamespacePrefix{"B"}, "F", FalseConst)))
-	assert.False(t, NewFuncCall(NamespacePrefix{"B"}, "F", TrueConst).Equal(NewFuncCall(NamespacePrefix{"B"}, "F", TrueConst, TrueConst)))
+	assert.False(t, NewFuncCall(nil, ID("F")).Equal(NewFuncCall(nil, ID("G"))))
+	assert.True(t, NewFuncCall(NamespacePrefix{ID("B")}, ID("F")).Equal(NewFuncCall(NamespacePrefix{ID("B")}, ID("F"))))
+	assert.False(t, NewFuncCall(NamespacePrefix{ID("B"), ID("B2")}, ID("F")).Equal(NewFuncCall(NamespacePrefix{ID("B"), ID("A2")}, ID("F"))))
+	assert.False(t, NewFuncCall(NamespacePrefix{ID("B")}, ID("F"), TrueConst).Equal(NewFuncCall(NamespacePrefix{ID("B")}, ID("F"), FalseConst)))
+	assert.False(t, NewFuncCall(NamespacePrefix{ID("B")}, ID("F"), TrueConst).Equal(NewFuncCall(NamespacePrefix{ID("B")}, ID("F"), TrueConst, TrueConst)))
 
 	// ObjAccessor
 	assert.True(t, NewObjAccessor(NewObjConst(ObjFields{}), "A").Equal(
@@ -153,11 +153,11 @@ func TestExprEquality(t *testing.T) {
 func TestCopy(t *testing.T) {
 	ns := NamespacePrefix(nil).Copy()
 	assert.Nil(t, ns)
-	ns = NamespacePrefix{"a", "a"}
+	ns = NamespacePrefix{ID("a"), ID("a")}
 	ns_ := ns.Copy()
 	assert.Equal(t, ns, ns_)
-	ns[0] = "b"
-	assert.Equal(t, "a", ns_[0])
+	ns[0] = ID("b")
+	assert.True(t, ID("a").Equal(ns_[0]))
 
 	args := Args(nil).Copy()
 	assert.Nil(t, args)
