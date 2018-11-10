@@ -100,6 +100,7 @@ var TokMap = TokenMap{
 		"intLit",
 		"boolLit",
 		"stringLit",
+		"kdProps",
 		"::",
 	},
 
@@ -145,6 +146,7 @@ var TokMap = TokenMap{
 		"intLit":      38,
 		"boolLit":     39,
 		"stringLit":   40,
-		"::":          41,
+		"kdProps":     41,
+		"::":          42,
 	},
 }

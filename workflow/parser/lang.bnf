@@ -17,6 +17,7 @@ kdStr : 's' 't' 'r' 'i' 'n' 'g';
 kdBool : 'b' 'o' 'o' 'l';
 kdRun : 'r' 'u' 'n';
 kdTrigger : 't' 'r' 'i' 'g' 'g' 'e' 'r';
+kdProps : 'p' 'r' 'o' 'p' 's';
 
 // letter and digit
 _digit : '0' - '9' ;
@@ -202,6 +203,7 @@ Term5
   | ObjLit       <<pa.ObjLitAction($0)>>
   | id           <<pa.VarAction($0)>>
   | "(" Expr ")" <<$1, nil>>
+  | kdProps "(" id ")" <<pa.PropsAction($2, $0, $3)>>
   ;
 
 FuncCall 

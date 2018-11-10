@@ -89,6 +89,7 @@ var (
 		}
 		return nss
 	}
+	P = func(s string) *wf.Props { return wf.NewProps(V(s)) }
 
 	// EventExpr
 	EV = wf.NewEVar
@@ -237,6 +238,11 @@ func TestFuncCall(t *testing.T) {
 	// test namespace
 	assertExprParsing(t, FC(N("x"), "a"), "x::a()")
 	assertExprParsing(t, FC(N("x", "y"), "a"), "x::y::a()")
+}
+
+func TestProps(t *testing.T) {
+	assertExprParsing(t, P("a"), "props(a)")
+	assertExprParsing(t, OA(P("a"), "b"), "props(a).b")
 }
 
 func assertExprParsingErr(t *testing.T, expr string) {

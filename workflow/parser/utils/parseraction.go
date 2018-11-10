@@ -201,6 +201,17 @@ func FuncCallAction(nsRaw interface{}, id interface{}, argsRaw interface{}) (*wf
 	return wf.NewFuncCall(ns, name, args...), nil
 }
 
+func PropsAction(id interface{}, start interface{}, end interface{}) (*wf.Props, error) {
+	v, err := VarAction(id)
+	if err != nil {
+		return nil, err
+	}
+	props := wf.NewProps(v)
+	s, e := Pos(start), Pos(end)
+	mergePos(props, &s, &e)
+	return wf.NewProps(v), nil
+}
+
 func idAction(t interface{}, builder func(s string) wf.Node) wf.Node {
 	token := t.(*token.Token)
 	id := string(token.Lit)
