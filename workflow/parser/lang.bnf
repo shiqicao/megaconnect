@@ -55,15 +55,14 @@ Workflow
   ;
 
 Decls 
-  : Decl        <<[]wf.Decl{$0.(wf.Decl)}, nil>>
-  | Decls Decl  <<append($0.([]wf.Decl), $1.([]wf.Decl)[0]), nil>>
+  : Decls Decl  <<append($0.([]wf.Decl), $1.(wf.Decl)), nil>>
+  | empty       <<[]wf.Decl{}, nil>>
   ;
 
 Decl
   : Monitor
   | Event
   | Action
-  | empty
   ;
 
 // Monitor Declaration

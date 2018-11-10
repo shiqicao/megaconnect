@@ -6,7 +6,9 @@ COVERPKG = ./chainmanager/...,./common/...,./connector/...,./flowmanager/...,./w
 
 GOCC = gocc
 
-.PHONY: build install clean test cov covhtml dep protos cleanprotos
+PARSER_DEBUG = false
+
+.PHONY: build install clean test cov covhtml dep protos cleanprotos parser
 
 build:
 	go build ./...
@@ -38,7 +40,7 @@ cleanprotos:
 	rm -f grpc/*.pb.go .protos
 
 parser:
-	$(GOCC) -v -a -zip -debug_lexer=true -debug_parser=true  -o workflow/parser/gen -p github.com/megaspacelab/megaconnect/workflow/parser/gen workflow/parser/lang.bnf
+	$(GOCC) -v -a -zip -debug_lexer=$(PARSER_DEBUG) -debug_parser=$(PARSER_DEBUG)  -o workflow/parser/gen -p github.com/megaspacelab/megaconnect/workflow/parser/gen workflow/parser/lang.bnf
 
 cleanparser: 
 	rm -rf workflow/parser/gen

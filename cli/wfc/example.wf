@@ -1,0 +1,49 @@
+workflow example {
+    event TestEvent0 {
+        exampleHeight: int,
+        ethHeight: int
+    }
+
+    event HeightSumEvent {
+        heightSum: int
+    }
+
+    event ExEvent { height: int }
+    event BtcEvent { height: int }
+    event EthEvent { height: int }
+
+    monitor EthMonitor 
+        chain Ethereum
+        condition GetBalance(addr, blockHeight) != GetBalance(addr, blockHeight - 1)
+        var {
+            addr = "0xFBb1b73C4f0BDa4f67dcA266ce6Ef42f520fBB98"
+            blockHeight = GetBlock().height
+        }
+        fire EthEvent {height: blockHeight}
+
+    monitor ExhMonitor 
+        chain Example
+        condition GetBalance(addr, blockHeight) != GetBalance(addr, blockHeight - 1)
+        var {
+            addr = "0xFBb1b73C4f0BDa4f67dcA266ce6Ef42f520fBB98"
+            blockHeight = GetBlock().height
+        }
+        fire ExEvent {height: blockHeight}
+
+    action TestAction1 
+        trigger ExEvent && EthEvent
+        run {
+            fire TestEvent0 {
+                exampleHeight: props(ExEvent).height,
+                ethHeight: props(EthEvent).height
+            }
+        }
+    
+    action JoinAction 
+        trigger TestEvent0
+        run {
+            fire HeightSumEvent {
+                heightSum: props(TestEvent0).exampleHeight + props(TestEvent0).ethHeight
+            }
+        }
+}

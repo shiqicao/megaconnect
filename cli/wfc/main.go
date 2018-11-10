@@ -14,6 +14,7 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	p "path"
@@ -65,6 +66,7 @@ func compile(ctx *cli.Context) error {
 			ext := filepath.Ext(src)
 			output = src[0 : len(src)-len(ext)]
 		}
+		fmt.Printf("output: %s", output)
 		binWriter, err := os.Create(output)
 		defer binWriter.Close()
 		if err != nil {

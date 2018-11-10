@@ -102,6 +102,22 @@ var (
 	EOR  = EB(wf.OrEOp)
 )
 
+func TestDecl(t *testing.T) {
+	decl1 := "event e {}"
+	decl2 := "monitor m chain b condition true var { a = true } fire e {}"
+	decl3 := "action a trigger x run {}"
+	code := fmt.Sprintf("workflow a { %s %s %s }", decl1, decl2, decl3)
+	w := assertWorkflowParsing(t, code)
+	a := w.ActionDecls()
+	assert.Len(t, a, 1)
+
+	m := w.MonitorDecls()
+	assert.Len(t, m, 1)
+
+	e := w.EventDecls()
+	assert.Len(t, e, 1)
+}
+
 func TestExprParsing(t *testing.T) {
 
 	assertExprParsing(t, AND(T, T), "true && true")
@@ -238,6 +254,7 @@ func TestFuncCall(t *testing.T) {
 	// test namespace
 	assertExprParsing(t, FC(N("x"), "a"), "x::a()")
 	assertExprParsing(t, FC(N("x", "y"), "a"), "x::y::a()")
+	assertExprParsing(t, OA(OA(FC(N("x", "y"), "a"), "b"), "c"), "x::y::a().b.c")
 }
 
 func TestProps(t *testing.T) {
