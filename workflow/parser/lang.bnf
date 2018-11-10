@@ -198,14 +198,15 @@ Term5
   : intLit       <<pa.IntLitAction($0)>>
   | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
-  | FuncCall     <<$0, nil>>
+  | FuncCall     
   | ObjLit       <<pa.ObjLitAction($0)>>
   | id           <<pa.VarAction($0)>>
   | "(" Expr ")" <<$1, nil>>
   ;
 
 FuncCall 
-  : id "(" Args ")" <<pa.FuncCallAction($0, $2)>>
+  : Namespaces id "(" Args ")" <<pa.FuncCallAction($0, $1, $3)>>
+  | id "(" Args ")" <<pa.FuncCallAction(nil, $0, $2)>>
   ;
 
 Args_ 
@@ -218,10 +219,9 @@ Args
   | empty      <<wf.Args{}, nil>>
   ;
 
-// TODO: enable namespace after change namespace to wf.Id
-// Namespace: id "." <<pa.Id($0), nil>>;
+Namespace: id "::" <<pa.Id($0), nil>>;
 
-// Namespaces
-//  : Namespaces Namespace  <<append($0.(wf.NamespacePrefix), $1.(*wf.Id)), nil>>
-//  | empty                 <<wf.NamespacePrefix{}, nil>>
-//  ;
+Namespaces
+  : Namespaces Namespace  <<append($0.(wf.NamespacePrefix), $1.(*wf.Id)), nil>>
+  | Namespace             <<wf.NamespacePrefix{$0.(*wf.Id)}, nil>>
+  ;

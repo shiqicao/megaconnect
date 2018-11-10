@@ -191,10 +191,14 @@ func ActionAction(id interface{}, eexpr interface{}, stmts interface{}, start in
 	return action, nil
 }
 
-func FuncCallAction(id interface{}, argsRaw interface{}) (*wf.FuncCall, error) {
+func FuncCallAction(nsRaw interface{}, id interface{}, argsRaw interface{}) (*wf.FuncCall, error) {
+	var ns wf.NamespacePrefix
+	if nsRaw != nil {
+		ns = nsRaw.(wf.NamespacePrefix)
+	}
 	name := Id(id)
 	args := argsRaw.(wf.Args)
-	return wf.NewFuncCall(wf.NamespacePrefix{}, name, args...), nil
+	return wf.NewFuncCall(ns, name, args...), nil
 }
 
 func idAction(t interface{}, builder func(s string) wf.Node) wf.Node {

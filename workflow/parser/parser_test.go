@@ -82,6 +82,13 @@ var (
 	IE1  = func(id string, e wf.Expr) wf.IdToExpr {
 		return wf.NewIdToExpr().Put(id, e)
 	}
+	N = func(ns ...string) wf.NamespacePrefix {
+		nss := wf.NamespacePrefix{}
+		for _, n := range ns {
+			nss = append(nss, ID(n))
+		}
+		return nss
+	}
 
 	// EventExpr
 	EV = wf.NewEVar
@@ -226,6 +233,10 @@ func TestFuncCall(t *testing.T) {
 	assertExprParsing(t, FC(nil, "a", V("b"), FC(nil, "c")), "a(b, c())")
 	assertExprParsing(t, FC(nil, "a", OA(V("b"), "c"), FC(nil, "c")), "a(b.c, c())")
 	assertExprParsing(t, OA(FC(nil, "a"), "b"), "a().b")
+
+	// test namespace
+	assertExprParsing(t, FC(N("x"), "a"), "x::a()")
+	assertExprParsing(t, FC(N("x", "y"), "a"), "x::y::a()")
 }
 
 func assertExprParsingErr(t *testing.T, expr string) {
