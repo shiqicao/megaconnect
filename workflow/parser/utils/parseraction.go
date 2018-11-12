@@ -64,27 +64,14 @@ func MonitorAction(
 	return md, nil
 }
 
-// VarDeclAction is mapped to VarDecl in lang.bnf
-func VarDeclAction(nameRaw interface{}, exprRaw interface{}) (wf.IdToExpr, error) {
-	vd := wf.NewIdToExpr()
-	name := Id(nameRaw)
-	expr := exprRaw.(wf.Expr)
-	vd.Add(name, expr)
-	return vd, nil
-}
-
 // VarDeclsAction is mapped to VarDecls in lang.bnf
 func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.IdToExpr, error) {
 	varDecls := varDeclsRaw.(wf.IdToExpr)
-	if varDeclRaw == nil {
-		return varDecls, nil
-	}
-	varDecl := varDeclRaw.(wf.IdToExpr)
-	// varDecl should only contain only one item
-	for _, decl := range varDecl {
-		if ok := varDecls.Add(decl.Id, decl.Expr); !ok {
-			return nil, &ErrDupDef{Id: decl.Id}
-		}
+	varDecl := varDeclRaw.([]interface{})
+	id := Id(varDecl[0])
+	expr := varDecl[1].(wf.Expr)
+	if ok := varDecls.Add(id, expr); !ok {
+		return nil, &ErrDupDef{Id: id}
 	}
 	return varDecls, nil
 }
@@ -132,14 +119,17 @@ func ObjLitAction(objFields interface{}) (*wf.ObjLit, error) {
 	return wf.NewObjLit(fields), nil
 }
 
+// VarAction is mapped to variable action in lang.bnf
 func VarAction(t interface{}) (*wf.Var, error) {
 	return idAction(t, func(s string) wf.Node { return wf.NewVar(s) }).(*wf.Var), nil
 }
 
+// EVarAction is mapped to event variable action in lang.bnf
 func EVarAction(t interface{}) (*wf.EVar, error) {
 	return idAction(t, func(s string) wf.Node { return wf.NewEVar(s) }).(*wf.EVar), nil
 }
 
+// BinOpAction is mapped to all binary operator actions in lang.bnf
 func BinOpAction(op wf.Operator, leftRaw interface{}, rightRaw interface{}) (wf.Expr, error) {
 	left := leftRaw.(wf.Expr)
 	right := rightRaw.(wf.Expr)
@@ -148,6 +138,7 @@ func BinOpAction(op wf.Operator, leftRaw interface{}, rightRaw interface{}) (wf.
 	return bin, nil
 }
 
+// EBinOpAction is mapped to all event binary operator actions in lang.bnf
 func EBinOpAction(op wf.EventExprOperator, leftRaw interface{}, rightRaw interface{}) (wf.EventExpr, error) {
 	left := leftRaw.(wf.EventExpr)
 	right := rightRaw.(wf.EventExpr)
@@ -156,6 +147,7 @@ func EBinOpAction(op wf.EventExprOperator, leftRaw interface{}, rightRaw interfa
 	return bin, nil
 }
 
+// FireAction is mapped to fire statement action in lang.bnf
 func FireAction(id interface{}, eventObj interface{}, start wf.Pos) (*wf.Fire, error) {
 	eventName := Lit(id)
 	obj := eventObj.(wf.Expr)
@@ -174,23 +166,28 @@ func Id(t interface{}) *wf.Id {
 	return idAction(t, func(s string) wf.Node { return wf.NewId(s) }).(*wf.Id)
 }
 
-func Pos(t interface{}) wf.Pos {
+// TokenToPos extracts wf.Pos from token
+func TokenToPos(t interface{}) (p wf.Pos) {
 	token := t.(*token.Token)
-	return wf.Pos{
-		StartRow: token.Line,
-		StartCol: token.Column,
-		EndRow:   token.Line,
-		EndCol:   token.Column + token.Offset,
+	if token == nil {
+		return
 	}
+	p.StartRow = token.Line
+	p.StartCol = token.Column
+	p.EndRow = token.Line
+	p.EndCol = token.Column + len(token.Lit)
+	return
 }
 
+// ActionAction is mapped to Action declaration in lang.bnf
 func ActionAction(id interface{}, eexpr interface{}, stmts interface{}, start interface{}, end interface{}) (*wf.ActionDecl, error) {
 	action := wf.NewActionDecl(Id(id), eexpr.(wf.EventExpr), stmts.(wf.Stmts))
-	s, e := Pos(start), Pos(end)
+	s, e := TokenToPos(start), TokenToPos(end)
 	mergePos(action, &s, &e)
 	return action, nil
 }
 
+// FuncCallAction is mapped to funcation call expression in lang.bnf
 func FuncCallAction(nsRaw interface{}, id interface{}, argsRaw interface{}) (*wf.FuncCall, error) {
 	var ns wf.NamespacePrefix
 	if nsRaw != nil {
@@ -201,13 +198,14 @@ func FuncCallAction(nsRaw interface{}, id interface{}, argsRaw interface{}) (*wf
 	return wf.NewFuncCall(ns, name, args...), nil
 }
 
+// PropsAction is mapped to props operator in lang.bnf
 func PropsAction(id interface{}, start interface{}, end interface{}) (*wf.Props, error) {
 	v, err := VarAction(id)
 	if err != nil {
 		return nil, err
 	}
 	props := wf.NewProps(v)
-	s, e := Pos(start), Pos(end)
+	s, e := TokenToPos(start), TokenToPos(end)
 	mergePos(props, &s, &e)
 	return wf.NewProps(v), nil
 }
@@ -233,13 +231,4 @@ func mergePos(node wf.Node, s *wf.Pos, e *wf.Pos) {
 
 func mergePosByNodes(node wf.Node, start wf.Node, end wf.Node) {
 	mergePos(node, start.Pos(), end.Pos())
-}
-
-// convert pos in token to wf.Pos
-func convertPos(t *token.Token) (p wf.Pos) {
-	p.StartRow = t.Line
-	p.StartCol = t.Column
-	p.EndRow = t.Line
-	p.EndCol = t.Column + len(t.Lit)
-	return
 }

@@ -46,7 +46,7 @@ type ErrGocc struct {
 // Pos returns error position
 func (g *ErrGocc) Pos() (p wf.Pos) {
 	if g.Err.ErrorToken != nil {
-		p = convertPos(g.Err.ErrorToken)
+		p = TokenToPos(g.Err.ErrorToken)
 	}
 	return
 }
