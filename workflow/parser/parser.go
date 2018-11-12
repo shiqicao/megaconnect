@@ -13,6 +13,9 @@ package parser
 import (
 	"fmt"
 
+	"github.com/megaspacelab/megaconnect/workflow/parser/gen/errors"
+	"github.com/megaspacelab/megaconnect/workflow/parser/utils"
+
 	wf "github.com/megaspacelab/megaconnect/workflow"
 	"github.com/megaspacelab/megaconnect/workflow/parser/gen/lexer"
 	p "github.com/megaspacelab/megaconnect/workflow/parser/gen/parser"
@@ -36,6 +39,10 @@ func Parse(src string) (*wf.WorkflowDecl, error) {
 }
 
 func translateErr(err error) error {
-	// TODO: improve error msg
-	return err
+	switch e := err.(type) {
+	case *errors.Error:
+		return &utils.ErrGocc{Err: e}
+	default:
+		return err
+	}
 }

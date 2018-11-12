@@ -234,3 +234,12 @@ func mergePos(node wf.Node, s *wf.Pos, e *wf.Pos) {
 func mergePosByNodes(node wf.Node, start wf.Node, end wf.Node) {
 	mergePos(node, start.Pos(), end.Pos())
 }
+
+// convert pos in token to wf.Pos
+func convertPos(t *token.Token) (p wf.Pos) {
+	p.StartRow = t.Line
+	p.StartCol = t.Column
+	p.EndRow = t.Line
+	p.EndCol = t.Column + len(t.Lit)
+	return
+}

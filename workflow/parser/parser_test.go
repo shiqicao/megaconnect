@@ -132,16 +132,17 @@ func TestExprParsing(t *testing.T) {
 }
 
 func TestStrLit(t *testing.T) {
-	assertExprParsing(t, S(""), "\"\"")
-	assertExprParsing(t, S(" "), "\" \"")
-	assertExprParsing(t, S("a+b"), "\"a+b\"")
-	assertExprParsing(t, S("a"), "\"a\"")
+	assertExprParsing(t, S(""), `""`)
+	assertExprParsing(t, S(" "), `" "`)
+	assertExprParsing(t, S("a+b"), `"a+b"`)
+	assertExprParsing(t, S("a"), `"a"`)
 }
 
 func TestIntLit(t *testing.T) {
 	assertExprParsing(t, I(0), "0")
 	assertExprParsing(t, I(1), "1")
-	//assertExprParsing(t, I(-1), "-1")
+	// TODO: enable "-" unary op
+	// assertExprParsing(t, I(-1), "-1")
 	i := "1"
 	for ; len(i) < 20; i = i + i {
 	}
