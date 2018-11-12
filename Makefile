@@ -8,7 +8,7 @@ GOCC = gocc
 
 PARSER_DEBUG = false
 
-.PHONY: build install clean test cov covhtml dep protos cleanprotos parser
+.PHONY: build install clean test cov covhtml dep protos cleanprotos parser cleanparser
 
 build:
 	go build ./...

@@ -26,7 +26,7 @@ import (
 func TestParser(t *testing.T) {
 	r, err := parse(t, `
 	workflow w {
-		monitor a 
+		monitor a {
 	  		chain Eth 
 	  		condition true
 	  		var {
@@ -36,7 +36,8 @@ func TestParser(t *testing.T) {
 	  		fire e {
 				a: true,
 				b: true && false
-			}		  
+			}		
+		}  
 	}
 	`)
 	assert.NoError(t, err)
@@ -128,8 +129,8 @@ func TestComment(t *testing.T) {
 
 func TestDecl(t *testing.T) {
 	decl1 := "event e {}"
-	decl2 := "monitor m chain b condition true var { a = true } fire e {}"
-	decl3 := "action a trigger x run {}"
+	decl2 := "monitor m { chain b condition true var { a = true } fire e {} }"
+	decl3 := "action a { trigger x run {} }"
 	code := fmt.Sprintf("workflow a { %s %s %s }", decl1, decl2, decl3)
 	w := assertWorkflowParsing(t, code)
 	a := w.ActionDecls()
@@ -234,12 +235,13 @@ func TestAction(t *testing.T) {
 				FIRE("c", OL(IE1("d", T))),
 			},
 		),
-		`action a 
+		`action a {
 			trigger b
 			run {
 				fire c {d: true};
 				fire c {d: true};				
 			}
+		}
 		`,
 	)
 }
@@ -287,13 +289,13 @@ func TestProps(t *testing.T) {
 }
 
 func assertExprParsingErr(t *testing.T, expr string) {
-	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
+	code := fmt.Sprintf("workflow b { monitor a { chain Eth condition %s var { a = true } fire e { a : true } } }", expr)
 	_, err := parse(t, code)
 	assert.Error(t, err)
 }
 
 func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
-	code := fmt.Sprintf("workflow b { monitor a chain Eth condition %s var { a = true } fire e { a : true } }", expr)
+	code := fmt.Sprintf("workflow b { monitor a { chain Eth condition %s var { a = true } fire e { a : true } } }", expr)
 	w := assertWorkflowParsing(t, code)
 	md := w.MonitorDecls()[0]
 	assert.NotNil(t, md)
@@ -337,7 +339,7 @@ func assertActionParsing(t *testing.T, expected *wf.ActionDecl, action string) {
 }
 
 func assertStmtParsing(t *testing.T, expected wf.Stmts, stmts string) {
-	code := fmt.Sprintf("workflow w { action a trigger a run{ %s } }", stmts)
+	code := fmt.Sprintf("workflow w { action a { trigger a run{ %s } } }", stmts)
 	w := assertWorkflowParsing(t, code)
 	action := w.ActionDecls()[0]
 	assert.NotNil(t, action)
@@ -345,7 +347,7 @@ func assertStmtParsing(t *testing.T, expected wf.Stmts, stmts string) {
 }
 
 func assertEventExprParsing(t *testing.T, expected wf.EventExpr, expr string) {
-	code := fmt.Sprintf("workflow w { action a trigger %s run{} }", expr)
+	code := fmt.Sprintf("workflow w { action a { trigger %s run{} } }", expr)
 	w := assertWorkflowParsing(t, code)
 	action := w.ActionDecls()[0]
 	assert.NotNil(t, action)

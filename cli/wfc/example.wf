@@ -22,7 +22,7 @@ workflow example {
     event BtcEvent { height: int }
     event EthEvent { height: int }
 
-    monitor EthMonitor 
+    monitor EthMonitor {
         chain Ethereum
         condition GetBalance(addr, blockHeight) != GetBalance(addr, blockHeight - 1)
         var {
@@ -30,8 +30,9 @@ workflow example {
             blockHeight = GetBlock().height
         }
         fire EthEvent {height: blockHeight}
+    }
 
-    monitor ExhMonitor 
+    monitor ExhMonitor {
         chain Example
         condition GetBalance(addr, blockHeight) != GetBalance(addr, blockHeight - 1)
         var {
@@ -39,8 +40,9 @@ workflow example {
             blockHeight = GetBlock().height
         }
         fire ExEvent {height: blockHeight}
+    }
 
-    action TestAction1 
+    action TestAction1 {
         trigger ExEvent && EthEvent
         run {
             fire TestEvent0 {
@@ -48,12 +50,14 @@ workflow example {
                 ethHeight: props(EthEvent).height
             };
         }
+    }
     
-    action JoinAction 
+    action JoinAction {
         trigger TestEvent0
         run {
             fire HeightSumEvent {
                 heightSum: props(TestEvent0).exampleHeight + props(TestEvent0).ethHeight
             };
         }
+    }
 }

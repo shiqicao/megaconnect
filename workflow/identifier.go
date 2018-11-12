@@ -55,8 +55,7 @@ func (i IdToTy) Put(id string, ty Type) IdToTy {
 // it returns false if id is not unique.
 // It returns true if add a new pair is succeeded
 func (i IdToTy) Add(id *Id, ty Type) bool {
-	_, ok := i[id.id]
-	if ok {
+	if _, ok := i[id.id]; ok {
 		return false
 	}
 	i[id.id] = idTy{id: id, ty: ty}

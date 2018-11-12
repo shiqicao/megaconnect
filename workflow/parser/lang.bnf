@@ -76,12 +76,13 @@ Decl
 
 // Monitor Declaration
 Monitor : 
-  kdMonitor id 
+  kdMonitor id "{"
     kdChain id 
     kdCondition Expr 
     MonitorVar
     kdFire id ObjLit
-  <<pa.MonitorAction($1, $3, $5, $6, $8, $9)>>;
+  "}"
+  <<pa.MonitorAction($1, $4, $6, $7, $9, $10)>>;
 
 MonitorVar 
   : kdVar "{" VarDecls "}" <<$2, nil>>
@@ -109,10 +110,11 @@ ObjFields
 
 // Action Declaration
 Action :
-  kdAction id
+  kdAction id "{"
     kdTrigger EventExpr
     kdRun "{" Stmts "}"
-  <<pa.ActionAction($1, $3, $6, $0, $7) >>;
+  "}"
+  <<pa.ActionAction($1, $4, $7, $0, $9) >>;
 
 Stmt 
   : kdFire id Expr <<pa.FireAction($1, $2, pa.TokenToPos($0))>>

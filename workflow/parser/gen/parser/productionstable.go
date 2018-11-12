@@ -94,13 +94,13 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Monitor : kdMonitor id kdChain id kdCondition Expr MonitorVar kdFire id ObjLit	<< pa.MonitorAction(X[1], X[3], X[5], X[6], X[8], X[9]) >>`,
+		String: `Monitor : kdMonitor id "{" kdChain id kdCondition Expr MonitorVar kdFire id ObjLit "}"	<< pa.MonitorAction(X[1], X[4], X[6], X[7], X[9], X[10]) >>`,
 		Id:         "Monitor",
 		NTType:     4,
 		Index:      7,
-		NumSymbols: 10,
+		NumSymbols: 12,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return pa.MonitorAction(X[1], X[3], X[5], X[6], X[8], X[9])
+			return pa.MonitorAction(X[1], X[4], X[6], X[7], X[9], X[10])
 		},
 	},
 	ProdTabEntry{
@@ -184,13 +184,13 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Action : kdAction id kdTrigger EventExpr kdRun "{" Stmts "}"	<< pa.ActionAction(X[1], X[3], X[6], X[0], X[7]) >>`,
+		String: `Action : kdAction id "{" kdTrigger EventExpr kdRun "{" Stmts "}" "}"	<< pa.ActionAction(X[1], X[4], X[7], X[0], X[9]) >>`,
 		Id:         "Action",
 		NTType:     10,
 		Index:      16,
-		NumSymbols: 8,
+		NumSymbols: 10,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return pa.ActionAction(X[1], X[3], X[6], X[0], X[7])
+			return pa.ActionAction(X[1], X[4], X[7], X[0], X[9])
 		},
 	},
 	ProdTabEntry{

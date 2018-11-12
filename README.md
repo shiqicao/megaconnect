@@ -7,7 +7,8 @@ Reference implementation of the Megaspace InterConnect Protocol [TODO - link].
 - Install [dep].
 - [Optional] Install [gRPC go support][grpc-go].
   Required only if you need to update protobuf specs.
-- [Optional] Install [gocc][gocc]. Required only if you need to upadate workflow lang parser.
+- [Optional] Install [gocc][gocc]. 
+  Required only if you need to upadate workflow lang parser.
 
 # Initial Setup
 1. Clone this repo under `$(go env GOPATH)/src/github.com/megaspacelab/megaconnect`.
