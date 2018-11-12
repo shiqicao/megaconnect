@@ -102,6 +102,30 @@ var (
 	EOR  = EB(wf.OrEOp)
 )
 
+func TestComment(t *testing.T) {
+	r, err := parse(t, `
+	// Comment
+	workflow a {}
+	`)
+	assert.NoError(t, err)
+	assert.NotNil(t, r)
+	w, ok := r.(*wf.WorkflowDecl)
+	assert.True(t, ok)
+	assert.NotNil(t, w)
+	assert.Equal(t, "a", w.Name().Id())
+
+	r, err = parse(t, `
+	// Comment workflow a {}
+	workflow b {}
+	`)
+	assert.NoError(t, err)
+	assert.NotNil(t, r)
+	w, ok = r.(*wf.WorkflowDecl)
+	assert.True(t, ok)
+	assert.NotNil(t, w)
+	assert.Equal(t, "b", w.Name().Id())
+}
+
 func TestDecl(t *testing.T) {
 	decl1 := "event e {}"
 	decl2 := "monitor m chain b condition true var { a = true } fire e {}"
@@ -113,7 +137,6 @@ func TestDecl(t *testing.T) {
 
 	m := w.MonitorDecls()
 	assert.Len(t, m, 1)
-
 	e := w.EventDecls()
 	assert.Len(t, e, 1)
 }
