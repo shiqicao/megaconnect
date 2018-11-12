@@ -7,6 +7,7 @@ Reference implementation of the Megaspace InterConnect Protocol [TODO - link].
 - Install [dep].
 - [Optional] Install [gRPC go support][grpc-go].
   Required only if you need to update protobuf specs.
+- [Optional] Install [gocc][gocc]. Required only if you need to upadate workflow lang parser.
 
 # Initial Setup
 1. Clone this repo under `$(go env GOPATH)/src/github.com/megaspacelab/megaconnect`.
@@ -58,10 +59,13 @@ example-connect --debug
 ```
 
 ## wfc
-Workflow compiler.
-[TODO - add usage]
+Workflow compiler compiles workflow source code to binary
+```sh
+wfc -o /tmp/wfc_example cli/wfc/example.wf
+```
 
 
 [go]: https://golang.org/dl/
 [dep]: https://golang.github.io/dep/docs/installation.html
 [grpc-go]: https://grpc.io/docs/quickstart/go.html#prerequisites
+[gocc]: https://github.com/goccmack/gocc
