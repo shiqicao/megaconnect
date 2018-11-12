@@ -52,12 +52,7 @@ func compile(ctx *cli.Context) error {
 		src := ctx.Args().Get(0)
 		w, err := parser.Parse(src)
 		if err != nil {
-			fmt.Println("Error")
 			fmt.Printf(err.Error())
-			if e, ok := err.(fmt.Stringer); ok {
-				fmt.Println("Error String")
-				fmt.Printf(e.String())
-			}
 			return err
 		}
 
