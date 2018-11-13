@@ -1,3 +1,5 @@
 vendor/
 coverage.out
 .vscode
+# .txt files are gocc parser generator debug files. 
+workflow/parser/gen/*.txt              

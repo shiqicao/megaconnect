@@ -11,7 +11,12 @@
 package workflow
 
 type Stmt interface {
+	Node
 	Equal(Stmt) bool
+}
+
+type stmt struct {
+	node
 }
 
 type Stmts []Stmt
@@ -38,6 +43,7 @@ func (s Stmts) Equal(x Stmts) bool {
 
 // Fire represents a fire statement
 type Fire struct {
+	stmt
 	eventName string
 	eventDecl *EventDecl
 	eventObj  Expr

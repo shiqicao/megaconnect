@@ -218,7 +218,7 @@ func (e *Encoder) encodeVarDecls(vars IdToExpr) error {
 		if err := e.encodeString(key); err != nil {
 			return err
 		}
-		if err := e.EncodeExpr(value.expr); err != nil {
+		if err := e.EncodeExpr(value.Expr); err != nil {
 			return err
 		}
 	}

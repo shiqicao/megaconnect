@@ -51,10 +51,10 @@ func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (*FireEventResult, error
 		if _, ok := i.vars[key]; ok {
 			return nil, &ErrVarDeclaredAlready{VarName: key}
 		}
-		if err := i.resolver.resolveExpr(value.expr); err != nil {
+		if err := i.resolver.resolveExpr(value.Expr); err != nil {
 			return nil, err
 		}
-		i.vars[key] = value.expr
+		i.vars[key] = value.Expr
 	}
 	defer func() { i.vars = nil }()
 
@@ -222,7 +222,7 @@ func (i *Interpreter) evalProps(prop *Props) (*ObjConst, error) {
 func (i *Interpreter) evalObjLit(objLit *ObjLit) (*ObjConst, error) {
 	result := make(map[string]Const, len(objLit.fields))
 	for field, value := range objLit.fields {
-		value, err := i.evalExpr(value.expr)
+		value, err := i.evalExpr(value.Expr)
 		if err != nil {
 			return nil, err
 		}

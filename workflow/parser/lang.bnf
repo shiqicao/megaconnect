@@ -1,0 +1,238 @@
+// Copyright 2018 @ MegaSpace
+
+// The MegaSpace source code is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+
+// You should have received a copy of the GNU Lesser General Public License
+// along with the MegaSpace source code. If not, see <http://www.gnu.org/licenses/>.
+
+// LEXICAL
+
+// Whitespace
+!_whitespace : ' ' | '\t' | '\r' | '\n' ;
+
+// comment
+!_comment : '/' '/' {.} '\n';
+
+// keywords 
+kdMonitor : 'm' 'o' 'n' 'i' 't' 'o' 'r' ;
+kdEvent : 'e' 'v' 'e' 'n' 't' ;
+kdAction : 'a' 'c' 't' 'i' 'o' 'n' ;
+kdChain : 'c' 'h' 'a' 'i' 'n' ;
+kdCondition : 'c' 'o' 'n' 'd' 'i' 't' 'i' 'o' 'n' ;
+kdVar : 'v' 'a' 'r' ;
+kdWorkflow : 'w' 'o' 'r' 'k' 'f' 'l' 'o' 'w';
+kdFire : 'f' 'i' 'r' 'e';
+kdInt : 'i' 'n' 't';
+kdStr : 's' 't' 'r' 'i' 'n' 'g';
+kdBool : 'b' 'o' 'o' 'l';
+kdRun : 'r' 'u' 'n';
+kdTrigger : 't' 'r' 'i' 'g' 'g' 'e' 'r';
+kdProps : 'p' 'r' 'o' 'p' 's';
+
+// letter and digit
+_digit : '0' - '9' ;
+_letter : 'a' - 'z' | 'A' - 'Z' ;
+
+boolLit : 't' 'r' 'u' 'e' | 'f' 'a' 'l' 's' 'e' ;
+
+// string literals 
+stringLit : '"' { . | '\\' '"' | _escapeChar } '"' ; 
+
+// single-character escapes 
+_escapeChar : '\\' 'n' | '\\' 'r' | '\\' 't' ;
+
+// integer literals
+intLit : '1' - '9' { _digit } | '0';
+
+// identifier 
+id : _letter {_letter | _digit} ;
+
+// SYNTAX
+<<
+import (
+    pa "github.com/megaspacelab/megaconnect/workflow/parser/utils"
+    wf "github.com/megaspacelab/megaconnect/workflow"    
+)
+>>
+
+// Workflow Declaration
+Workflow 
+  : kdWorkflow id "{" Decls "}" << wf.NewWorkflowDecl(pa.Id($1), 0).AddChildren($3.([]wf.Decl)), nil>>
+  ;
+
+Decls 
+  : Decls Decl  <<append($0.([]wf.Decl), $1.(wf.Decl)), nil>>
+  | empty       <<[]wf.Decl{}, nil>>
+  ;
+
+Decl
+  : Monitor
+  | Event
+  | Action
+  ;
+
+// Monitor Declaration
+Monitor : 
+  kdMonitor id "{"
+    kdChain id 
+    kdCondition Expr 
+    MonitorVar
+    kdFire id ObjLit
+  "}"
+  <<pa.MonitorAction($1, $4, $6, $7, $9, $10)>>;
+
+MonitorVar 
+  : kdVar "{" VarDecls "}" <<$2, nil>>
+  | empty 
+  ;
+
+// Event Declaration
+Event 
+  : kdEvent id "{" ObjFields "}"  <<wf.NewEventDecl(pa.Id($1), wf.NewObjType($3.(wf.IdToTy))), nil>>
+  ;
+
+ObjField 
+  : id ":" Type <<[]interface{}{$0, $2}, nil>>
+  ;
+
+ObjFields_ 
+  : ObjFields_ "," ObjField <<pa.ObjFieldsAction($0, $2)>>
+  | empty                   <<wf.NewIdToTy(), nil>>
+  ;
+
+ObjFields 
+  : ObjField ObjFields_  <<pa.ObjFieldsAction($1, $0)>>
+  | empty                <<wf.NewIdToTy(), nil>>
+  ;
+
+// Action Declaration
+Action :
+  kdAction id "{"
+    kdTrigger EventExpr
+    kdRun "{" Stmts "}"
+  "}"
+  <<pa.ActionAction($1, $4, $7, $0, $9) >>;
+
+Stmt 
+  : kdFire id Expr <<pa.FireAction($1, $2, pa.TokenToPos($0))>>
+  ;
+
+Stmts
+  : Stmts Stmt ";"  <<append($0.(wf.Stmts), $1.(wf.Stmt)), nil>>
+  | empty           <<wf.Stmts{}, nil>>
+  ;
+
+
+EventExpr
+  : EventExpr "||" EventTerm1 <<pa.EBinOpAction(wf.OrEOp, $0, $2)>>
+  | EventExpr "&&" EventTerm1 <<pa.EBinOpAction(wf.AndEOp, $0, $2)>>
+  | EventTerm1
+  ;
+
+EventTerm1 
+  : id                <<pa.EVarAction($0)>>
+  | "(" EventExpr ")" <<$1, nil>>
+  ;
+
+Type 
+  : kdStr <<wf.StrType, nil>>
+  | kdInt <<wf.IntType, nil>>
+  | kdBool <<wf.BoolType, nil>>
+  | "{" ObjFields "}" <<wf.NewObjType($1.(wf.IdToTy)), nil>>
+  ;
+
+ObjLit 
+  : "{" ObjLitFields "}" <<$1, nil>>
+  ;
+
+ObjLitField
+  : id ":" Expr <<[]interface{}{$0, $2}, nil>>
+  ;
+
+ObjLitFields_ 
+  : ObjLitFields_ "," ObjLitField <<pa.ObjLitFieldsAction($0, $2)>>
+  | empty                         <<wf.NewIdToExpr(), nil>>
+  ;
+
+ObjLitFields
+  : ObjLitField ObjLitFields_ <<pa.ObjLitFieldsAction($1, $0)>> 
+  | empty                     <<wf.NewIdToExpr(), nil>>
+  ;
+
+VarDecl 
+  : id "=" Expr <<[]interface{}{$0, $2}, nil>>
+  ;
+
+VarDecls
+  : VarDecls VarDecl <<pa.VarDeclsAction($0, $1)>>
+  | empty            <<wf.IdToExpr{}, nil>>
+  ;
+   
+Expr
+  : Expr "||" Term1 <<pa.BinOpAction(wf.OrOp, $0, $2)>>
+  | Expr "&&" Term1 <<pa.BinOpAction(wf.AndOp, $0, $2)>>
+  | Term1
+  ;
+
+Term1 
+  : Term1 "==" Term2 <<pa.BinOpAction(wf.EqualOp, $0, $2)>>
+  | Term1 "!=" Term2 <<pa.BinOpAction(wf.NotEqualOp, $0, $2)>>
+  | Term1 ">" Term2 <<pa.BinOpAction(wf.GreaterThanOp, $0, $2)>>
+  | Term1 ">=" Term2 <<pa.BinOpAction(wf.GreaterThanEqualOp, $0, $2)>>
+  | Term1 "<" Term2 <<pa.BinOpAction(wf.LessThanOp, $0, $2)>>
+  | Term1 "<=" Term2 <<pa.BinOpAction(wf.LessThanEqualOp, $0, $2)>>
+  | Term2
+  ;
+
+Term2
+  : Term2 "+" Term3 <<pa.BinOpAction(wf.PlusOp, $0, $2)>>
+  | Term2 "-" Term3 <<pa.BinOpAction(wf.MinusOp, $0, $2)>>
+  | Term3 
+  ;
+
+Term3 
+  : Term3 "*" Term4 <<pa.BinOpAction(wf.MultOp, $0, $2)>>
+  | Term3 "/" Term4 <<pa.BinOpAction(wf.DivOp, $0, $2)>>
+  | Term4
+  ;
+
+Term4
+  : Term4 "." id <<pa.ObjAccessorAction($0, $2)>>
+  | Term5
+  ; 
+
+Term5
+  : intLit       <<pa.IntLitAction($0)>>
+  | boolLit      <<pa.BoolLitAction($0)>>
+  | stringLit    <<pa.StrLitAction($0)>>
+  | FuncCall     
+  | ObjLit       <<pa.ObjLitAction($0)>>
+  | id           <<pa.VarAction($0)>>
+  | "(" Expr ")" <<$1, nil>>
+  | kdProps "(" id ")" <<pa.PropsAction($2, $0, $3)>>
+  ;
+
+FuncCall 
+  : Namespaces id "(" Args ")" <<pa.FuncCallAction($0, $1, $3)>>
+  | id "(" Args ")" <<pa.FuncCallAction(nil, $0, $2)>>
+  ;
+
+Args_ 
+  : Args_ "," Expr <<append($0.(wf.Args), $2.(wf.Expr)), nil>>
+  | empty          <<wf.Args{}, nil>>
+  ;
+
+Args 
+  : Expr Args_  <<append(wf.Args{$0.(wf.Expr)}, $1.(wf.Args)...), nil>>
+  | empty      <<wf.Args{}, nil>>
+  ;
+
+Namespace: id "::" <<pa.Id($0), nil>>;
+
+Namespaces
+  : Namespaces Namespace  <<append($0.(wf.NamespacePrefix), $1.(*wf.Id)), nil>>
+  | Namespace             <<wf.NamespacePrefix{$0.(*wf.Id)}, nil>>
+  ;

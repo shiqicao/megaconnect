@@ -14,12 +14,15 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	p "path"
+	"path/filepath"
 
 	"github.com/megaspacelab/megaconnect/unsafe"
 	wf "github.com/megaspacelab/megaconnect/workflow"
+	"github.com/megaspacelab/megaconnect/workflow/parser"
 	cli "gopkg.in/urfave/cli.v2"
 )
 
@@ -45,6 +48,41 @@ func main() {
 }
 
 func compile(ctx *cli.Context) error {
+	if ctx.Args().Len() > 0 {
+		src := ctx.Args().Get(0)
+		w, err := parser.Parse(src)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return err
+		}
+
+		// TODO: validation & type checker
+
+		bin, err := wf.EncodeWorkflow(w)
+		if err != nil {
+			return err
+		}
+		output := ctx.Path("output")
+		if output == "" {
+			ext := filepath.Ext(src)
+			output = src[0 : len(src)-len(ext)]
+		}
+		fmt.Printf("output: %s", output)
+		binWriter, err := os.Create(output)
+		defer binWriter.Close()
+		if err != nil {
+			return err
+		}
+		if _, err = binWriter.Write(bin); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return genExample(ctx)
+}
+
+func genExample(ctx *cli.Context) error {
 	output := ctx.Path("output")
 	var name string
 	var binWriter io.Writer
