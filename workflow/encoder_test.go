@@ -102,6 +102,10 @@ func TestConstEncoding(t *testing.T) {
 	assertExprEncoding(t, NewIntConstFromI64(12345))
 	assertExprEncoding(t, NewIntConstFromI64(0))
 	assertExprEncoding(t, NewIntConstFromI64(-1))
+	assertExprEncoding(t, R64(1.234))
+	assertExprEncoding(t, R64(-1.234))
+	assertExprEncoding(t, R64(1))
+	assertExprEncoding(t, R64(0))
 }
 
 func TestVarEncoding(t *testing.T) {

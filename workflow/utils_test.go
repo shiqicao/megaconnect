@@ -10,6 +10,8 @@
 
 package workflow
 
+import "math/big"
+
 var (
 	// EventExpr constructors
 	EV   = NewEVar
@@ -21,12 +23,19 @@ var (
 	// Expr constructors
 	T   = TrueConst
 	F   = FalseConst
+	R   = func(n int64, d int64) *RatConst { return NewRatConst(big.NewRat(n, d)) }
+	R64 = NewRatConstFromF64
+	I   = NewIntConstFromI64
 	BIN = func(op Operator) func(Expr, Expr) *BinOp {
 		return func(x Expr, y Expr) *BinOp { return NewBinOp(op, x, y) }
 	}
 	AND  = BIN(AndOp)
 	OR   = BIN(OrOp)
 	EQ   = BIN(EqualOp)
+	LT   = BIN(LessThanOp)
+	LE   = BIN(LessThanEqualOp)
+	GT   = BIN(GreaterThanOp)
+	GE   = BIN(GreaterThanEqualOp)
 	FIRE = NewFire
 	MD   = NewMonitorDecl
 	V    = NewVar
@@ -36,4 +45,10 @@ var (
 	// Variable types
 	VT = func(f string, ty Type) IdToTy { return make(IdToTy).Put(f, ty) }
 	ID = NewId
+
+	// Arith
+	ADD   = BIN(PlusOp)
+	MINUS = BIN(MinusOp)
+	MUL   = BIN(MultOp)
+	DIV   = BIN(DivOp)
 )

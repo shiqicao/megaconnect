@@ -10,8 +10,6 @@
 
 package workflow
 
-import "fmt"
-
 var (
 	// BoolType represents boolean type
 	BoolType = &PrimitiveType{ty: booleanTy}
@@ -20,7 +18,10 @@ var (
 	StrType = &PrimitiveType{ty: stringTy}
 
 	// IntType represents a big int type
-	IntType = createIntType()
+	IntType = &PrimitiveType{ty: intTy}
+
+	// RatType represents a big rational type
+	RatType = &PrimitiveType{ty: ratTy}
 )
 
 // PrimitiveType represents all primitive types in the language, including int, string, bool, etc.
@@ -34,7 +35,18 @@ type PrimitiveType struct {
 func (p *PrimitiveType) Methods() FuncDecls { return p.mths.Copy() }
 
 func (p *PrimitiveType) String() string {
-	return fmt.Sprintf("PrimitiveType[%d]", p.ty)
+	switch p.ty {
+	case stringTy:
+		return "string"
+	case booleanTy:
+		return "bool"
+	case intTy:
+		return "int"
+	case ratTy:
+		return "rat"
+	default:
+		return ""
+	}
 }
 
 type primitiveTy = uint8
@@ -43,6 +55,7 @@ const (
 	stringTy primitiveTy = iota
 	booleanTy
 	intTy
+	ratTy
 )
 
 // Equal compares whether `ty` is the same primitive as the current one
@@ -52,32 +65,4 @@ func (p *PrimitiveType) Equal(ty Type) bool {
 		return false
 	}
 	return pty.ty == p.ty
-}
-
-func createIntType() *PrimitiveType {
-	intType := &PrimitiveType{
-		ty: intTy,
-	}
-	lessThan := NewFuncDecl(
-		opToFunc[LessThanOp],
-		Params{NewParamDecl("x", intType), NewParamDecl("y", intType)},
-		BoolType,
-		func(_ *Env, args map[string]Const) (Const, error) {
-			xraw := args["x"]
-			yraw := args["y"]
-			x, ok := xraw.(*IntConst)
-			// This should be checked already
-			if !ok {
-				return nil, &ErrTypeMismatch{ExpectedType: intType, ActualType: xraw.Type()}
-			}
-			y, ok := yraw.(*IntConst)
-			if !ok {
-				return nil, &ErrTypeMismatch{ExpectedType: intType, ActualType: yraw.Type()}
-			}
-
-			return GetBoolConst(x.Value().Cmp(y.Value()) < 0), nil
-		},
-	)
-	intType.mths = FuncDecls{lessThan}
-	return intType
 }

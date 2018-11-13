@@ -162,7 +162,7 @@ func (i *Interpreter) evalFireStmt(fire *Fire) (*FireEventResult, error) {
 	obj, ok := result.(*ObjConst)
 	if !ok {
 		// Type checker should catch mismatched type error already
-		return nil, &ErrTypeMismatch{ExpectedType: fire.eventDecl.ty, ActualType: obj.Type()}
+		return nil, &ErrTypeMismatch{ExpectedTypes: []Type{fire.eventDecl.ty}, ActualType: obj.Type()}
 	}
 	return NewFireEventResult(fire.eventName, obj), nil
 }
@@ -336,18 +336,18 @@ func (i *Interpreter) evalBinOp(expr *BinOp) (Const, error) {
 
 	// Arithmetic
 	case PlusOp:
-		return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Add)
+		return i.evalArithOp(expr.Left(), expr.Right(), new(big.Int).Add, new(big.Rat).Add)
 	case MinusOp:
-		return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Sub)
+		return i.evalArithOp(expr.Left(), expr.Right(), new(big.Int).Sub, new(big.Rat).Sub)
 	case MultOp:
-		return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Mul)
+		return i.evalArithOp(expr.Left(), expr.Right(), new(big.Int).Mul, new(big.Rat).Mul)
 	case DivOp:
 		return i.evalDiv(expr)
 	}
 	return nil, &ErrNotSupported{Name: expr.Op().String()}
 }
 
-func (i *Interpreter) evalDiv(expr *BinOp) (ret *IntConst, err error) {
+func (i *Interpreter) evalDiv(expr *BinOp) (ret Const, err error) {
 	defer func() {
 		// big.Div panic if dinomirator is zero as big.Int.Div doesn't return error.
 		// Interpret should return error on any invalid execution.
@@ -362,7 +362,7 @@ func (i *Interpreter) evalDiv(expr *BinOp) (ret *IntConst, err error) {
 			}
 		}
 	}()
-	return i.evalIntOp(expr.Left(), expr.Right(), new(big.Int).Div)
+	return i.evalArithOp(expr.Left(), expr.Right(), new(big.Int).Div, new(big.Rat).Quo)
 }
 
 func (i *Interpreter) evalNot(expr *UniOp) (*BoolConst, error) {
@@ -380,12 +380,28 @@ func (i *Interpreter) evalAsBool(expr Expr) (*BoolConst, error) {
 	}
 	b, ok := r.(*BoolConst)
 	if !ok {
-		return nil, &ErrTypeMismatch{ExpectedType: BoolType, ActualType: r.Type()}
+		return nil, &ErrTypeMismatch{ExpectedTypes: []Type{BoolType}, ActualType: r.Type()}
 	}
 	return b, nil
 }
 
-func (i *Interpreter) evalIntOp(left Expr, right Expr, op func(*big.Int, *big.Int) *big.Int) (*IntConst, error) {
+func (i *Interpreter) evalArithOp(
+	left Expr,
+	right Expr,
+	intOp func(*big.Int, *big.Int) *big.Int,
+	ratOp func(*big.Rat, *big.Rat) *big.Rat,
+) (Const, error) {
+	iOp := func(x *big.Int, y *big.Int) Const { return NewIntConst(intOp(x, y)) }
+	rOp := func(x *big.Rat, y *big.Rat) Const { return NewRatConst(ratOp(x, y)) }
+	return i.evalNumberOp(left, right, iOp, rOp)
+}
+
+func (i *Interpreter) evalNumberOp(
+	left Expr,
+	right Expr,
+	intOp func(*big.Int, *big.Int) Const,
+	ratOp func(*big.Rat, *big.Rat) Const,
+) (Const, error) {
 	lRet, err := i.evalExpr(left)
 	if err != nil {
 		return nil, err
@@ -394,15 +410,35 @@ func (i *Interpreter) evalIntOp(left Expr, right Expr, op func(*big.Int, *big.In
 	if err != nil {
 		return nil, err
 	}
-	r, ok := rRet.(*IntConst)
-	if !ok {
-		return nil, &ErrTypeMismatch{ExpectedType: IntType, ActualType: rRet.Type()}
+	l, isIntL := lRet.(*IntConst)
+	r, isIntR := rRet.(*IntConst)
+	if isIntL && isIntR {
+		return intOp(l.Value(), r.Value()), nil
+	} else if isIntL && !isIntR {
+		r, isRatR := rRet.(*RatConst)
+		if !isRatR {
+			return nil, &ErrTypeMismatch{ExpectedTypes: []Type{IntType, RatType}, ActualType: rRet.Type()}
+		}
+		l := new(big.Rat).SetInt(l.Value())
+		return ratOp(l, r.Value()), nil
+	} else if !isIntL && isIntR {
+		l, isRatL := lRet.(*RatConst)
+		if !isRatL {
+			return nil, &ErrTypeMismatch{ExpectedTypes: []Type{IntType, RatType}, ActualType: lRet.Type()}
+		}
+		r := new(big.Rat).SetInt(r.Value())
+		return ratOp(l.Value(), r), nil
+	} else {
+		r, isRatR := rRet.(*RatConst)
+		l, isRatL := lRet.(*RatConst)
+		if !isRatR {
+			return nil, &ErrTypeMismatch{ExpectedTypes: []Type{IntType, RatType}, ActualType: rRet.Type()}
+		}
+		if !isRatL {
+			return nil, &ErrTypeMismatch{ExpectedTypes: []Type{IntType, RatType}, ActualType: lRet.Type()}
+		}
+		return ratOp(l.Value(), r.Value()), nil
 	}
-	l, ok := lRet.(*IntConst)
-	if !ok {
-		return nil, &ErrTypeMismatch{ExpectedType: IntType, ActualType: lRet.Type()}
-	}
-	return NewIntConst(op(l.Value(), r.Value())), nil
 }
 
 // shortcircuitEval is a helper for evaluating logical AND and OR, it does not evaluate right operant
@@ -430,30 +466,35 @@ func (i *Interpreter) evalExprWithSameType(exprs ...Expr) ([]Const, error) {
 			return nil, err
 		}
 		if j > 0 && !(result[0].Type().Equal(result[j].Type())) {
-			return nil, &ErrTypeMismatch{ExpectedType: result[0].Type(), ActualType: result[j].Type()}
+			return nil, &ErrTypeMismatch{ExpectedTypes: []Type{result[0].Type()}, ActualType: result[j].Type()}
 		}
 	}
 	return result, nil
 }
 
 func (i *Interpreter) evalEqual(left Expr, right Expr) (*BoolConst, error) {
-	result, err := i.evalExprWithSameType(left, right)
+	lResult, err := i.evalExpr(left)
 	if err != nil {
 		return nil, err
 	}
-	return GetBoolConst(result[0].Equal(result[1])), nil
-}
+	rResult, err := i.evalExpr(right)
+	if err != nil {
+		return nil, err
+	}
+	if lResult.Type().Equal(IntType) {
+		iOp := func(x *big.Int, y *big.Int) Const { return GetBoolConst(x.Cmp(y) == 0) }
+		rOp := func(x *big.Rat, y *big.Rat) Const { return GetBoolConst(x.Cmp(y) == 0) }
+		r, err := i.evalNumberOp(lResult, rResult, iOp, rOp)
+		if err != nil {
+			return nil, err
+		}
+		return r.(*BoolConst), nil
+	}
 
-func (i *Interpreter) evalOpDefinedByType(op Operator, operants ...Expr) (Const, error) {
-	results, err := i.evalExprWithSameType(operants...)
-	if err != nil {
-		return nil, err
+	if !lResult.Type().Equal(rResult.Type()) {
+		return nil, &ErrTypeMismatch{ExpectedTypes: []Type{lResult.Type()}, ActualType: rResult.Type()}
 	}
-	method := results[0].Type().Methods().find(opToFunc[op])
-	if method == nil {
-		return nil, &ErrNotSupported{Name: opToFunc[op]}
-	}
-	return i.evalFuncDecl(method, constsAsExprs(results))
+	return GetBoolConst(lResult.Equal(rResult)), nil
 }
 
 func constsAsExprs(consts []Const) []Expr {
@@ -464,14 +505,8 @@ func constsAsExprs(consts []Const) []Expr {
 	return exprs
 }
 
-func (i *Interpreter) evalLessThan(left Expr, right Expr) (*BoolConst, error) {
-	result, err := i.evalOpDefinedByType(LessThanOp, left, right)
-	if err != nil {
-		return nil, err
-	}
-	boolResult, ok := result.(*BoolConst)
-	if !ok {
-		return nil, &ErrTypeMismatch{ExpectedType: BoolType, ActualType: result.Type()}
-	}
-	return boolResult, nil
+func (i *Interpreter) evalLessThan(left Expr, right Expr) (Const, error) {
+	iOp := func(x *big.Int, y *big.Int) Const { return GetBoolConst(x.Cmp(y) < 0) }
+	rOp := func(x *big.Rat, y *big.Rat) Const { return GetBoolConst(x.Cmp(y) < 0) }
+	return i.evalNumberOp(left, right, iOp, rOp)
 }

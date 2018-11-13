@@ -187,6 +187,11 @@ func TestInequality(t *testing.T) {
 	// Test ">="
 	ordTest(t, false, true)
 
+	assertExpEval(t, T, EQ(I(0), R(0, 1)))
+	assertExpEval(t, T, LE(I(-1), R(0, 1)))
+	assertExpEval(t, T, LE(I(-1), R(0, 1)))
+	assertExpEval(t, F, GT(I(-1), R(10, 6)))
+	assertExpEval(t, T, GT(I(1), R(9, 10)))
 }
 
 func TestObjAccessor(t *testing.T) {
@@ -407,6 +412,27 @@ func TestIntOp(t *testing.T) {
 	assertExpEvalErr(t, NewBinOp(DivOp, NewIntConstFromI64(1), NewIntConstFromI64(0)))
 }
 
+func TestRatOp(t *testing.T) {
+	assertExpEval(t, R64(1), ADD(R64(1), R64(0)))
+	assertExpEval(t, R64(1), ADD(R64(1), I(0)))
+	assertExpEval(t, R64(1), ADD(I(1), R64(0)))
+
+	assertExpEval(t, R64(1), MINUS(R64(1), R64(0)))
+	assertExpEval(t, R64(-1), MINUS(R64(0), R64(1)))
+
+	assertExpEval(t, R64(0), MUL(R64(0), R64(1)))
+	assertExpEval(t, R64(0.6), MUL(R64(0.5), R64(1.2)))
+	assertExpEval(t, R64(-0.6), MUL(R64(-0.5), R64(1.2)))
+	assertExpEval(t, R64(0.6), MUL(R64(-0.5), R64(-1.2)))
+
+	assertExpEval(t, R64(0), DIV(R64(0), R64(1)))
+	assertExpEval(t, R64(0), DIV(R64(0), R64(-1)))
+	assertExpEval(t, R64(-1.2), DIV(R64(1.2), R64(-1)))
+	assertExpEval(t, R64(1.2), DIV(R64(-1.2), R64(-1)))
+
+	assertExpEvalErr(t, DIV(R64(-1.2), R64(0)))
+}
+
 func TestVar(t *testing.T) {
 	ib := newInterpreterBuilder()
 	ib.withVars(map[string]Expr{"a": TrueConst}).assertExpEval(t, TrueConst, NewVar("a"))
@@ -601,19 +627,11 @@ func ordTest(t *testing.T, lessThan bool, equalTo bool) {
 	eq := GetBoolConst(equalTo)
 	gt := GetBoolConst(!lessThan)
 
-	assertExpEval(t, lt, NewBinOp(
-		op,
-		NewIntConstFromI64(0),
-		NewIntConstFromI64(1),
-	))
-	assertExpEval(t, gt, NewBinOp(
-		op,
-		NewIntConstFromI64(0),
-		NewIntConstFromI64(-1),
-	))
-	assertExpEval(t, eq, NewBinOp(
-		op,
-		NewIntConstFromI64(0),
-		NewIntConstFromI64(0),
-	))
+	assertExpEval(t, lt, NewBinOp(op, I(0), I(1)))
+	assertExpEval(t, gt, NewBinOp(op, I(0), I(-1)))
+	assertExpEval(t, eq, NewBinOp(op, I(0), I(0)))
+
+	assertExpEval(t, lt, NewBinOp(op, R(0, 1), R(1, 1)))
+	assertExpEval(t, gt, NewBinOp(op, R(0, 1), R(-1, 1)))
+	assertExpEval(t, eq, NewBinOp(op, R(0, 1), R(0, 1)))
 }

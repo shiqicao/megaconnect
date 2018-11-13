@@ -198,7 +198,7 @@ type IntConst struct {
 // NewIntConst lifts a big integer from hosting language(Go)
 func NewIntConst(value *big.Int) *IntConst { return &IntConst{value: value} }
 
-// NewIntConstFromI64 lifts an int64 from hosting language(Go)
+// NewIntConstFromI64 lifts an int64 from hosting language(Go).
 func NewIntConstFromI64(value int64) *IntConst { return NewIntConst(big.NewInt(value)) }
 
 // Type returns IntType
@@ -213,6 +213,34 @@ func (i *IntConst) String() string { return i.value.String() }
 func (i *IntConst) Equal(x Expr) bool {
 	y, ok := x.(*IntConst)
 	return ok && i.value.Cmp(y.value) == 0
+}
+
+// RatConst represents a big rational number
+type RatConst struct {
+	expr
+	value *big.Rat
+}
+
+// NewRatConstFromF64 creates a new instance of RatConst from float64
+func NewRatConstFromF64(value float64) *RatConst {
+	return &RatConst{value: new(big.Rat).SetFloat64(value)}
+}
+
+// NewRatConst lifts a big float from hosting language(Go)
+func NewRatConst(value *big.Rat) *RatConst { return &RatConst{value: value} }
+
+// Type returns FloatType
+func (f *RatConst) Type() Type { return RatType }
+
+// Value returns corresponding value in hosting language
+func (f *RatConst) Value() *big.Rat { return new(big.Rat).Set(f.value) }
+
+func (f *RatConst) String() string { return f.value.String() }
+
+// Equal returns true if x is equivalent to f
+func (f *RatConst) Equal(x Expr) bool {
+	y, ok := x.(*RatConst)
+	return ok && f.value.Cmp(y.value) == 0
 }
 
 // ObjConst represents an object, an object contains a list of fields and corresponding types

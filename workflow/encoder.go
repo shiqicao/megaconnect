@@ -29,15 +29,16 @@ const (
 const (
 	exprKindBool        = 0x00
 	exprKindInt         = 0x01
-	exprKindStr         = 0x02
-	exprKindObj         = 0x03
-	exprKindBinOp       = 0x04
-	exprKindUniOp       = 0x05
-	exprKindFuncCall    = 0x06
-	exprKindObjAccessor = 0x07
-	exprKindVar         = 0x08
-	exprKindObjLit      = 0x09
-	exprKindProps       = 0x0a
+	exprKindRat         = 0x02
+	exprKindStr         = 0x03
+	exprKindObj         = 0x04
+	exprKindBinOp       = 0x05
+	exprKindUniOp       = 0x06
+	exprKindFuncCall    = 0x07
+	exprKindObjAccessor = 0x08
+	exprKindVar         = 0x09
+	exprKindObjLit      = 0x0a
+	exprKindProps       = 0x0b
 )
 
 const (
@@ -55,6 +56,7 @@ const (
 	typeKindBoolean uint8 = 0x01
 	typeKindStr     uint8 = 0x02
 	typeKindObj     uint8 = 0x03
+	typeKindRat     uint8 = 0x04
 )
 
 const (
@@ -138,6 +140,16 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 			return err
 		}
 		return e.encodeBytes(expr.Value().Bytes())
+	case *RatConst:
+		num := expr.Value().Num()
+		den := expr.Value().Denom()
+		if err = e.encodeBigEndian(int8(num.Sign())); err != nil {
+			return err
+		}
+		if err = e.encodeBytes(num.Bytes()); err != nil {
+			return err
+		}
+		return e.encodeBytes(den.Bytes())
 	case *ObjConst:
 		return e.encodeObjConst(expr)
 	case *BinOp:
@@ -235,6 +247,8 @@ func (e *Encoder) encodeType(ty Type) error {
 			return e.encodeBigEndian(typeKindStr)
 		case booleanTy:
 			return e.encodeBigEndian(typeKindBoolean)
+		case ratTy:
+			return e.encodeBigEndian(typeKindRat)
 		default:
 			return &ErrNotSupported{Name: string(ty.ty)}
 		}
@@ -424,6 +438,8 @@ func getExprKind(expr Expr) (uint8, error) {
 		return exprKindBool, nil
 	case *IntConst:
 		return exprKindInt, nil
+	case *RatConst:
+		return exprKindRat, nil
 	case *StrConst:
 		return exprKindStr, nil
 	case *ObjConst:

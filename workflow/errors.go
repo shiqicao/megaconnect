@@ -31,12 +31,12 @@ func (e *ErrArgTypeMismatch) Error() string {
 
 // ErrTypeMismatch returns if two types does not match
 type ErrTypeMismatch struct {
-	ExpectedType Type
-	ActualType   Type
+	ExpectedTypes []Type
+	ActualType    Type
 }
 
 func (e *ErrTypeMismatch) Error() string {
-	return fmt.Sprintf("Expected %s, but got %s ", e.ExpectedType, e.ActualType)
+	return fmt.Sprintf("Expected %#q, but got %s ", e.ExpectedTypes, e.ActualType)
 }
 
 // ErrNotSupported is returned if an operator is not supported

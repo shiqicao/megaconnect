@@ -28,6 +28,15 @@ func IntLitAction(t interface{}) (*wf.IntConst, error) {
 	return wf.NewIntConst(i), nil
 }
 
+func RatLitAction(t interface{}) (*wf.RatConst, error) {
+	lit := Lit(t)
+	r, ok := new(big.Rat).SetString(lit)
+	if !ok || r == nil {
+		return nil, fmt.Errorf("Failed to parse rat %s", lit)
+	}
+	return wf.NewRatConst(r), nil
+}
+
 // BoolLitAction is mapped to boolLit in lang.bnf
 func BoolLitAction(t interface{}) (*wf.BoolConst, error) {
 	lit := Lit(t)
