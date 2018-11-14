@@ -430,6 +430,9 @@ func TestRatOp(t *testing.T) {
 	assertExpEval(t, R64(-1.2), DIV(R64(1.2), R64(-1)))
 	assertExpEval(t, R64(1.2), DIV(R64(-1.2), R64(-1)))
 
+	assertExpEval(t, R64(1.5), DIV(I(3), R64(2)))
+	assertExpEval(t, R64(2), DIV(I(3), R64(1.5)))
+
 	assertExpEvalErr(t, DIV(R64(-1.2), R64(0)))
 }
 
