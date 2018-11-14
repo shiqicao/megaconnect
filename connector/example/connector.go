@@ -19,6 +19,7 @@ import (
 
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
+	wf "github.com/megaspacelab/megaconnect/workflow"
 	"go.uber.org/zap"
 )
 
@@ -161,6 +162,11 @@ func (c *Connector) QueryAccountBalance(addr string, height *big.Int) (*big.Int,
 // IsValidAddress checks if the address string is valid
 func (c *Connector) IsValidAddress(addr string) bool {
 	return true
+}
+
+// Namespace returns the namespace and APIs supported by workflow language for the connector.
+func (c *Connector) Namespace() *wf.NamespaceDecl {
+	return nil
 }
 
 type subscription struct {

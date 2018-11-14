@@ -15,10 +15,14 @@ import (
 	"time"
 
 	"github.com/megaspacelab/megaconnect/common"
+	wf "github.com/megaspacelab/megaconnect/workflow"
 )
 
 // Connector defines the shared structure for each chain-specific connector.
 type Connector interface {
+	// Namespace returns the namespace and APIs supported by workflow language for the connector.
+	Namespace() *wf.NamespaceDecl
+
 	// Metadata returns the metadata of connected blockchain and the connector.
 	Metadata() *Metadata
 
