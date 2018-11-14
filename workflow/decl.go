@@ -204,6 +204,7 @@ func (m *MonitorDecl) String() string {
 
 // Decl is an interface for all declarations in a workflow
 type Decl interface {
+	Node
 	Name() *Id
 	Parent() *WorkflowDecl
 	setParent(*WorkflowDecl)
