@@ -165,6 +165,22 @@ func (d *Decoder) decodeEventExpr() (EventExpr, error) {
 	}
 }
 
+func (d *Decoder) decodeInt() (*big.Int, error) {
+	sign, err := d.decodeInt8()
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	value := new(big.Int).SetBytes(bytes)
+	if sign < 0 {
+		value.Neg(value)
+	}
+	return value, nil
+}
+
 // DecodeExpr deserializes binary format to `Expr`
 func (d *Decoder) DecodeExpr() (Expr, error) {
 	kind, err := d.decodeUint8()
@@ -180,7 +196,13 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		}
 		return GetBoolConst(value), nil
 	case exprKindInt:
-		sign, err := d.decodeInt8()
+		i, err := d.decodeInt()
+		if err != nil {
+			return nil, err
+		}
+		return NewIntConst(i), nil
+	case exprKindRat:
+		num, err := d.decodeInt()
 		if err != nil {
 			return nil, err
 		}
@@ -188,11 +210,8 @@ func (d *Decoder) DecodeExpr() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		value := new(big.Int).SetBytes(bytes)
-		if sign < 0 {
-			value.Neg(value)
-		}
-		return NewIntConst(value), nil
+		den := new(big.Int).SetBytes(bytes)
+		return NewRatConst(new(big.Rat).SetFrac(num, den)), nil
 	case exprKindStr:
 		bytes, err := d.decodeBytes()
 		if err != nil {
@@ -349,6 +368,8 @@ func (d *Decoder) decodeType() (Type, error) {
 		return BoolType, nil
 	case typeKindStr:
 		return StrType, nil
+	case typeKindRat:
+		return RatType, nil
 	case typeKindObj:
 		return d.decodeObjType()
 	default:

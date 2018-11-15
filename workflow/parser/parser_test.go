@@ -70,6 +70,7 @@ var (
 	ADD = B(wf.PlusOp)
 	MUL = B(wf.MultOp)
 	I   = wf.NewIntConstFromI64
+	R   = func(n int64, d int64) *wf.RatConst { return wf.NewRatConst(big.NewRat(n, d)) }
 	S   = wf.NewStrConst
 	OA  = wf.NewObjAccessor
 	ID  = wf.NewId
@@ -177,6 +178,17 @@ func TestIntLit(t *testing.T) {
 	assertExprParsingErr(t, "01")
 }
 
+func TestRatLit(t *testing.T) {
+	assertExprParsing(t, R(0, 1), "0.0")
+	assertExprParsing(t, R(1, 10), "0.1")
+	assertExprParsing(t, R(101, 10), "10.1")
+	assertExprParsing(t, R(101, 10), "10.10")
+	assertExprParsing(t, ADD(R(101, 10), I(1)), "10.10 + 1")
+
+	assertExprParsingErr(t, "01.1")
+	assertExprParsingErr(t, "00.0")
+}
+
 func TestObjAccessor(t *testing.T) {
 	assertExprParsing(t, OA(V("A"), "a"), "A.a")
 	assertExprParsing(t, OA(OA(V("A"), "a"), "b"), "A.a.b")
@@ -203,6 +215,7 @@ func TestObjLit(t *testing.T) {
 func TestEvent(t *testing.T) {
 	assertEventParsing(t, wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy())), "event e {}")
 	assertEventParsing(t, wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType))), "event e {a : int}")
+	assertEventParsing(t, wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy().Put("a", wf.RatType))), "event e {a : rat}")
 	assertEventParsing(
 		t,
 		wf.NewEventDecl(ID("e"), wf.NewObjType(wf.NewIdToTy().Put("a", wf.IntType).Put("b", wf.StrType))),

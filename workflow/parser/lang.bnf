@@ -28,6 +28,7 @@ kdFire : 'f' 'i' 'r' 'e';
 kdInt : 'i' 'n' 't';
 kdStr : 's' 't' 'r' 'i' 'n' 'g';
 kdBool : 'b' 'o' 'o' 'l';
+kdRat : 'r' 'a' 't';
 kdRun : 'r' 'u' 'n';
 kdTrigger : 't' 'r' 'i' 'g' 'g' 'e' 'r';
 kdProps : 'p' 'r' 'o' 'p' 's';
@@ -46,6 +47,12 @@ _escapeChar : '\\' 'n' | '\\' 'r' | '\\' 't' ;
 
 // integer literals
 intLit : '1' - '9' { _digit } | '0';
+
+// rational literals 
+ratLit 
+  : '1' - '9' { _digit } '.' {_digit}
+  | '0' '.' {_digit}
+  ;
 
 // identifier 
 id : _letter {_letter | _digit} ;
@@ -140,6 +147,7 @@ EventTerm1
 Type 
   : kdStr <<wf.StrType, nil>>
   | kdInt <<wf.IntType, nil>>
+  | kdRat <<wf.RatType, nil>>
   | kdBool <<wf.BoolType, nil>>
   | "{" ObjFields "}" <<wf.NewObjType($1.(wf.IdToTy)), nil>>
   ;
@@ -206,6 +214,7 @@ Term4
 
 Term5
   : intLit       <<pa.IntLitAction($0)>>
+  | ratLit       <<pa.RatLitAction($0)>>
   | boolLit      <<pa.BoolLitAction($0)>>
   | stringLit    <<pa.StrLitAction($0)>>
   | FuncCall     
