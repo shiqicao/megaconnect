@@ -16,6 +16,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestRatNorm(t *testing.T) {
+	check := func(x *RatConst, y *RatConst) bool {
+		return x.Value().Num().Cmp(y.Value().Num()) == 0 && x.Value().Denom().Cmp(y.Value().Denom()) == 0
+	}
+	check(R(0, 1), R(0, 2))
+	check(R(0, 1), R(0, -2))
+	check(R(2, 1), R(-4, -2))
+	check(R(-1, 2), R(1, -2))
+}
+
 func TestExprEquality(t *testing.T) {
 	// const - boolean
 	assert.True(t, TrueConst.Equal(TrueConst))

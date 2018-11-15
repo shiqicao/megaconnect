@@ -235,6 +235,8 @@ func (i *Interpreter) evalUniOp(expr *UniOp) (Const, error) {
 	switch expr.Op() {
 	case NotOp:
 		return i.evalNot(expr)
+	case MinusOp:
+		return i.evalNeg(expr)
 	}
 	return nil, &ErrNotSupported{Name: expr.Op().String()}
 }
@@ -371,6 +373,20 @@ func (i *Interpreter) evalNot(expr *UniOp) (*BoolConst, error) {
 		return nil, err
 	}
 	return r.Negate(), nil
+}
+
+func (i *Interpreter) evalNeg(expr *UniOp) (Const, error) {
+	r, err := i.evalExpr(expr.Operant())
+	if err != nil {
+		return nil, err
+	}
+	if integer, ok := r.(*IntConst); ok {
+		return NewIntConst(new(big.Int).Neg(integer.Value())), nil
+	} else if rational, ok := r.(*RatConst); ok {
+		return NewRatConst(new(big.Rat).Neg(rational.Value())), nil
+	} else {
+		return nil, &ErrTypeMismatch{ExpectedTypes: []Type{IntType, RatType}, ActualType: r.Type()}
+	}
 }
 
 func (i *Interpreter) evalAsBool(expr Expr) (*BoolConst, error) {

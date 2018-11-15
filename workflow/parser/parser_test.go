@@ -62,19 +62,25 @@ var (
 			return wf.NewBinOp(op, x, y)
 		}
 	}
-	AND = B(wf.AndOp)
-	OR  = B(wf.OrOp)
-	EQ  = B(wf.EqualOp)
-	GT  = B(wf.GreaterThanOp)
-	V   = wf.NewVar
-	ADD = B(wf.PlusOp)
-	MUL = B(wf.MultOp)
-	I   = wf.NewIntConstFromI64
-	R   = func(n int64, d int64) *wf.RatConst { return wf.NewRatConst(big.NewRat(n, d)) }
-	S   = wf.NewStrConst
-	OA  = wf.NewObjAccessor
-	ID  = wf.NewId
-	FC  = func(ns wf.NamespacePrefix, id string, args ...wf.Expr) *wf.FuncCall {
+	U = func(op wf.Operator) func(wf.Expr) wf.Expr {
+		return func(x wf.Expr) wf.Expr {
+			return wf.NewUniOp(op, x)
+		}
+	}
+	AND   = B(wf.AndOp)
+	OR    = B(wf.OrOp)
+	EQ    = B(wf.EqualOp)
+	GT    = B(wf.GreaterThanOp)
+	V     = wf.NewVar
+	ADD   = B(wf.PlusOp)
+	MINUS = B(wf.MinusOp)
+	MUL   = B(wf.MultOp)
+	I     = wf.NewIntConstFromI64
+	R     = func(n int64, d int64) *wf.RatConst { return wf.NewRatConst(big.NewRat(n, d)) }
+	S     = wf.NewStrConst
+	OA    = wf.NewObjAccessor
+	ID    = wf.NewId
+	FC    = func(ns wf.NamespacePrefix, id string, args ...wf.Expr) *wf.FuncCall {
 		return wf.NewFuncCall(ns, ID(id), args...)
 	}
 	AD   = wf.NewActionDecl
@@ -91,7 +97,9 @@ var (
 		}
 		return nss
 	}
-	P = func(s string) *wf.Props { return wf.NewProps(V(s)) }
+	P   = func(s string) *wf.Props { return wf.NewProps(V(s)) }
+	NEG = U(wf.MinusOp)
+	NOT = U(wf.NotOp)
 
 	// EventExpr
 	EV = wf.NewEVar
@@ -144,7 +152,6 @@ func TestDecl(t *testing.T) {
 }
 
 func TestExprParsing(t *testing.T) {
-
 	assertExprParsing(t, AND(T, T), "true && true")
 	assertExprParsing(t, OR(AND(T, T), F), "true && true || false")
 	assertExprParsing(t, AND(OR(T, T), F), "true || true && false")
@@ -163,11 +170,32 @@ func TestStrLit(t *testing.T) {
 	assertExprParsing(t, S("a"), `"a"`)
 }
 
+func TestUniOp(t *testing.T) {
+	assertExprParsing(t, NEG(I(1)), "-1")
+	assertExprParsing(t, MINUS(NEG(I(1)), I(1)), "-1-1")
+	assertExprParsing(t, MINUS(NEG(I(1)), NEG(I(1))), "-1-(-1)")
+	assertExprParsing(t, NEG(ADD(I(1), I(1))), "-(1+1)")
+	assertExprParsing(t, NEG(R(11, 10)), "-1.1")
+	assertExprParsing(t, NEG(OA(V("a"), "a")), "-a.a")
+	assertExprParsing(t, NEG(FC(nil, "a")), "-a()")
+	assertExprParsing(t, NEG(V("a")), "-a")
+	assertExprParsing(t, NEG(NEG(V("a"))), "--a")
+	assertExprParsing(t, NEG(OA(P("a"), "a")), "-props(a).a")
+
+	assertExprParsing(t, NOT(T), "!true")
+	assertExprParsing(t, AND(NOT(T), T), "!true && true")
+	assertExprParsing(t, OR(F, NOT(F)), "false || !false")
+	assertExprParsing(t, NOT(AND(T, T)), "!(true && true)")
+	assertExprParsing(t, NOT(OA(V("a"), "a")), "!a.a")
+	assertExprParsing(t, NOT(FC(nil, "a")), "!a()")
+	assertExprParsing(t, NOT(V("a")), "!a")
+	assertExprParsing(t, NOT(NOT(V("a"))), "!!a")
+	assertExprParsing(t, NOT(OA(P("a"), "a")), "!props(a).a")
+}
+
 func TestIntLit(t *testing.T) {
 	assertExprParsing(t, I(0), "0")
 	assertExprParsing(t, I(1), "1")
-	// TODO: enable "-" unary op
-	// assertExprParsing(t, I(-1), "-1")
 	i := "1"
 	for ; len(i) < 20; i = i + i {
 	}

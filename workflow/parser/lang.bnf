@@ -207,12 +207,18 @@ Term3
   | Term4
   ;
 
-Term4
-  : Term4 "." id <<pa.ObjAccessorAction($0, $2)>>
+Term4 
+  : "-" Term4 <<pa.UniOpAction(wf.MinusOp, $1, pa.TokenToPos($0))>>
+  | "!" Term4 <<pa.UniOpAction(wf.NotOp, $1, pa.TokenToPos($0))>>
   | Term5
-  ; 
+  ;
 
 Term5
+  : Term5 "." id <<pa.ObjAccessorAction($0, $2)>>
+  | Term6
+  ; 
+
+Term6
   : intLit       <<pa.IntLitAction($0)>>
   | ratLit       <<pa.RatLitAction($0)>>
   | boolLit      <<pa.BoolLitAction($0)>>

@@ -412,6 +412,23 @@ func TestIntOp(t *testing.T) {
 	assertExpEvalErr(t, NewBinOp(DivOp, NewIntConstFromI64(1), NewIntConstFromI64(0)))
 }
 
+func TestNeg(t *testing.T) {
+	assertExpEval(t, I(0), NEG(I(0)))
+	assertExpEval(t, R(0, 2), NEG(R(0, 1)))
+
+	assertExpEval(t, I(-1), NEG(I(1)))
+	assertExpEval(t, R(-1, 1), NEG(R(1, 1)))
+	assertExpEval(t, R(1, -1), NEG(R(1, 1)))
+
+	assertExpEval(t, I(1), NEG(I(-1)))
+	assertExpEval(t, R(1, 1), NEG(R(-1, 1)))
+
+	assertExpEval(t, R(1, 3), NEG(R(-1, 3)))
+	assertExpEval(t, R(-1, 3), NEG(R(1, 3)))
+
+	assertExpEvalErr(t, NEG(T))
+}
+
 func TestRatOp(t *testing.T) {
 	assertExpEval(t, R64(1), ADD(R64(1), R64(0)))
 	assertExpEval(t, R64(1), ADD(R64(1), I(0)))

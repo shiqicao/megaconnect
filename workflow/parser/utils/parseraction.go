@@ -28,6 +28,7 @@ func IntLitAction(t interface{}) (*wf.IntConst, error) {
 	return wf.NewIntConst(i), nil
 }
 
+// RatLitAction is mapped to ratLit in lang.bnf
 func RatLitAction(t interface{}) (*wf.RatConst, error) {
 	lit := Lit(t)
 	r, ok := new(big.Rat).SetString(lit)
@@ -45,14 +46,14 @@ func BoolLitAction(t interface{}) (*wf.BoolConst, error) {
 	} else if lit == "false" {
 		return wf.FalseConst, nil
 	}
-	return nil, fmt.Errorf("")
+	return nil, fmt.Errorf("Failed to parse bool %s", lit)
 }
 
 // StrLitAction is mapped to stringLit in lang.bnf
 func StrLitAction(t interface{}) (*wf.StrConst, error) {
 	lit := Lit(t)
 	if len(lit) < 2 {
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("Failed to parse str %s", lit)
 	}
 	return wf.NewStrConst(lit[1 : len(lit)-1]), nil
 }
@@ -145,6 +146,14 @@ func BinOpAction(op wf.Operator, leftRaw interface{}, rightRaw interface{}) (wf.
 	bin := wf.NewBinOp(op, left, right)
 	mergePosByNodes(bin, left, right)
 	return bin, nil
+}
+
+// UniOpAction is mapped to all unary operator actions in lang.bnf
+func UniOpAction(op wf.Operator, operantRaw interface{}, start wf.Pos) (wf.Expr, error) {
+	operant := operantRaw.(wf.Expr)
+	uni := wf.NewUniOp(op, operant)
+	mergePos(uni, &start, operant.Pos())
+	return uni, nil
 }
 
 // EBinOpAction is mapped to all event binary operator actions in lang.bnf
