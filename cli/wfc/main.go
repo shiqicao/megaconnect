@@ -12,39 +12,70 @@
 package main
 
 import (
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
-	p "path"
 	"path/filepath"
 
-	"github.com/megaspacelab/megaconnect/unsafe"
+	pp "github.com/megaspacelab/megaconnect/prettyprint"
+
 	wf "github.com/megaspacelab/megaconnect/workflow"
 	"github.com/megaspacelab/megaconnect/workflow/parser"
 	cli "gopkg.in/urfave/cli.v2"
 )
 
 func main() {
+
+	output := &cli.PathFlag{
+		Name:    "output",
+		Aliases: []string{"o"},
+	}
+
 	app := &cli.App{
-		Name: "Workflow compiler",
-		Flags: []cli.Flag{
-			&cli.PathFlag{
-				Name:    "output",
-				Aliases: []string{"o"},
-			},
-			&cli.StringFlag{
-				Name:  "temporaryAddr",
-				Usage: "A temporary parameter for pass in an address on a chain.",
-				// default address is an Eth active address
-				// https://etherscan.io/address/0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98
-				Value: "0xFBb1b73C4f0BDa4f67dcA266ce6Ef42f520fBB98",
+		Name:   "Workflow compiler",
+		Flags:  []cli.Flag{output},
+		Action: compile,
+		Commands: []*cli.Command{
+			&cli.Command{
+				Name:   "reflect",
+				Action: decompile,
+				Flags:  []cli.Flag{output},
 			},
 		},
-		Action: compile,
+		Writer:    os.Stdin,
+		ErrWriter: os.Stderr,
 	}
 	app.Run(os.Args)
+}
+
+func exit(err error) cli.ExitCoder { return cli.Exit(err.Error(), 1) }
+
+func decompile(ctx *cli.Context) error {
+	if ctx.Args().Len() > 0 {
+		binfile := ctx.Args().Get(0)
+		fs, err := os.Open(binfile)
+		if err != nil {
+			return exit(err)
+		}
+		decoder := wf.NewDecoder(fs)
+		wf, err := decoder.DecodeWorkflow()
+		if err != nil {
+			return exit(err)
+		}
+		output := ctx.Path("output")
+		if output == "" {
+			output = binfile + ".wf"
+		}
+		outputfs, err := os.Create(output)
+		if err != nil {
+			return exit(err)
+		}
+		err = wf.Print()(pp.NewTxtPrinter(outputfs))
+		if err != nil {
+			return exit(err)
+		}
+		return nil
+	}
+	return exit(fmt.Errorf("Missing binary file path"))
 }
 
 func compile(ctx *cli.Context) error {
@@ -79,182 +110,5 @@ func compile(ctx *cli.Context) error {
 		return nil
 	}
 
-	return genExample(ctx)
-}
-
-func genExample(ctx *cli.Context) error {
-	output := ctx.Path("output")
-	var name string
-	var binWriter io.Writer
-	var metaWriter io.Writer
-	var workflowWriter io.Writer
-	if output == "" {
-		metaWriter = os.Stdout
-	} else {
-		path := output
-		name = p.Base(output)
-		metafs, err := os.Create(path + ".json")
-		if err != nil {
-			return err
-		}
-		defer metafs.Close()
-		metaWriter = metafs
-
-		binfs, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-		defer binfs.Close()
-		binWriter = binfs
-
-		workflowfs, err := os.Create(path + ".wf")
-		if err != nil {
-			return err
-		}
-		defer workflowfs.Close()
-		workflowWriter = workflowfs
-	}
-
-	addr := ctx.String("temporaryAddr")
-	vars := wf.NewIdToExpr().Put(
-		"blockHeight",
-		wf.NewObjAccessor(
-			wf.NewFuncCall(nil, wf.NewId("GetBlock")),
-			"height",
-		),
-	)
-	expr := wf.NewBinOp(
-		wf.NotEqualOp,
-		wf.NewFuncCall(
-			nil,
-			wf.NewId("GetBalance"),
-			wf.NewStrConst(addr),
-			wf.NewVar("blockHeight"),
-		),
-		wf.NewFuncCall(
-			nil,
-			wf.NewId("GetBalance"),
-			wf.NewStrConst(addr),
-			wf.NewBinOp(wf.MinusOp,
-				wf.NewVar("blockHeight"),
-				wf.NewIntConstFromI64(1),
-			),
-		),
-	)
-
-	monitorEth := wf.NewMonitorDecl(
-		wf.NewId("EthMonitor"),
-		expr,
-		vars,
-		wf.NewFire("EthEvent", wf.NewObjLit(wf.NewIdToExpr().Put("height", wf.NewVar("blockHeight")))),
-		"Ethereum",
-	)
-
-	monitorExample := wf.NewMonitorDecl(
-		wf.NewId("ExampleMonitor"),
-		expr,
-		vars,
-		wf.NewFire("ExEvent", wf.NewObjLit(wf.NewIdToExpr().Put("height", wf.NewVar("blockHeight")))),
-		"Example",
-	)
-
-	monitorBtc := wf.NewMonitorDecl(
-		wf.NewId("BtcMonitor"),
-		expr,
-		vars,
-		wf.NewFire("BtcEvent", wf.NewObjLit(wf.NewIdToExpr().Put("height", wf.NewVar("blockHeight")))),
-		"Bitcoin",
-	)
-
-	workflow := wf.NewWorkflowDecl(wf.NewId(name), 0).
-		AddChild(
-			wf.NewEventDecl(wf.NewId("TestEvent0"), wf.NewObjType(
-				wf.NewIdToTy().
-					Put("example_h", wf.IntType).
-					Put("eth_h", wf.IntType),
-			)),
-		).
-		AddChild(
-			wf.NewEventDecl(
-				wf.NewId("HeightSumEvent"),
-				wf.NewObjType(wf.NewIdToTy().Put("heightSum", wf.IntType)),
-			),
-		).
-		AddChild(
-			wf.NewEventDecl(wf.NewId("ExEvent"), wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
-		).
-		AddChild(
-			wf.NewEventDecl(wf.NewId("BtcEvent"), wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
-		).
-		AddChild(
-			wf.NewEventDecl(wf.NewId("EthEvent"), wf.NewObjType(wf.NewIdToTy().Put("height", wf.IntType))),
-		).
-		AddChild(monitorEth).
-		AddChild(monitorExample).
-		AddChild(monitorBtc).
-		AddChild(
-			wf.NewActionDecl(
-				wf.NewId("TestAction1"),
-				wf.NewEBinOp(wf.AndEOp, wf.NewEVar("ExEvent"), wf.NewEVar("EthEvent")),
-				wf.Stmts{
-					wf.NewFire(
-						"TestEvent0",
-						wf.NewObjLit(
-							wf.NewIdToExpr().
-								Put("example_h", wf.NewObjAccessor(wf.NewProps(wf.NewVar("ExEvent")), "height")).
-								Put("eth_h", wf.NewObjAccessor(wf.NewProps(wf.NewVar("EthEvent")), "height")),
-						),
-					),
-				}),
-		).
-		AddChild(
-			wf.NewActionDecl(
-				wf.NewId("JoinAction"),
-				wf.NewEVar("TestEvent0"),
-				wf.Stmts{
-					wf.NewFire(
-						"HeightSumEvent",
-						wf.NewObjLit(
-							wf.NewIdToExpr().Put(
-								"heightSum",
-								wf.NewBinOp(
-									wf.PlusOp,
-									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "eth_h"),
-									wf.NewObjAccessor(wf.NewProps(wf.NewVar("TestEvent0")), "example_h"),
-								),
-							),
-						),
-					),
-				},
-			),
-		)
-
-	// TODO: Read script file and parse it to AST
-	bin, err := wf.EncodeWorkflow(workflow)
-	if err != nil {
-		return err
-	}
-	hex := hex.EncodeToString(bin)
-	meta := struct {
-		Source string
-		Hex    string
-	}{
-		Source: workflow.String(),
-		Hex:    hex,
-	}
-
-	if err := json.NewEncoder(metaWriter).Encode(meta); err != nil {
-		return err
-	}
-	if binWriter != nil {
-		if _, err := binWriter.Write(bin); err != nil {
-			return err
-		}
-	}
-	if workflowWriter != nil {
-		if _, err := workflowWriter.Write(unsafe.StringToBytes(hex)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return exit(fmt.Errorf("Missing source file"))
 }

@@ -344,12 +344,12 @@ func assertExprParsing(t *testing.T, expected wf.Expr, expr string) {
 		t.Logf(
 			"Actual Parsed Expr(%T): %s",
 			md.Condition(),
-			md.Condition().String(),
+			wf.PrintNode(md.Condition()),
 		)
 		t.Logf(
 			"Expected Expr(%T): %s",
 			expected,
-			expected.String(),
+			wf.PrintNode(expected),
 		)
 	}
 	assert.True(t, md.Condition().Equal(expected))
@@ -361,12 +361,11 @@ func assertEventParsing(t *testing.T, expected *wf.EventDecl, event string) {
 	ed := w.EventDecls()[0]
 	assert.NotNil(t, ed)
 	if !ed.Equal(expected) {
-		/* TODO: add String to EventDecl
 		t.Logf(
 			"Actual Parsed Event(%T): %s",
-			ed.String()
+			ed,
+			wf.PrintNode(ed),
 		)
-		*/
 	}
 	assert.True(t, ed.Equal(expected))
 }
@@ -401,6 +400,28 @@ func assertWorkflowParsing(t *testing.T, w string) *wf.WorkflowDecl {
 	wfl, ok := r.(*wf.WorkflowDecl)
 	assert.True(t, ok)
 	assert.NotNil(t, wfl)
+
+	w2 := wf.PrintNode(wfl)
+	r, err = parse(t, w2)
+	if err != nil {
+		t.Logf(
+			"Pretty Print Error: \n %s",
+			w2,
+		)
+	}
+	assert.NoError(t, err)
+	wfl2, ok := r.(*wf.WorkflowDecl)
+	assert.True(t, ok)
+	assert.NotNil(t, wfl2)
+	if !wfl2.Equal(wfl) {
+		t.Logf(
+			"Pretty Print Error: \n Expected: \n %s \n Actual: \n %s \n",
+			w,
+			w2,
+		)
+	}
+	assert.True(t, wfl2.Equal(wfl))
+
 	return wfl
 }
 

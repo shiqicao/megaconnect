@@ -11,10 +11,10 @@
 package workflow
 
 import (
-	"bytes"
-	"fmt"
 	"math/big"
 	"strconv"
+
+	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
 
 var (
@@ -28,7 +28,6 @@ var (
 // Expr represents expression in the language. All type of expression derives from it.
 type Expr interface {
 	Node
-	fmt.Stringer
 	Equal(Expr) bool
 }
 
@@ -60,6 +59,15 @@ func (a Args) Equal(b Args) bool {
 		}
 	}
 	return true
+}
+
+// Print pretty prints code
+func (a Args) Print() p.PrinterOp {
+	ops := []p.PrinterOp{}
+	for _, arg := range a {
+		ops = append(ops, arg.Print())
+	}
+	return separatedBy(ops, p.Text(", "))
 }
 
 // FuncCall represents a function invoking expression
@@ -96,20 +104,13 @@ func (f *FuncCall) Decl() *FuncDecl { return f.decl }
 // SetDecl binds the function name to a function declaration
 func (f *FuncCall) SetDecl(decl *FuncDecl) { f.decl = decl }
 
-func (f *FuncCall) String() string {
-	var buf bytes.Buffer
-	buf.WriteString(f.ns.String())
-	buf.WriteString(f.name.id)
-	buf.WriteString("(")
-	last := len(f.args) - 1
-	for i, p := range f.args {
-		buf.WriteString(p.String())
-		if i != last {
-			buf.WriteString(",")
-		}
-	}
-	buf.WriteString(")")
-	return buf.String()
+// Print pretty prints code
+func (f *FuncCall) Print() p.PrinterOp {
+	return p.Concat(
+		f.ns.Print(),
+		f.name.Print(),
+		paren(f.args.Print()),
+	)
 }
 
 // Equal returns true if two expressions are the same
@@ -166,6 +167,14 @@ func (b *BoolConst) Equal(x Expr) bool {
 	return ok && y.value == b.value
 }
 
+// Print pretty prints code
+func (b *BoolConst) Print() p.PrinterOp {
+	if b.value {
+		return p.Text("true")
+	}
+	return p.Text("false")
+}
+
 // StrConst is a value typed to StrType
 type StrConst struct {
 	expr
@@ -181,13 +190,14 @@ func (s *StrConst) Type() Type { return StrType }
 // Value returns corresponding value in hosting language
 func (s *StrConst) Value() string { return s.value }
 
-func (s *StrConst) String() string { return s.value }
-
 // Equal returns whether x is equal to the current value
 func (s *StrConst) Equal(x Expr) bool {
 	y, ok := x.(*StrConst)
 	return ok && s.value == y.value
 }
+
+// Print pretty prints code
+func (s *StrConst) Print() p.PrinterOp { return p.Text("\"" + s.value + "\"") }
 
 // IntConst represents a big interger
 type IntConst struct {
@@ -215,6 +225,9 @@ func (i *IntConst) Equal(x Expr) bool {
 	return ok && i.value.Cmp(y.value) == 0
 }
 
+// Print pretty prints code
+func (i *IntConst) Print() p.PrinterOp { return p.Text(i.value.String()) }
+
 // RatConst represents a big rational number
 type RatConst struct {
 	expr
@@ -230,17 +243,21 @@ func NewRatConstFromF64(value float64) *RatConst {
 func NewRatConst(value *big.Rat) *RatConst { return &RatConst{value: value} }
 
 // Type returns FloatType
-func (f *RatConst) Type() Type { return RatType }
+func (r *RatConst) Type() Type { return RatType }
 
 // Value returns corresponding value in hosting language
-func (f *RatConst) Value() *big.Rat { return new(big.Rat).Set(f.value) }
-
-func (f *RatConst) String() string { return f.value.String() }
+func (r *RatConst) Value() *big.Rat { return new(big.Rat).Set(r.value) }
 
 // Equal returns true if x is equivalent to f
-func (f *RatConst) Equal(x Expr) bool {
+func (r *RatConst) Equal(x Expr) bool {
 	y, ok := x.(*RatConst)
-	return ok && f.value.Cmp(y.value) == 0
+	return ok && r.value.Cmp(y.value) == 0
+}
+
+// Print pretty prints code
+func (r *RatConst) Print() p.PrinterOp {
+	// TODO: determine best precision
+	return p.Text(r.value.FloatString(20))
 }
 
 // ObjConst represents an object, an object contains a list of fields and corresponding types
@@ -322,21 +339,17 @@ func (o *ObjConst) Type() Type { return o.ty }
 // Value returns a copy of fields
 func (o *ObjConst) Value() ObjFields { return o.value.Copy() }
 
-func (o *ObjConst) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("{")
-	i := len(o.value)
-	for f, v := range o.value {
-		buf.WriteString(f)
-		buf.WriteString(": ")
-		buf.WriteString(v.String())
-		if i != 1 {
-			buf.WriteString(",")
-		}
-		i--
+// Print pretty prints code
+func (o *ObjConst) Print() p.PrinterOp {
+	ops := []p.PrinterOp{}
+	for field, expr := range o.value {
+		ops = append(ops, p.Concat(p.Text(field), p.Text(": "), expr.Print()))
 	}
-	buf.WriteString("}")
-	return buf.String()
+	return p.Concat(
+		p.Text("{"),
+		separatedBy(ops, p.Text(", ")),
+		p.Text("}"),
+	)
 }
 
 // Fields returns a new object sorted by field name
@@ -365,13 +378,13 @@ type NamespacePrefix []*Id
 // IsEmpty returns true if namespace is empty
 func (n NamespacePrefix) IsEmpty() bool { return len(n) == 0 }
 
-func (n NamespacePrefix) String() string {
-	var buf bytes.Buffer
-	for _, ns := range n {
-		buf.WriteString(ns.id)
-		buf.WriteString(".")
+// Print pretty prints code
+func (n NamespacePrefix) Print() p.PrinterOp {
+	ops := []p.PrinterOp{}
+	for _, id := range n {
+		ops = append(ops, id.Print(), p.Text("::"))
 	}
-	return buf.String()
+	return p.Concat(ops...)
 }
 
 // Equal returns true if two namespace prefix are the same
@@ -416,7 +429,7 @@ func NewObjAccessor(receiver Expr, field string) *ObjAccessor {
 // Receiver returns the expression which is expected to be evaluated to an object
 func (o *ObjAccessor) Receiver() Expr { return o.receiver }
 
-func (o *ObjAccessor) String() string { return o.receiver.String() + "." + o.field }
+// func (o *ObjAccessor) String() string { return o.receiver.String() + "." + o.field }
 
 // Field returns the accessor
 func (o *ObjAccessor) Field() string { return o.field }
@@ -427,6 +440,26 @@ func (o *ObjAccessor) Equal(expr Expr) bool {
 	return ok &&
 		o.field == y.field &&
 		o.receiver.Equal(y.receiver)
+}
+
+// Print pretty prints code
+func (o *ObjAccessor) Print() p.PrinterOp {
+	parenthesis := false
+	if _, isBin := o.receiver.(*BinOp); isBin {
+		parenthesis = true
+	} else if _, isUni := o.receiver.(*UniOp); isUni {
+		parenthesis = true
+	}
+
+	receiver := o.receiver.Print()
+	if parenthesis {
+		receiver = paren(receiver)
+	}
+	return p.Concat(
+		receiver,
+		p.Text("."),
+		p.Text(o.field),
+	)
 }
 
 // Var represents a variable in workflow lang
@@ -447,8 +480,10 @@ func (v *Var) Equal(expr Expr) bool {
 }
 
 // Name returns variable name
-func (v *Var) Name() string   { return v.name }
-func (v *Var) String() string { return v.name }
+func (v *Var) Name() string { return v.name }
+
+// Print pretty prints code
+func (v *Var) Print() p.PrinterOp { return p.Text(v.name) }
 
 // ObjLit represents an object literal,
 // for example, {a: 1 + 1, b: "bar"}
@@ -473,21 +508,13 @@ func (o *ObjLit) Equal(expr Expr) bool {
 // Fields returns a copy of field declaration
 func (o *ObjLit) Fields() IdToExpr { return o.fields.Copy() }
 
-func (o *ObjLit) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("{")
-	len := len(o.fields)
-	for field, value := range o.fields {
-		buf.WriteString(field)
-		buf.WriteString(":")
-		buf.WriteString(value.Expr.String())
-		if len > 1 {
-			buf.WriteString(",")
-		}
-		len--
-	}
-	buf.WriteString("}")
-	return buf.String()
+// Print pretty prints code
+func (o *ObjLit) Print() p.PrinterOp {
+	return p.Concat(
+		p.Text("{"),
+		o.fields.Print(false, p.Text(": ")),
+		p.Text("}"),
+	)
 }
 
 // Props is a unary operator of event type, it returns properties of an event as an obj.
@@ -505,19 +532,19 @@ func NewProps(v *Var) *Props {
 	}
 }
 
-func (p *Props) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("property(")
-	buf.WriteString(p.eventVar.String())
-	buf.WriteString(")")
-	return buf.String()
+// Print pretty prints code
+func (pr *Props) Print() p.PrinterOp {
+	return p.Concat(
+		p.Text("props"),
+		paren(pr.eventVar.Print()),
+	)
 }
 
 // Equal returns true if two Prop are equivalent
-func (p *Props) Equal(x Expr) bool {
+func (pr *Props) Equal(x Expr) bool {
 	y, ok := x.(*Props)
-	return ok && p.eventVar.Equal(y.eventVar)
+	return ok && pr.eventVar.Equal(y.eventVar)
 }
 
 // Var returns the event var
-func (p *Props) Var() *Var { return p.eventVar }
+func (pr *Props) Var() *Var { return pr.eventVar }

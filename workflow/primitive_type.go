@@ -10,6 +10,8 @@
 
 package workflow
 
+import pp "github.com/megaspacelab/megaconnect/prettyprint"
+
 var (
 	// BoolType represents boolean type
 	BoolType = &PrimitiveType{ty: booleanTy}
@@ -26,6 +28,7 @@ var (
 
 // PrimitiveType represents all primitive types in the language, including int, string, bool, etc.
 type PrimitiveType struct {
+	node
 	ty   primitiveTy
 	mths FuncDecls
 }
@@ -34,18 +37,18 @@ type PrimitiveType struct {
 // Currently it only contains build-in functions for the primitive types
 func (p *PrimitiveType) Methods() FuncDecls { return p.mths.Copy() }
 
-func (p *PrimitiveType) String() string {
+func (p *PrimitiveType) Print() pp.PrinterOp {
 	switch p.ty {
 	case stringTy:
-		return "string"
+		return pp.Text("string")
 	case booleanTy:
-		return "bool"
+		return pp.Text("bool")
 	case intTy:
-		return "int"
+		return pp.Text("int")
 	case ratTy:
-		return "rat"
+		return pp.Text("rat")
 	default:
-		return ""
+		return pp.Nil()
 	}
 }
 

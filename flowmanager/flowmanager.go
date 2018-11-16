@@ -176,7 +176,8 @@ func (fm *FlowManager) processEventWithLock(
 	fm.log.Debug("Processing event",
 		zap.String("workflowID", workflowID),
 		zap.String("eventName", eventName),
-		zap.Stringer("eventPayload", eventPayload))
+		zap.String("eventPayload", workflow.PrintNode(eventPayload)),
+	)
 
 	var fires []*workflow.FireEventResult
 	eventID := EventID(workflowID, eventName)

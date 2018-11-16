@@ -10,6 +10,8 @@
 
 package workflow
 
+import p "github.com/megaspacelab/megaconnect/prettyprint"
+
 // EventExpr represents event expression
 type EventExpr interface {
 	Node
@@ -54,6 +56,26 @@ func (e *EBinOp) Equal(x EventExpr) bool {
 	return ok && y.left.Equal(e.left) && y.right.Equal(e.right)
 }
 
+// Print pretty prints code
+func (e *EBinOp) Print() p.PrinterOp {
+	var op string
+	if e.op == AndEOp {
+		op = "&&"
+	} else {
+		op = "||"
+	}
+	right := e.right.Print()
+	if _, ok := e.right.(*EBinOp); ok {
+		right = paren(right)
+	}
+
+	return p.Concat(
+		e.left.Print(),
+		printOp(op),
+		right,
+	)
+}
+
 // EVar represents event variable
 type EVar struct {
 	eventExpr
@@ -68,3 +90,6 @@ func (e *EVar) Equal(x EventExpr) bool {
 	y, ok := x.(*EVar)
 	return ok && e.name == y.name
 }
+
+// Print pretty prints code
+func (e *EVar) Print() p.PrinterOp { return p.Text(e.name) }
