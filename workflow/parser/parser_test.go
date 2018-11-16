@@ -401,6 +401,7 @@ func assertWorkflowParsing(t *testing.T, w string) *wf.WorkflowDecl {
 	assert.True(t, ok)
 	assert.NotNil(t, wfl)
 
+	// The following tests AST Print
 	w2 := wf.PrintNode(wfl)
 	r, err = parse(t, w2)
 	if err != nil {

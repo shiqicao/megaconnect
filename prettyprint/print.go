@@ -15,24 +15,59 @@ import (
 	"io"
 )
 
-var (
-	defaultSetting = &Style{
-		newline: "\n",
-		indent:  "  ",
-	}
-)
+// PrinterOp represents an printer operation
+type PrinterOp func(Printer) error
 
-type Style struct {
-	newline string
-	indent  string
+// Nil is a noop printer operator
+func Nil() PrinterOp { return nil }
+
+// Text wraps text to a printer operator
+func Text(s string) PrinterOp { return func(p Printer) error { return p.Write(s) } }
+
+// Line represents a new line operator
+func Line() PrinterOp { return func(p Printer) error { return p.NewLine() } }
+
+// Nest pushes a printing operator to a sub scope
+func Nest(i int, op PrinterOp) PrinterOp {
+	return func(p Printer) error {
+		p.IndentInc(i)
+		defer p.IndentDec(i)
+		return Concat(Line(), op)(p)
+	}
 }
 
+// Concat joins two printing operators
+func Concat(ops ...PrinterOp) PrinterOp {
+	return func(p Printer) error {
+		for _, op := range ops {
+			if op == nil {
+				continue
+			}
+			e := op(p)
+			if e != nil {
+				return e
+			}
+		}
+		return nil
+	}
+}
+
+// Printer is an abstract printing receiver, used by PrinterOp
+type Printer interface {
+	Write(s string) error
+	NewLine() error
+	IndentInc(i int)
+	IndentDec(i int)
+}
+
+// TxtPrinter implements Printer
 type TxtPrinter struct {
 	w       io.Writer
 	setting *Style
 	indent  int
 }
 
+// NewTxtPrinter creates a new instance of TxtPrinter
 func NewTxtPrinter(w io.Writer) *TxtPrinter {
 	return &TxtPrinter{
 		w:       w,
@@ -40,10 +75,13 @@ func NewTxtPrinter(w io.Writer) *TxtPrinter {
 	}
 }
 
+// Write prints a string
 func (p *TxtPrinter) Write(s string) error {
 	_, err := fmt.Fprint(p.w, s)
 	return err
 }
+
+// NewLine prints a new line
 func (p *TxtPrinter) NewLine() error {
 	_, err := fmt.Fprint(p.w, p.setting.newline)
 	if err != nil {
@@ -58,43 +96,21 @@ func (p *TxtPrinter) NewLine() error {
 	return nil
 }
 
+// IndentInc increases indent level
 func (p *TxtPrinter) IndentInc(i int) { p.indent = p.indent + i }
+
+// IndentDec decreases indent level
 func (p *TxtPrinter) IndentDec(i int) { p.indent = p.indent - i }
 
-type Printer interface {
-	Write(s string) error
-	NewLine() error
-	IndentInc(i int)
-	IndentDec(i int)
-}
-
-type PrinterOp func(Printer) error
-
-func Nil() PrinterOp { return nil }
-
-func Text(s string) PrinterOp { return func(p Printer) error { return p.Write(s) } }
-
-func Line() PrinterOp { return func(p Printer) error { return p.NewLine() } }
-
-func Nest(i int, op PrinterOp) PrinterOp {
-	return func(p Printer) error {
-		p.IndentInc(i)
-		defer p.IndentDec(i)
-		return Concat(Line(), op)(p)
+var (
+	defaultSetting = &Style{
+		newline: "\n",
+		indent:  "  ",
 	}
-}
+)
 
-func Concat(ops ...PrinterOp) PrinterOp {
-	return func(p Printer) error {
-		for _, op := range ops {
-			if op == nil {
-				continue
-			}
-			e := op(p)
-			if e != nil {
-				return e
-			}
-		}
-		return nil
-	}
+// Style provides a configurable settings for TxtPrinter
+type Style struct {
+	newline string
+	indent  string
 }

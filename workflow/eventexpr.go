@@ -10,7 +10,11 @@
 
 package workflow
 
-import p "github.com/megaspacelab/megaconnect/prettyprint"
+import (
+	"fmt"
+
+	p "github.com/megaspacelab/megaconnect/prettyprint"
+)
 
 // EventExpr represents event expression
 type EventExpr interface {
@@ -61,8 +65,10 @@ func (e *EBinOp) Print() p.PrinterOp {
 	var op string
 	if e.op == AndEOp {
 		op = "&&"
-	} else {
+	} else if e.op == OrEOp {
 		op = "||"
+	} else {
+		panic(fmt.Sprintf("Op %s is not implemented", op))
 	}
 	right := e.right.Print()
 	if _, ok := e.right.(*EBinOp); ok {

@@ -16,7 +16,7 @@ import (
 	"os"
 	"path/filepath"
 
-	pp "github.com/megaspacelab/megaconnect/prettyprint"
+	p "github.com/megaspacelab/megaconnect/prettyprint"
 
 	wf "github.com/megaspacelab/megaconnect/workflow"
 	"github.com/megaspacelab/megaconnect/workflow/parser"
@@ -69,7 +69,7 @@ func decompile(ctx *cli.Context) error {
 		if err != nil {
 			return exit(err)
 		}
-		err = wf.Print()(pp.NewTxtPrinter(outputfs))
+		err = wf.Print()(p.NewTxtPrinter(outputfs))
 		if err != nil {
 			return exit(err)
 		}
