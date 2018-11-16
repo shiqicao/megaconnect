@@ -29,6 +29,9 @@ var (
 	BIN = func(op Operator) func(Expr, Expr) *BinOp {
 		return func(x Expr, y Expr) *BinOp { return NewBinOp(op, x, y) }
 	}
+	UNI = func(op Operator) func(Expr) *UniOp {
+		return func(x Expr) *UniOp { return NewUniOp(op, x) }
+	}
 	AND  = BIN(AndOp)
 	OR   = BIN(OrOp)
 	EQ   = BIN(EqualOp)
@@ -51,4 +54,7 @@ var (
 	MINUS = BIN(MinusOp)
 	MUL   = BIN(MultOp)
 	DIV   = BIN(DivOp)
+
+	NEG = UNI(MinusOp)
+	NOT = UNI(NotOp)
 )

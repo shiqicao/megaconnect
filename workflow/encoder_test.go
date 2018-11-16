@@ -190,6 +190,13 @@ func TestPropEncoding(t *testing.T) {
 	assertExprEncoding(t, EQ(P("a"), P("b")))
 }
 
+func TestUniOpEncoding(t *testing.T) {
+	assertExprEncoding(t, NOT(V("a")))
+	assertExprEncoding(t, NEG(V("a")))
+	assertExprEncoding(t, NEG(I(1)))
+	assertExprEncoding(t, NEG(R(1, 5)))
+}
+
 func assertExprEncoding(t *testing.T, expr Expr) {
 	withGen(
 		func(ge genEncoder, gd genDecoder) {

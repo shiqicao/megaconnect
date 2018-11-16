@@ -13,6 +13,7 @@ package workflow
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -143,6 +144,9 @@ func (e *Encoder) EncodeExpr(expr Expr) error {
 	case *RatConst:
 		num := expr.Value().Num()
 		den := expr.Value().Denom()
+		if den.Sign() == -1 {
+			return fmt.Errorf("denominator should not be negative")
+		}
 		if err = e.encodeBigEndian(int8(num.Sign())); err != nil {
 			return err
 		}
