@@ -10,6 +10,8 @@
 
 package workflow
 
+import p "github.com/megaspacelab/megaconnect/prettyprint"
+
 // Id represents identifer node in AST
 type Id struct {
 	node
@@ -19,6 +21,8 @@ type Id struct {
 func NewId(id string) *Id { return &Id{id: id} }
 
 func NewIdB(id []byte) *Id { return NewId(string(id)) }
+
+func (i *Id) Print() p.PrinterOp { return p.Text(i.id) }
 
 func (i *Id) String() string { return i.id }
 
@@ -127,4 +131,23 @@ func (i IdToExpr) Copy() IdToExpr {
 		new[k] = expr
 	}
 	return new
+}
+
+// Print pretty prints code
+func (i IdToExpr) Print(multiline bool, assignmentSymbol p.PrinterOp) p.PrinterOp {
+	vars := []p.PrinterOp{}
+	for _, decl := range i {
+		vars = append(vars, p.Concat(
+			decl.Id.Print(),
+			assignmentSymbol,
+			decl.Expr.Print(),
+		))
+	}
+	var separator p.PrinterOp
+	if multiline {
+		separator = p.Concat(p.Text(","), p.Line())
+	} else {
+		separator = p.Text(", ")
+	}
+	return separatedBy(vars, separator)
 }

@@ -11,9 +11,8 @@
 package workflow
 
 import (
-	"bytes"
-
 	"github.com/megaspacelab/megaconnect/common"
+	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
 
 type evaluator func(*Env, map[string]Const) (Const, error)
@@ -190,20 +189,21 @@ func (m *MonitorDecl) Equal(x Decl) bool {
 		m.event.Equal(y.event)
 }
 
-func (m *MonitorDecl) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("monitor {")
-	buf.WriteString("name = ")
-	buf.WriteString(m.Name().id)
-	buf.WriteString(",")
-	buf.WriteString("condition = ")
-	buf.WriteString(m.Condition().String())
-	buf.WriteString("}")
-	return buf.String()
+// Print pretty prints code
+func (m *MonitorDecl) Print() p.PrinterOp {
+	return declPrint("monitor", m.name, p.Concat(
+		p.Text("chain "), p.Text(m.chain), p.Line(),
+		p.Text("condition "), m.cond.Print(), p.Line(),
+		p.Text("var {"),
+		p.Nest(1, m.vars.Print(true, p.Text(" = "))), p.Line(),
+		p.Text("}"), p.Line(),
+		m.event.Print(),
+	))
 }
 
 // Decl is an interface for all declarations in a workflow
 type Decl interface {
+	Node
 	Name() *Id
 	Parent() *WorkflowDecl
 	setParent(*WorkflowDecl)
@@ -243,6 +243,15 @@ func (e *EventDecl) Equal(x Decl) bool {
 
 // Name returns event name
 func (e *EventDecl) Name() *Id { return e.name }
+
+// Print pretty prints code
+func (e *EventDecl) Print() p.PrinterOp {
+	return p.Concat(
+		p.Text("event "),
+		e.name.Print(),
+		e.ty.Print(),
+	)
+}
 
 // WorkflowDecl represents a workflow declaration
 type WorkflowDecl struct {
@@ -325,19 +334,13 @@ func (w *WorkflowDecl) AddChildren(children []Decl) *WorkflowDecl {
 	return w
 }
 
-func (w *WorkflowDecl) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("workflow ")
-	buf.WriteString(w.name.id)
-	buf.WriteString(" {")
-	/*
-		for _, _ := range w.children {
-			// TODO: implement String() for child
-			// buf.WriteString(child.String())
-		}
-	*/
-	buf.WriteString("}")
-	return buf.String()
+// Print pretty prints code
+func (w *WorkflowDecl) Print() p.PrinterOp {
+	children := []p.PrinterOp{}
+	for _, c := range w.children {
+		children = append(children, c.Print())
+	}
+	return declPrint("workflow", w.name, separatedBy(children, p.Line()))
 }
 
 // ActionDecl represents an action declaration
@@ -389,4 +392,30 @@ func (a *ActionDecl) TriggerEvents() []string {
 		result = append(result, e)
 	}
 	return result
+}
+
+// Print pretty prints code
+func (a *ActionDecl) Print() p.PrinterOp {
+	body := []p.PrinterOp{
+		p.Text("trigger "),
+		a.trigger.Print(),
+		p.Line(),
+		p.Text("run {"),
+		p.Nest(1, a.body.Print()),
+		p.Line(),
+		p.Text("}"),
+	}
+	return declPrint("action", a.name, p.Concat(body...))
+}
+
+func declPrint(keyword string, id *Id, body p.PrinterOp) p.PrinterOp {
+	return p.Concat(
+		p.Text(keyword),
+		p.Text(" "),
+		id.Print(),
+		p.Text(" {"),
+		p.Nest(1, body),
+		p.Line(),
+		p.Text("}"),
+	)
 }

@@ -364,7 +364,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 			return err
 		}
 
-		e.logger.Debug("Evaluating condition", zap.Stringer("height", block.Height()), zap.Stringer("condition", md.Condition()))
+		e.logger.Debug("Evaluating condition", zap.Stringer("height", block.Height()), zap.String("condition", wf.PrintNode(md.Condition())))
 		eventValue, err := interpreter.EvalMonitor(md)
 		if err != nil {
 			return err

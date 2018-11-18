@@ -10,6 +10,9 @@
 
 package workflow
 
+import p "github.com/megaspacelab/megaconnect/prettyprint"
+
+// Stmt represents all statements in action body
 type Stmt interface {
 	Node
 	Equal(Stmt) bool
@@ -19,6 +22,7 @@ type stmt struct {
 	node
 }
 
+// Stmts is a list of statements
 type Stmts []Stmt
 
 // Copy returns a new instance of Stmts
@@ -41,6 +45,15 @@ func (s Stmts) Equal(x Stmts) bool {
 	return true
 }
 
+// Print pretty prints code
+func (s Stmts) Print() p.PrinterOp {
+	ops := []p.PrinterOp{}
+	for _, stmt := range s {
+		ops = append(ops, p.Concat(stmt.Print(), p.Text(";")))
+	}
+	return separatedBy(ops, p.Line())
+}
+
 // Fire represents a fire statement
 type Fire struct {
 	stmt
@@ -61,4 +74,14 @@ func NewFire(eventName string, eventObj Expr) *Fire {
 func (f *Fire) Equal(x Stmt) bool {
 	y, ok := x.(*Fire)
 	return ok && y.eventName == f.eventName && y.eventObj.Equal(f.eventObj)
+}
+
+// Print pretty prints code
+func (f *Fire) Print() p.PrinterOp {
+	return p.Concat(
+		p.Text("fire "),
+		p.Text(f.eventName),
+		p.Text(" "),
+		f.eventObj.Print(),
+	)
 }

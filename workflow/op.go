@@ -10,6 +10,8 @@
 
 package workflow
 
+import p "github.com/megaspacelab/megaconnect/prettyprint"
+
 // UniOp represents unary operators like "!", "-", etc
 type UniOp struct {
 	expr
@@ -25,8 +27,6 @@ func NewUniOp(op Operator, operant Expr) *UniOp {
 	}
 }
 
-func (u *UniOp) String() string { return u.op.String() + u.operant.String() }
-
 // Operant returns operant in UniOp
 func (u *UniOp) Operant() Expr { return u.operant }
 
@@ -37,6 +37,18 @@ func (u *UniOp) Op() Operator { return u.op }
 func (u *UniOp) Equal(expr Expr) bool {
 	y, ok := expr.(*UniOp)
 	return ok && u.Op() == y.Op() && u.Operant().Equal(y.Operant())
+}
+
+// Print pretty prints code
+func (u *UniOp) Print() p.PrinterOp {
+	operant := u.operant.Print()
+	if _, ok := u.operant.(*BinOp); ok {
+		operant = paren(u.operant.Print())
+	}
+	return p.Concat(
+		p.Text(u.op.String()),
+		operant,
+	)
 }
 
 // BinOp represents binary operators like "<", "&&", etc.
@@ -56,8 +68,6 @@ func NewBinOp(op Operator, left Expr, right Expr) *BinOp {
 	}
 }
 
-func (b *BinOp) String() string { return b.left.String() + b.op.String() + b.right.String() }
-
 // Left returns left child of a binary operator
 func (b *BinOp) Left() Expr { return b.left }
 
@@ -74,6 +84,23 @@ func (b *BinOp) Equal(expr Expr) bool {
 		b.Op() == y.Op() &&
 		b.Left().Equal(y.Left()) &&
 		b.Right().Equal(y.Right())
+}
+
+func (b *BinOp) Print() p.PrinterOp {
+	right := b.right.Print()
+	if expr, ok := b.right.(*BinOp); ok && precedence[expr.op] < precedence[b.op] {
+		right = paren(right)
+	}
+	left := b.left.Print()
+	if expr, ok := b.left.(*BinOp); ok && precedence[expr.op] < precedence[b.op] {
+		left = paren(left)
+	}
+
+	return p.Concat(
+		left,
+		printOp(b.op.String()),
+		right,
+	)
 }
 
 // Operator enumerates all unary and binary
@@ -118,6 +145,28 @@ const (
 
 	// DivOp is arithmetic division operator
 	DivOp
+)
+
+var (
+	precedence = map[Operator]uint8{
+		AndOp: 0,
+		OrOp:  0,
+
+		EqualOp:            1,
+		NotEqualOp:         1,
+		LessThanOp:         1,
+		LessThanEqualOp:    1,
+		GreaterThanOp:      1,
+		GreaterThanEqualOp: 1,
+
+		PlusOp:  2,
+		MinusOp: 2,
+
+		MultOp: 3,
+		DivOp:  3,
+
+		NotOp: 4,
+	}
 )
 
 func (o Operator) String() string {

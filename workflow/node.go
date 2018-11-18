@@ -10,6 +10,12 @@
 
 package workflow
 
+import (
+	"bytes"
+
+	p "github.com/megaspacelab/megaconnect/prettyprint"
+)
+
 // Pos maps node to source code
 type Pos struct {
 	StartRow int
@@ -25,10 +31,20 @@ type Node interface {
 	Pos() *Pos
 
 	SetPos(startRow int, startCol int, endRow int, endCol int)
+
+	Print() p.PrinterOp
 }
 
 type node struct {
 	pos *Pos
+}
+
+// PrintNode returns string format of a node
+func PrintNode(node Node) string {
+	var buf bytes.Buffer
+	printer := p.NewTxtPrinter(&buf)
+	node.Print()(printer)
+	return buf.String()
 }
 
 func (n *node) SetPos(startRow int, startCol int, endRow int, endCol int) {

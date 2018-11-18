@@ -69,7 +69,7 @@ type ErrObjFieldIncompatible struct {
 }
 
 func (e *ErrObjFieldIncompatible) Error() string {
-	return fmt.Sprintf("Fields %s incompatible with obj %s", e.Fields, e.ObjType)
+	return fmt.Sprintf("Fields %s incompatible with obj %s", e.Fields, PrintNode(e.ObjType))
 }
 
 // ErrObjFieldMissing is returned if expected field is missing in an object
@@ -79,7 +79,7 @@ type ErrObjFieldMissing struct {
 }
 
 func (e *ErrObjFieldMissing) Error() string {
-	return fmt.Sprintf("Field %s missing in obj %s", e.Field, e.ObjType)
+	return fmt.Sprintf("Field %s missing in obj %s", e.Field, PrintNode(e.ObjType))
 }
 
 // ErrObjFieldTypeMismatch is returned if a type does not match field type in an object
@@ -90,7 +90,7 @@ type ErrObjFieldTypeMismatch struct {
 }
 
 func (e *ErrObjFieldTypeMismatch) Error() string {
-	return fmt.Sprintf("Type %s mismatch type of field %s in obj %s", e.Type, e.Field, e.ObjType)
+	return fmt.Sprintf("Type %s mismatch type of field %s in obj %s", e.Type, e.Field, PrintNode(e.ObjType))
 }
 
 // ErrSymbolNotResolved is returned if a symbol is not resolved

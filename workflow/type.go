@@ -11,18 +11,19 @@
 package workflow
 
 import (
-	"bytes"
+	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
 
 // Type represents all types in the language, all different type derives from this interface
 type Type interface {
+	Node
 	Equal(ty Type) bool
-	String() string
 	Methods() FuncDecls
 }
 
 // ObjType is a type of non-primitive type
 type ObjType struct {
+	node
 	fields IdToTy
 }
 
@@ -38,21 +39,17 @@ func (o *ObjType) Fields() IdToTy { return o.fields.Copy() }
 // Methods returns nil, ObjType current does not support method
 func (o *ObjType) Methods() FuncDecls { return nil }
 
-func (o *ObjType) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("{")
-	i := len(o.fields)
-	for f, ty := range o.fields {
-		buf.WriteString(f)
-		buf.WriteString(": ")
-		buf.WriteString(ty.ty.String())
-		if i != 1 {
-			buf.WriteString(",")
-		}
-		i--
+func (o *ObjType) Print() p.PrinterOp {
+	body := []p.PrinterOp{}
+	for _, ty := range o.fields {
+		body = append(body, p.Concat(ty.id.Print(), p.Text(": "), ty.ty.Print()))
 	}
-	buf.WriteString("}")
-	return buf.String()
+	return p.Concat(
+		p.Text(" {"),
+		p.Nest(1, separatedBy(body, p.Concat(p.Text(","), p.Line()))),
+		p.Line(),
+		p.Text("}"),
+	)
 }
 
 // Equal compares whether `ty` is equal current type
