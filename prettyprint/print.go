@@ -62,16 +62,16 @@ type Printer interface {
 
 // TxtPrinter implements Printer
 type TxtPrinter struct {
-	w       io.Writer
-	setting *Style
-	indent  int
+	w      io.Writer
+	style  *Style
+	indent int
 }
 
 // NewTxtPrinter creates a new instance of TxtPrinter
 func NewTxtPrinter(w io.Writer) *TxtPrinter {
 	return &TxtPrinter{
-		w:       w,
-		setting: defaultSetting,
+		w:     w,
+		style: defaultStyle,
 	}
 }
 
@@ -83,12 +83,12 @@ func (p *TxtPrinter) Write(s string) error {
 
 // NewLine prints a new line
 func (p *TxtPrinter) NewLine() error {
-	_, err := fmt.Fprint(p.w, p.setting.newline)
+	_, err := fmt.Fprint(p.w, p.style.newline)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < p.indent; i++ {
-		_, err := fmt.Fprint(p.w, p.setting.indent)
+		_, err := fmt.Fprint(p.w, p.style.indent)
 		if err != nil {
 			return err
 		}
@@ -103,7 +103,7 @@ func (p *TxtPrinter) IndentInc(i int) { p.indent = p.indent + i }
 func (p *TxtPrinter) IndentDec(i int) { p.indent = p.indent - i }
 
 var (
-	defaultSetting = &Style{
+	defaultStyle = &Style{
 		newline: "\n",
 		indent:  "  ",
 	}
