@@ -34,10 +34,11 @@ dep:
 	dep ensure
 
 protos:
-	$(PROTOC) -Igrpc --go_out=plugins=grpc:grpc grpc/*.proto
+	$(PROTOC) --go_out=paths=source_relative,plugins=grpc:. grpc/*.proto
+	$(PROTOC) --go_out=paths=source_relative:. protos/*.proto
 
 cleanprotos:
-	rm -f grpc/*.pb.go .protos
+	find grpc protos -name '*.pb.go' -print -delete
 
 parser:
 	$(GOCC) -v -a -zip -debug_lexer=$(PARSER_DEBUG) -debug_parser=$(PARSER_DEBUG)  -o workflow/parser/gen -p github.com/megaspacelab/megaconnect/workflow/parser/gen workflow/parser/lang.bnf

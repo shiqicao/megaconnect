@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package grpc;
+option go_package = "github.com/megaspacelab/megaconnect/grpc";
+
+import "protos/bigint.proto";
+
+
+// Monitor describes some state to be monitored on a connected chain.
+message Monitor {
+    bytes workflow_id = 1;
+    string monitor_name = 2;
+    bytes monitor = 3;
+}
+
+// MonitorSet is a versioned set of monitors.
+message MonitorSet {
+    // Monitors contain all things to be monitored by the requesting ChainManager.
+    repeated Monitor monitors = 1;
+
+    // Version is used for Orchestrator and ChainManager to agree on the set of monitors evaluated on each block.
+    uint32 version = 2;
+}
+
+// BlockSpec is used to specify a block to be looked up.
+// While Hash is the most accurate specification, when not available, Height can be used instead.
+message BlockSpec {
+    bytes hash = 1;
+    protos.BigInt height = 2;
+}

@@ -11,31 +11,23 @@
 package flowmanager
 
 import (
-	"strings"
-
+	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/workflow"
 )
 
+// TODO - Change to fixed size
+type WorkflowID = common.ImmutableBytes
+
 // TODO - Generate proper & unique IDs.
 
-// WorkflowID computes the ID of a workflow.
-func WorkflowID(wf *workflow.WorkflowDecl) string {
-	return wf.Name().String()
-}
-
-// MonitorID computes the ID of a monitor.
-func MonitorID(wfid string, monitor *workflow.MonitorDecl) string {
-	return strings.Join([]string{wfid, monitor.Name().String()}, "_")
-}
-
-// EventID computes the ID of an event.
-func EventID(wfid string, eventName string) string {
-	return strings.Join([]string{wfid, eventName}, "_")
+// GetWorkflowID computes the ID of a workflow.
+func GetWorkflowID(wf *workflow.WorkflowDecl) WorkflowID {
+	return WorkflowID(wf.Name().Id())
 }
 
 // Monitor converts a MonitorDecl to grpc.Monitor.
-func Monitor(id string, monitor *workflow.MonitorDecl) (*grpc.Monitor, error) {
+func Monitor(wfid WorkflowID, monitor *workflow.MonitorDecl) (*grpc.Monitor, error) {
 	if monitor == nil {
 		return nil, nil
 	}
@@ -46,7 +38,8 @@ func Monitor(id string, monitor *workflow.MonitorDecl) (*grpc.Monitor, error) {
 	}
 
 	return &grpc.Monitor{
-		Id:      []byte(id),
-		Monitor: raw,
+		WorkflowId:  wfid.Bytes(),
+		MonitorName: monitor.Name().Id(),
+		Monitor:     raw,
 	}, nil
 }

@@ -1,6 +1,11 @@
 syntax = "proto3";
 
 package grpc;
+option go_package = "github.com/megaspacelab/megaconnect/grpc";
+
+import "grpc/common.proto";
+import "protos/block.proto";
+import "protos/event.proto";
 
 import "google/protobuf/empty.proto";
 
@@ -70,31 +75,6 @@ message InstanceId {
     uint32 instance = 2;
 }
 
-// BlockSpec is used to specify a block to be looked up.
-// While Hash is the most accurate specification, when not available, Height can be used instead.
-message BlockSpec {
-    bytes hash = 1;
-    BigInt height = 2;
-}
-
-message MonitorSet {
-    // Monitors contain all things to be monitored by the requesting ChainManager.
-    repeated Monitor monitors = 1;
-
-    // Version is used for Orchestrator and ChainManager to agree on the set of monitors evaluated on each block.
-    uint32 version = 2;
-}
-
-// Monitor contains a list of encoded workflow expressions and a triggering condition 
-message Monitor {
-    bytes id = 1;
-
-    // evaluations is a list of encoded workflow expressions, which will be evaluated if a monitor is triggered
-    // the result will be passed back to flow manager as part of event. These expression results are intended for 
-    // evaluating actions
-    bytes monitor = 2;
-}
-
 message RenewLeaseRequest {
     // LeaseId must be the id of a still valid Lease.
     bytes lease_id = 1;
@@ -119,29 +99,7 @@ message ReportBlockEventsRequest {
 
     oneof msg_type {
         Preflight preflight = 1;
-        Block block = 2;
-        Event event = 3;
+        protos.Block block = 2;
+        protos.MonitorEvent event = 3;
     }
-}
-
-// TODO - TBD
-message Block {
-    bytes hash = 1;
-    bytes parent_hash = 2;
-    BigInt height = 3;
-}
-
-message BigInt {
-    // Bytes are interpreted as a big-endian unsigned integer.
-    bytes bytes = 1;
-    bool negative = 2;
-}
-
-// Event describes a fired Monitor.
-message Event {
-    // MonitorId identifies the Monitor being fired.
-    bytes monitor_id = 1;
-
-    // Event payload object encoded by workflow encoder
-    bytes payload = 2;
 }

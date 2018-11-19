@@ -23,15 +23,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	. "github.com/megaspacelab/megaconnect/chainmanager"
 	mcli "github.com/megaspacelab/megaconnect/chainmanager/cli"
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/connector/example"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/protos"
 	wf "github.com/megaspacelab/megaconnect/workflow"
+
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -285,7 +287,7 @@ func (s *ChainManagerSuite) TestSetMonitors() {
 				SessionId:         s.orch.sessionID,
 				ResumeAfter: &mgrpc.BlockSpec{
 					Hash:   badHash.Bytes(),
-					Height: mgrpc.NewBigInt(height),
+					Height: protos.NewBigInt(height),
 				},
 			},
 		},
@@ -348,7 +350,8 @@ func (s *ChainManagerSuite) TestUpdateMonitors() {
 	err = stream.Send(&mgrpc.UpdateMonitorsRequest{
 		MsgType: &mgrpc.UpdateMonitorsRequest_RemoveMonitor_{
 			RemoveMonitor: &mgrpc.UpdateMonitorsRequest_RemoveMonitor{
-				MonitorId: s.monitors[0].Id,
+				WorkflowId:  s.monitors[0].WorkflowId,
+				MonitorName: s.monitors[0].MonitorName,
 			},
 		},
 	})
@@ -508,8 +511,9 @@ func buildMonitor(id string, monitor *wf.MonitorDecl) (*mgrpc.Monitor, error) {
 		return nil, err
 	}
 	return &mgrpc.Monitor{
-		Id:      []byte(id),
-		Monitor: monitorRaw,
+		WorkflowId:  []byte(id),
+		MonitorName: monitor.Name().Id(),
+		Monitor:     monitorRaw,
 	}, nil
 }
 

@@ -10,11 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaspacelab/megaconnect/common"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/protos"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
-	"github.com/megaspacelab/megaconnect/common"
-	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -31,6 +33,7 @@ type OrchestratorSuite struct {
 	server *grpc.Server
 	conn   *grpc.ClientConn
 
+	stateStore *MemStateStore
 	fm         *FlowManager
 	orch       *Orchestrator
 	orchClient mgrpc.OrchestratorClient
@@ -50,7 +53,8 @@ func (s *OrchestratorSuite) SetupTest() {
 	s.conn, err = grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 	s.Require().NoError(err)
 
-	s.fm = NewFlowManager(s.log)
+	s.stateStore = NewMemStateStore()
+	s.fm = NewFlowManager(s.stateStore, s.log)
 	s.orch = NewOrchestrator(s.fm, s.log)
 	s.orchClient = mgrpc.NewOrchestratorClient(s.conn)
 	s.orch.Register(s.server)
@@ -110,16 +114,75 @@ func (s *OrchestratorSuite) unregisterCM(leaseID []byte) error {
 	return err
 }
 
+func (s *OrchestratorSuite) addMonitor(name string, bytes []byte) *mgrpc.Monitor {
+	monitorID := mgrpc.MonitorID{MonitorName: name}
+	monitor := &mgrpc.Monitor{
+		WorkflowId:  monitorID.WorkflowID.UnsafeBytes(),
+		MonitorName: monitorID.MonitorName,
+		Monitor:     bytes,
+	}
+
+	if s.stateStore.committed.monitorByID == nil {
+		s.stateStore.committed.monitorByID = make(map[mgrpc.MonitorID]*mgrpc.Monitor)
+	}
+	s.stateStore.committed.monitorByID[monitorID] = monitor
+
+	if s.stateStore.committed.monitorsByChain == nil {
+		s.stateStore.committed.monitorsByChain = make(map[string][]*mgrpc.MonitorID)
+	}
+	s.stateStore.committed.monitorsByChain[s.cm.chainID] = []*mgrpc.MonitorID{&monitorID}
+
+	s.fm.lock.Lock()
+	defer s.fm.lock.Unlock()
+
+	patch := &ChainConfigPatch{
+		AddMonitors: []*mgrpc.Monitor{monitor},
+		chainConfigBase: chainConfigBase{
+			MonitorsVersion: s.fm.chainConfigVersions[s.cm.chainID] + 1,
+		},
+	}
+	s.fm.publishChainConfigPatchWithLock(s.cm.chainID, patch)
+
+	return monitor
+}
+
+func (s *OrchestratorSuite) removeMonitor(name string) {
+	monitorID := mgrpc.MonitorID{MonitorName: name}
+
+	if s.stateStore.committed.monitorByID[monitorID] != nil {
+		delete(s.stateStore.committed.monitorByID, monitorID)
+	}
+	if mids := s.stateStore.committed.monitorsByChain[s.cm.chainID]; mids != nil {
+		filtered := mids[:0]
+		for _, mid := range mids {
+			if *mid != monitorID {
+				filtered = append(filtered, mid)
+			}
+		}
+		s.stateStore.committed.monitorsByChain[s.cm.chainID] = mids
+	}
+
+	s.fm.lock.Lock()
+	defer s.fm.lock.Unlock()
+
+	patch := &ChainConfigPatch{
+		RemoveMonitors: []*mgrpc.MonitorID{&monitorID},
+		chainConfigBase: chainConfigBase{
+			MonitorsVersion: s.fm.chainConfigVersions[s.cm.chainID] + 1,
+		},
+	}
+	s.fm.publishChainConfigPatchWithLock(s.cm.chainID, patch)
+}
+
 func (s *OrchestratorSuite) TestRegisterUnregisterChainManager() {
-	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
-	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
+	monitor := s.addMonitor("1", []byte("1"))
 
 	reg, err := s.registerCM()
 	s.Require().NoError(err)
 
 	s.True(reg.Lease.RemainingSeconds > 0)
 	s.Equal(1, len(reg.Monitors.Monitors))
-	s.True(proto.Equal(ims["1"], reg.Monitors.Monitors[0]))
+	s.True(proto.Equal(monitor, reg.Monitors.Monitors[0]))
 
 	// test with non valid leaseID should fail
 	err = s.unregisterCM([]byte("jibberish"))
@@ -134,9 +197,8 @@ func (s *OrchestratorSuite) TestRegisterUnregisterChainManager() {
 	err = s.unregisterCM(nil)
 	s.Require().NoError(err)
 }
-func (s *OrchestratorSuite) TestRenewLease() {
-	s.fm.SetChainConfig(s.cm.chainID, nil, nil)
 
+func (s *OrchestratorSuite) TestRenewLease() {
 	reg, err := s.registerCM()
 	s.Require().NoError(err)
 
@@ -149,8 +211,7 @@ func (s *OrchestratorSuite) TestRenewLease() {
 }
 
 func (s *OrchestratorSuite) TestReportBlockEvents() {
-	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
-	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
+	monitor := s.addMonitor("1", []byte("1"))
 
 	reg, err := s.registerCM()
 	s.Require().NoError(err)
@@ -170,9 +231,9 @@ func (s *OrchestratorSuite) TestReportBlockEvents() {
 
 	err = stream.Send(&mgrpc.ReportBlockEventsRequest{
 		MsgType: &mgrpc.ReportBlockEventsRequest_Block{
-			Block: &mgrpc.Block{
+			Block: &protos.Block{
 				Hash: bytes.Repeat([]byte{1}, common.HashSize),
-				Height: &mgrpc.BigInt{
+				Height: &protos.BigInt{
 					Bytes:    []byte{10},
 					Negative: false,
 				},
@@ -184,8 +245,9 @@ func (s *OrchestratorSuite) TestReportBlockEvents() {
 
 	err = stream.Send(&mgrpc.ReportBlockEventsRequest{
 		MsgType: &mgrpc.ReportBlockEventsRequest_Event{
-			Event: &mgrpc.Event{
-				MonitorId: reg.Monitors.Monitors[0].Id,
+			Event: &protos.MonitorEvent{
+				WorkflowId:  monitor.WorkflowId,
+				MonitorName: monitor.MonitorName,
 			},
 		},
 	})
@@ -196,8 +258,6 @@ func (s *OrchestratorSuite) TestReportBlockEvents() {
 }
 
 func (s *OrchestratorSuite) TestUpdateMonitors() {
-	s.fm.SetChainConfig(s.cm.chainID, nil, nil)
-
 	reg, err := s.registerCM()
 	s.Require().NoError(err)
 	s.Empty(reg.Monitors.Monitors)
@@ -257,38 +317,33 @@ func (s *OrchestratorSuite) TestUpdateMonitors() {
 	}
 
 	// Scenario 1 - single addition
-	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
-	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
+	monitor := s.addMonitor("1", []byte("1"))
 	select {
 	case req := <-updateReqs:
-		s.True(proto.Equal(ims["1"], req.GetAddMonitor().Monitor))
+		s.True(proto.Equal(monitor, req.GetAddMonitor().Monitor))
 	case <-time.After(5 * time.Second):
 		s.FailNow("Timeout waiting for update req")
 	}
 	assertNoMoreReqs()
 
-	// Scenario 2 - single addition & single removal
-	ims = IndexedMonitors{"2": &mgrpc.Monitor{Id: []byte("2")}}
-	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
+	// Scenario 2 - single removal
+	s.removeMonitor("1")
 	select {
 	case req := <-updateReqs:
-		s.True(proto.Equal(ims["2"], req.GetAddMonitor().Monitor))
-		req = <-updateReqs
-		s.Equal("1", string(req.GetRemoveMonitor().MonitorId))
+		s.Equal("1", string(req.GetRemoveMonitor().MonitorName))
 	case <-time.After(5 * time.Second):
 		s.FailNow("Timeout waiting for update req")
 	}
 	assertNoMoreReqs()
 
 	// Scenario 3 - forced reset
-	ims = IndexedMonitors{"3": &mgrpc.Monitor{Id: []byte("3")}}
 	s.cm.UpdateMonitorsFunc = func(stream mgrpc.ChainManager_UpdateMonitorsServer) error {
 		return status.Error(codes.Aborted, "Injected error")
 	}
-	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
+	monitor = s.addMonitor("2", []byte("2"))
 	select {
 	case req := <-setReqs:
-		s.True(proto.Equal(ims["3"], req.GetMonitor()))
+		s.True(proto.Equal(monitor, req.GetMonitor()))
 	case <-time.After(5 * time.Second):
 		s.FailNow("Timeout waiting for set req")
 	}
@@ -297,7 +352,6 @@ func (s *OrchestratorSuite) TestUpdateMonitors() {
 
 func (s *OrchestratorSuite) TestRenewLease_Expired() {
 	s.orch.leaseDuration = 1 * time.Second
-	s.fm.SetChainConfig(s.cm.chainID, nil, nil)
 
 	reg, err := s.registerCM()
 	s.Require().NoError(err)
@@ -314,8 +368,6 @@ func (s *OrchestratorSuite) TestRenewLease_Expired() {
 }
 
 func (s *OrchestratorSuite) TestUpdateMonitors_Fail() {
-	s.fm.SetChainConfig(s.cm.chainID, nil, nil)
-
 	_, err := s.registerCM()
 	s.Require().NoError(err)
 	cm := s.orch.chainToLease[s.cm.chainID].chainManager
@@ -324,8 +376,7 @@ func (s *OrchestratorSuite) TestUpdateMonitors_Fail() {
 		return status.Error(codes.FailedPrecondition, "Injected error")
 	}
 
-	ims := IndexedMonitors{"1": &mgrpc.Monitor{Id: []byte("1")}}
-	s.fm.SetChainConfig(s.cm.chainID, ims, nil)
+	s.addMonitor("1", []byte("1"))
 
 	select {
 	case <-cm.done:

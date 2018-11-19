@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package protos;
+option go_package = "github.com/megaspacelab/megaconnect/protos";
+
+import "protos/block.proto";
+import "protos/event.proto";
+
+
+// MEvent is an entry in an MBlock.
+// It represents something that happened, either through direct observation from connected chains, or through workflow
+// evaluation.
+message MEvent {
+    oneof body {
+        Block report_block = 1;
+        MonitorEvent monitor_event = 2;
+        ActionEvent action_event = 3;
+        DeployWorkflow deploy_workflow = 4;
+        UndeployWorkflow undeploy_workflow = 5;
+    }
+}
+
+message DeployWorkflow {
+    bytes workflow_id = 1;
+    bytes payload = 2;
+}
+
+message UndeployWorkflow {
+    bytes workflow_id = 1;
+}

@@ -38,10 +38,8 @@ func main() {
 				return err
 			}
 
-			fm := flowmanager.NewFlowManager(log)
-			fm.SetChainConfig("Example", nil, nil)
-			fm.SetChainConfig("Ethereum", nil, nil)
-			fm.SetChainConfig("Bitcoin", nil, nil)
+			stateStore := flowmanager.NewMemStateStore()
+			fm := flowmanager.NewFlowManager(stateStore, log)
 			orch := flowmanager.NewOrchestrator(fm, log)
 
 			dataDir := ctx.Path(mcli.DataDirFlag.Name)

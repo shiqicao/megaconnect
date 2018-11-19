@@ -3,9 +3,10 @@ package flowmanager
 import (
 	"testing"
 
-	"github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/protos"
 	w "github.com/megaspacelab/megaconnect/workflow"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 )
@@ -15,15 +16,17 @@ const chainID = "Example"
 type FlowManagerSuite struct {
 	suite.Suite
 
-	log *zap.Logger
-	fm  *FlowManager
+	log        *zap.Logger
+	stateStore *MemStateStore
+	fm         *FlowManager
 }
 
 func (s *FlowManagerSuite) SetupTest() {
 	log, err := zap.NewDevelopment()
 	s.Require().NoError(err)
 	s.log = log
-	s.fm = NewFlowManager(log)
+	s.stateStore = NewMemStateStore()
+	s.fm = NewFlowManager(s.stateStore, log)
 }
 
 func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
@@ -37,6 +40,13 @@ func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
 	))
 	wf.AddChild(w.NewEventDecl(
 		w.NewId("TestEvent2"),
+		w.NewObjType(w.NewIdToTy().Put(
+			"balance",
+			w.IntType,
+		)),
+	))
+	wf.AddChild(w.NewEventDecl(
+		w.NewId("TestEvent3"),
 		w.NewObjType(w.NewIdToTy().Put(
 			"balance",
 			w.IntType,
@@ -75,46 +85,89 @@ func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
 			w.NewEVar("TestEvent"),
 			w.NewEVar("TestEvent2"),
 		),
-		[]w.Stmt{},
+		[]w.Stmt{
+			w.NewFire(
+				"TestEvent3",
+				w.NewProps(w.NewVar("TestEvent2")),
+			),
+		},
 	))
 	return wf
 }
 
-func (s *FlowManagerSuite) TestDeployWorkflow() {
-	s.fm.SetChainConfig(chainID, nil, nil)
-	config := s.fm.GetChainConfig(chainID)
-	s.Require().NotNil(config)
-
-	err := s.fm.DeployWorkflow(s.workflow1())
+func (s *FlowManagerSuite) TestDeployAndUndeployWorkflow() {
+	config, sub, err := s.fm.GetChainConfig(chainID)
 	s.Require().NoError(err)
+	s.Require().NotNil(sub)
+	s.Require().NotNil(config)
+	s.Require().Empty(config.Monitors)
+
+	// Deploy
+	wf := s.workflow1()
+	err = s.fm.DeployWorkflow(wf)
+	s.Require().NoError(err)
+	s.Require().Empty(sub.Patches(), "Workflow activated too early")
+
+	mblock, err := s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
+	s.Require().NotNil(mblock)
+
+	s.Require().Len(mblock.Events, 1)
+
+	body := mblock.Events[0].Body
+	s.Require().IsType(body, new(protos.MEvent_DeployWorkflow))
+
+	actualwf, err := w.
+		NewByteDecoder(body.(*protos.MEvent_DeployWorkflow).DeployWorkflow.Payload).
+		DecodeWorkflow()
+	s.Require().NoError(err)
+	s.Require().True(actualwf.Equal(wf))
 
 	select {
-	case <-config.Outdated:
+	case patch := <-sub.Patches():
+		s.Require().NotNil(patch)
+		s.Require().Len(patch.AddMonitors, 1)
+		s.Require().Empty(patch.RemoveMonitors)
 	default:
 		s.FailNow("Config wasn't updated after workflow deployment")
 	}
 
-	config = s.fm.GetChainConfig(chainID)
-	s.Require().NotNil(config)
-	s.Require().Len(config.Monitors, 1)
+	err = s.fm.UndeployWorkflow(GetWorkflowID(wf))
+	s.Require().NoError(err)
+	s.Require().Empty(sub.Patches(), "Workflow deactivated too early")
+
+	mblock, err = s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
+	s.Require().NotNil(mblock)
+	s.Require().Len(mblock.Events, 1)
+
+	body = mblock.Events[0].Body
+	s.Require().IsType(body, new(protos.MEvent_UndeployWorkflow))
+	s.Require().Equal(GetWorkflowID(wf).UnsafeBytes(), body.(*protos.MEvent_UndeployWorkflow).UndeployWorkflow.WorkflowId)
 }
 
 func (s *FlowManagerSuite) TestReportBlockEvents() {
-	s.fm.SetChainConfig(chainID, nil, nil)
-	config := s.fm.GetChainConfig(chainID)
-	s.Require().NotNil(config)
-
 	wf := s.workflow1()
 	err := s.fm.DeployWorkflow(wf)
 	s.Require().NoError(err)
 
-	config = s.fm.GetChainConfig(chainID)
-	s.Require().NotNil(config)
+	_, err = s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
 
-	block := &grpc.Block{}
+	config, sub, err := s.fm.GetChainConfig(chainID)
+	s.Require().NoError(err)
+	s.Require().NotNil(sub)
+	s.Require().NotNil(config)
+	s.Require().Len(config.Monitors, 1)
+
+	block := &protos.Block{Chain: chainID}
 
 	// This should be ignored
-	s.fm.ReportBlockEvents(chainID, config.MonitorsVersion-1, block, nil)
+	s.fm.ReportBlockEvents(config.MonitorsVersion-1, block, nil)
+
+	actualBlock, err := s.stateStore.LastReportedBlockByChain(chainID)
+	s.Require().NoError(err)
+	s.Require().Nil(actualBlock)
 
 	eventPayload, err := w.EncodeObjConst(
 		w.NewObjConst(w.ObjFields{
@@ -123,15 +176,48 @@ func (s *FlowManagerSuite) TestReportBlockEvents() {
 	)
 	s.Require().NoError(err)
 
-	// This should be processed
-	s.fm.ReportBlockEvents(chainID, config.MonitorsVersion, block, []*grpc.Event{
-		&grpc.Event{
-			MonitorId: []byte(MonitorID(WorkflowID(wf), wf.MonitorDecls()[0])),
-			Payload:   eventPayload,
-		},
-	})
+	// This should be processed, and it should trigger a chain of events
+	monitorEvent := &protos.MonitorEvent{
+		WorkflowId:  GetWorkflowID(wf).UnsafeBytes(),
+		MonitorName: wf.MonitorDecls()[0].Name().Id(),
+		EventName:   "TestEvent",
+		Payload:     eventPayload,
+	}
+	s.fm.ReportBlockEvents(config.MonitorsVersion, block, []*protos.MonitorEvent{monitorEvent})
 
-	// TODO - verify event processing results once we have those
+	actualBlock, err = s.stateStore.LastReportedBlockByChain(chainID)
+	s.Require().NoError(err)
+	s.Require().True(proto.Equal(block, actualBlock))
+
+	// Finalize mega block and verify its contents
+	mblock, err := s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
+	s.Require().NotNil(mblock)
+	s.Require().Len(mblock.Events, 4)
+
+	body := mblock.Events[0].Body
+	s.Require().IsType(body, new(protos.MEvent_ReportBlock))
+	s.Require().True(proto.Equal(body.(*protos.MEvent_ReportBlock).ReportBlock, block))
+
+	body = mblock.Events[1].Body
+	s.Require().IsType(body, new(protos.MEvent_MonitorEvent))
+	s.Require().True(proto.Equal(body.(*protos.MEvent_MonitorEvent).MonitorEvent, monitorEvent))
+
+	actionEvent := &protos.ActionEvent{
+		WorkflowId: GetWorkflowID(wf).UnsafeBytes(),
+		ActionName: "TestAction",
+		EventName:  "TestEvent2",
+		Payload:    eventPayload,
+	}
+	body = mblock.Events[2].Body
+	s.Require().IsType(body, new(protos.MEvent_ActionEvent))
+	s.Require().True(proto.Equal(body.(*protos.MEvent_ActionEvent).ActionEvent, actionEvent))
+
+	actionEvent.ActionName = "TestAction2"
+	actionEvent.EventName = "TestEvent3"
+	body = mblock.Events[3].Body
+	s.Require().IsType(body, new(protos.MEvent_ActionEvent))
+	s.Require().True(proto.Equal(body.(*protos.MEvent_ActionEvent).ActionEvent, actionEvent))
 }
 
 func TestFlowManager(t *testing.T) {

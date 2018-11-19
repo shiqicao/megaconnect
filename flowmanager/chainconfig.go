@@ -10,7 +10,10 @@
 
 package flowmanager
 
-import "github.com/megaspacelab/megaconnect/grpc"
+import (
+	"github.com/megaspacelab/megaconnect/common"
+	"github.com/megaspacelab/megaconnect/grpc"
+)
 
 type chainConfigBase struct {
 	// MonitorsVersion is used for Orchestrator and ChainManager to agree on the set of active monitors.
@@ -18,9 +21,6 @@ type chainConfigBase struct {
 
 	// ResumeAfter specifies the LAST block BEFORE this ChainConfig became effective.
 	ResumeAfter *grpc.BlockSpec
-
-	// Outdated is closed when this ChainConfig becomes outdated.
-	Outdated chan struct{}
 }
 
 // ChainConfig captures configs about a chain.
@@ -28,16 +28,7 @@ type ChainConfig struct {
 	chainConfigBase
 
 	// Monitors are the active monitors for this chain.
-	Monitors IndexedMonitors
-}
-
-func (cc *ChainConfig) copy() *ChainConfig {
-	if cc == nil {
-		return nil
-	}
-	cp := *cc
-	cp.Monitors = cp.Monitors.Copy()
-	return &cp
+	Monitors []*grpc.Monitor
 }
 
 // ChainConfigPatch represents a patch that can be applied to a ChainConfig.
@@ -45,60 +36,23 @@ type ChainConfigPatch struct {
 	chainConfigBase
 
 	AddMonitors    []*grpc.Monitor
-	RemoveMonitors []string
+	RemoveMonitors []*grpc.MonitorID
 }
 
-// Apply applies this patch to cc.
-// cc will be patched in place, unless it's nil, in which case a new ChainConfig is created.
-func (ccp *ChainConfigPatch) Apply(cc *ChainConfig) *ChainConfig {
-	if ccp == nil {
-		return cc
-	}
-
-	if cc == nil {
-		cc = &ChainConfig{
-			chainConfigBase: ccp.chainConfigBase,
-		}
-	} else {
-		cc.chainConfigBase = ccp.chainConfigBase
-	}
-
-	for _, m := range ccp.RemoveMonitors {
-		delete(cc.Monitors, m)
-	}
-
-	if cc.Monitors == nil && len(ccp.AddMonitors) > 0 {
-		cc.Monitors = make(IndexedMonitors, len(ccp.AddMonitors))
-	}
-
-	for _, m := range ccp.AddMonitors {
-		cc.Monitors[string(m.Id)] = m
-	}
-
-	return cc
+// ChainConfigSub is a subscription to chain config updates.
+type ChainConfigSub struct {
+	patches chan *ChainConfigPatch
+	cancel  chan common.Nothing
 }
 
-// IndexedMonitors is a bunch of monitors indexed by ID.
-type IndexedMonitors map[string]*grpc.Monitor
-
-// Monitors returns all monitors contained in this IndexedMonitors.
-func (im IndexedMonitors) Monitors() []*grpc.Monitor {
-	monitors := make([]*grpc.Monitor, 0, len(im))
-	for _, m := range im {
-		monitors = append(monitors, m)
-	}
-	return monitors
+// Patches returns a channel of ChainConfigPatch.
+// This channel will be closed by the producer in case of an error.
+func (s *ChainConfigSub) Patches() <-chan *ChainConfigPatch {
+	return s.patches
 }
 
-// Copy makes a shallow copy of the IndexedMonitors.
-func (im IndexedMonitors) Copy() IndexedMonitors {
-	if im == nil {
-		return nil
-	}
-
-	cp := make(IndexedMonitors, len(im))
-	for k, v := range im {
-		cp[k] = v
-	}
-	return cp
+// Unsubscribe allows the consumer to unsubscribe.
+// It should only be called once.
+func (s *ChainConfigSub) Unsubscribe() {
+	close(s.cancel)
 }

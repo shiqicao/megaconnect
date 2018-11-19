@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protos;
+option go_package = "github.com/megaspacelab/megaconnect/protos";
+
+import "protos/mevent.proto";
+
+
+// MBlock represents a Megaspace block to be agreed upon among consensus nodes.
+message MBlock {
+    uint64 height = 1;
+    bytes hash = 2;
+    bytes parent_hash = 3;
+    repeated MEvent events = 4;
+}

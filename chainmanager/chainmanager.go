@@ -23,6 +23,7 @@ import (
 	"github.com/megaspacelab/megaconnect/common"
 	"github.com/megaspacelab/megaconnect/connector"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/protos"
 	"github.com/megaspacelab/megaconnect/unsafe"
 	wf "github.com/megaspacelab/megaconnect/workflow"
 
@@ -60,7 +61,7 @@ type ChainManager struct {
 	instance          uint32
 	leaseID           []byte
 	leaseRenewalTimer *time.Timer
-	monitors          map[string]*mgrpc.Monitor
+	monitors          map[mgrpc.MonitorID]*mgrpc.Monitor
 	monitorsVersion   uint32
 	blockCache        *ring.Ring
 
@@ -96,7 +97,7 @@ func New(
 		orchAddr:   orchAddr,
 		connector:  conn,
 		logger:     logger,
-		monitors:   make(map[string]*mgrpc.Monitor),
+		monitors:   make(map[mgrpc.MonitorID]*mgrpc.Monitor),
 		blockCache: ring.New(blockCacheSize),
 		chainAPI:   newChainAPI(id, conn),
 	}
@@ -166,7 +167,7 @@ func (e *ChainManager) Start(listenPort int) error {
 	e.monitorsVersion = resp.Monitors.GetVersion()
 	for _, m := range resp.Monitors.GetMonitors() {
 		e.logger.Debug("Monitor received", zap.String("monitor", hex.EncodeToString(m.Monitor)))
-		e.monitors[string(m.Id)] = m
+		e.monitors[*m.MonitorID()] = m
 	}
 
 	resumeAfter, err := convertBlockSpec(resp.ResumeAfter)
@@ -356,7 +357,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		wf.NewResolver([]*wf.NamespaceDecl{api}, wf.NamespacePrefix{wf.NewId(e.id)}),
 		e.logger,
 	)
-	events := []*mgrpc.Event{}
+	events := []*protos.MonitorEvent{}
 	for id, monitor := range e.monitors {
 		e.logger.Debug("Processing monitor", zap.Stringer("height", block.Height()), zap.String("monitor", hex.EncodeToString(monitor.Monitor)))
 		md, err := wf.NewByteDecoder(monitor.Monitor).DecodeMonitorDecl()
@@ -373,14 +374,17 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 		if eventValue == nil {
 			continue
 		}
-		event := mgrpc.Event{}
-		event.MonitorId = unsafe.StringToBytes(id)
+		event := &protos.MonitorEvent{
+			WorkflowId:  id.WorkflowID.UnsafeBytes(),
+			MonitorName: id.MonitorName,
+			EventName:   md.EventName(),
+		}
 		payload, err := wf.EncodeObjConst(eventValue.Payload())
 		if err != nil {
 			return err
 		}
 		event.Payload = payload
-		events = append(events, &event)
+		events = append(events, event)
 	}
 
 	err = e.reportBlockEventsWithLock(block, events)
@@ -400,7 +404,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	return nil
 }
 
-func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*mgrpc.Event) error {
+func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*protos.MonitorEvent) error {
 	e.leaseLock.Lock()
 	defer e.leaseLock.Unlock()
 
@@ -426,10 +430,11 @@ func (e *ChainManager) reportBlockEventsWithLock(block common.Block, events []*m
 
 	err = stream.Send(&mgrpc.ReportBlockEventsRequest{
 		MsgType: &mgrpc.ReportBlockEventsRequest_Block{
-			Block: &mgrpc.Block{
+			Block: &protos.Block{
+				Chain:      e.connector.Metadata().ChainID,
 				Hash:       hash.Bytes(),
 				ParentHash: parentHash.Bytes(),
-				Height: &mgrpc.BigInt{
+				Height: &protos.BigInt{
 					Bytes:    block.Height().Bytes(),
 					Negative: block.Height().Sign() < 0,
 				},
@@ -519,7 +524,7 @@ func (e *ChainManager) SetMonitors(stream mgrpc.ChainManager_SetMonitorsServer) 
 		return status.Error(codes.Aborted, "MonitorSetVersion too low")
 	}
 
-	monitors := make(map[string]*mgrpc.Monitor)
+	monitors := make(map[mgrpc.MonitorID]*mgrpc.Monitor)
 
 	for {
 		msg, err = stream.Recv()
@@ -536,7 +541,7 @@ func (e *ChainManager) SetMonitors(stream mgrpc.ChainManager_SetMonitorsServer) 
 		}
 
 		e.logger.Debug("Received SetMonitorsRequest.Monitor", zap.Stringer("monitor", monitor))
-		monitors[string(monitor.Id)] = monitor
+		monitors[*monitor.MonitorID()] = monitor
 	}
 
 	e.monitors = monitors
@@ -593,10 +598,10 @@ func (e *ChainManager) UpdateMonitors(stream mgrpc.ChainManager_UpdateMonitorsSe
 		switch m := msg.MsgType.(type) {
 		case *mgrpc.UpdateMonitorsRequest_AddMonitor_:
 			e.logger.Debug("Received UpdateMonitorsRequest.AddMonitor", zap.Stringer("m", m.AddMonitor))
-			e.monitors[string(m.AddMonitor.Monitor.Id)] = m.AddMonitor.Monitor
+			e.monitors[*m.AddMonitor.Monitor.MonitorID()] = m.AddMonitor.Monitor
 		case *mgrpc.UpdateMonitorsRequest_RemoveMonitor_:
 			e.logger.Debug("Received UpdateMonitorsRequest.RemoveMonitor", zap.Stringer("m", m.RemoveMonitor))
-			delete(e.monitors, unsafe.BytesToString(m.RemoveMonitor.MonitorId))
+			delete(e.monitors, *m.RemoveMonitor.MonitorID())
 		default:
 			return status.Error(codes.InvalidArgument, "Wrong message type. Expecting AddMonitor or RemoveMonitor")
 		}

@@ -21,7 +21,7 @@ import (
 	"time"
 
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-	"github.com/megaspacelab/megaconnect/unsafe"
+	"github.com/megaspacelab/megaconnect/protos"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
@@ -72,7 +72,8 @@ type chainManagerProxy struct {
 	log       *zap.Logger
 
 	// Dynamic members.
-	config *ChainConfig
+	configSub       *ChainConfigSub
+	monitorsVersion uint32
 
 	// Signaling.
 	done   chan struct{}
@@ -132,8 +133,8 @@ func (o *Orchestrator) RegisterChainManager(
 	}
 	cmClient := mgrpc.NewChainManagerClient(conn)
 
-	chainConfig := o.flowManager.GetChainConfig(req.ChainId)
-	if chainConfig == nil {
+	chainConfig, sub, err := o.flowManager.GetChainConfig(req.ChainId)
+	if err != nil {
 		conn.Close()
 		return nil, status.Error(codes.InvalidArgument, "Invalid ChainId")
 	}
@@ -153,14 +154,15 @@ func (o *Orchestrator) RegisterChainManager(
 	}
 
 	cm := &chainManagerProxy{
-		id:        req.ChainManagerId,
-		chainID:   req.ChainId,
-		sessionID: req.SessionId,
-		cmClient:  cmClient,
-		conn:      conn,
-		log:       o.log,
-		config:    chainConfig,
-		done:      make(chan struct{}),
+		id:              req.ChainManagerId,
+		chainID:         req.ChainId,
+		sessionID:       req.SessionId,
+		cmClient:        cmClient,
+		conn:            conn,
+		log:             o.log,
+		configSub:       sub,
+		monitorsVersion: chainConfig.MonitorsVersion,
+		done:            make(chan struct{}),
 	}
 	lease = o.newLease(cm)
 
@@ -176,7 +178,7 @@ func (o *Orchestrator) RegisterChainManager(
 		Lease:       lease.toRPCLease(),
 		ResumeAfter: chainConfig.ResumeAfter,
 		Monitors: &mgrpc.MonitorSet{
-			Monitors: chainConfig.Monitors.Monitors(),
+			Monitors: chainConfig.Monitors,
 			Version:  chainConfig.MonitorsVersion,
 		},
 	}, nil
@@ -280,7 +282,7 @@ func (o *Orchestrator) ReportBlockEvents(stream mgrpc.Orchestrator_ReportBlockEv
 	}
 
 	cm := lease.chainManager
-	if preflight.MonitorSetVersion != cm.config.MonitorsVersion {
+	if preflight.MonitorSetVersion != cm.monitorsVersion {
 		return status.Error(codes.Aborted, "Wrong MonitorSetVersion")
 	}
 
@@ -298,7 +300,7 @@ func (o *Orchestrator) ReportBlockEvents(stream mgrpc.Orchestrator_ReportBlockEv
 	}
 	o.log.Debug("Received Block", zap.Stringer("block", block))
 
-	var events []*mgrpc.Event
+	var events []*protos.MonitorEvent
 
 	for {
 		msg, err = stream.Recv()
@@ -317,7 +319,7 @@ func (o *Orchestrator) ReportBlockEvents(stream mgrpc.Orchestrator_ReportBlockEv
 		events = append(events, event)
 	}
 
-	o.flowManager.ReportBlockEvents(cm.chainID, cm.config.MonitorsVersion, block, events)
+	o.flowManager.ReportBlockEvents(cm.monitorsVersion, block, events)
 	return stream.SendAndClose(&empty.Empty{})
 }
 
@@ -405,21 +407,48 @@ func (l *lease) close(closeCM bool) {
 
 func (o *Orchestrator) chainManagerEventLoop(cm *chainManagerProxy) {
 	defer cm.conn.Close()
+	defer cm.configSub.Unsubscribe()
 
 	for {
 		select {
 		case <-cm.done:
 			return
-		case <-cm.config.Outdated:
-			o.log.Info("ChainConfig outdated", zap.String("chainID", cm.chainID))
-			patch, err := o.flowManager.GetChainConfigPatch(cm.chainID, cm.config)
+		case patch := <-cm.configSub.Patches():
+			if patch != nil {
+				o.log.Info("ChainConfig outdated. Attempting to patch", zap.String("chainID", cm.chainID))
+
+				err := cm.patchConfig(patch)
+				if err == nil {
+					continue
+				}
+
+				s := status.Convert(err)
+				if s.Code() != codes.Aborted {
+					o.log.Error("Failed to update monitors. Closing chainManager",
+						zap.Error(err), zap.String("chainID", cm.chainID))
+					o.expireLeaseForChainManager(cm)
+					return
+				}
+
+				// Fallback to sending full set.
+				cm.log.Warn("Failed to patch monitors. Falling back to full reset", zap.String("chainID", cm.chainID))
+			} else {
+				o.log.Warn("ChainConfig patch channel closed. Performing full reset", zap.String("chainID", cm.chainID))
+			}
+
+			config, sub, err := o.flowManager.GetChainConfig(cm.chainID)
 			if err != nil {
-				o.log.Error("Failed to get ChainConfigPatch. Closing chainManager",
+				o.log.Error("Failed to get ChainConfig. Closing chainManager",
 					zap.Error(err), zap.String("chainID", cm.chainID))
 				o.expireLeaseForChainManager(cm)
 				return
 			}
-			err = cm.patchConfig(patch)
+
+			oldSub := cm.configSub
+			cm.configSub = sub
+			oldSub.Unsubscribe()
+
+			err = cm.resetConfig(config)
 			if err != nil {
 				o.log.Error("Failed to update monitors. Closing chainManager",
 					zap.Error(err), zap.String("chainID", cm.chainID))
@@ -443,72 +472,68 @@ func (cm *chainManagerProxy) patchConfig(patch *ChainConfigPatch) error {
 		return nil
 	}
 
-	oldVersion := cm.config.MonitorsVersion
-	cm.config = patch.Apply(cm.config)
-
 	ctx := context.Background()
+	stream, err := cm.cmClient.UpdateMonitors(ctx)
+	if err != nil {
+		return err
+	}
 
-	err := func() error {
-		stream, err := cm.cmClient.UpdateMonitors(ctx)
-		if err != nil {
-			return err
-		}
+	err = stream.Send(&mgrpc.UpdateMonitorsRequest{
+		MsgType: &mgrpc.UpdateMonitorsRequest_Preflight_{
+			Preflight: &mgrpc.UpdateMonitorsRequest_Preflight{
+				SessionId:                 cm.sessionID,
+				PreviousMonitorSetVersion: cm.monitorsVersion,
+				MonitorSetVersion:         patch.MonitorsVersion,
+				ResumeAfter:               patch.ResumeAfter,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
 
+	for _, m := range patch.AddMonitors {
 		err = stream.Send(&mgrpc.UpdateMonitorsRequest{
-			MsgType: &mgrpc.UpdateMonitorsRequest_Preflight_{
-				Preflight: &mgrpc.UpdateMonitorsRequest_Preflight{
-					SessionId:                 cm.sessionID,
-					PreviousMonitorSetVersion: oldVersion,
-					MonitorSetVersion:         cm.config.MonitorsVersion,
-					ResumeAfter:               cm.config.ResumeAfter,
+			MsgType: &mgrpc.UpdateMonitorsRequest_AddMonitor_{
+				AddMonitor: &mgrpc.UpdateMonitorsRequest_AddMonitor{
+					Monitor: m,
 				},
 			},
 		})
 		if err != nil {
 			return err
 		}
+	}
 
-		for _, m := range patch.AddMonitors {
-			err = stream.Send(&mgrpc.UpdateMonitorsRequest{
-				MsgType: &mgrpc.UpdateMonitorsRequest_AddMonitor_{
-					AddMonitor: &mgrpc.UpdateMonitorsRequest_AddMonitor{
-						Monitor: m,
-					},
+	for _, mid := range patch.RemoveMonitors {
+		err = stream.Send(&mgrpc.UpdateMonitorsRequest{
+			MsgType: &mgrpc.UpdateMonitorsRequest_RemoveMonitor_{
+				RemoveMonitor: &mgrpc.UpdateMonitorsRequest_RemoveMonitor{
+					WorkflowId:  mid.WorkflowID.UnsafeBytes(),
+					MonitorName: mid.MonitorName,
 				},
-			})
-			if err != nil {
-				return err
-			}
+			},
+		})
+		if err != nil {
+			return err
 		}
+	}
 
-		for _, m := range patch.RemoveMonitors {
-			err = stream.Send(&mgrpc.UpdateMonitorsRequest{
-				MsgType: &mgrpc.UpdateMonitorsRequest_RemoveMonitor_{
-					RemoveMonitor: &mgrpc.UpdateMonitorsRequest_RemoveMonitor{
-						MonitorId: unsafe.StringToBytes(m),
-					},
-				},
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		_, err = stream.CloseAndRecv()
+	_, err = stream.CloseAndRecv()
+	if err != nil {
 		return err
-	}()
+	}
 
-	if err == nil {
+	cm.monitorsVersion = patch.MonitorsVersion
+	return nil
+}
+
+func (cm *chainManagerProxy) resetConfig(config *ChainConfig) error {
+	if cm.closed {
 		return nil
 	}
 
-	s := status.Convert(err)
-	if s.Code() != codes.Aborted {
-		return err
-	}
-
-	// Fallback to sending full set.
-	cm.log.Warn("Failed to patch monitors. Falling back to full reset", zap.String("chainID", cm.chainID))
+	ctx := context.Background()
 	stream, err := cm.cmClient.SetMonitors(ctx)
 	if err != nil {
 		return err
@@ -518,8 +543,8 @@ func (cm *chainManagerProxy) patchConfig(patch *ChainConfigPatch) error {
 		MsgType: &mgrpc.SetMonitorsRequest_Preflight_{
 			Preflight: &mgrpc.SetMonitorsRequest_Preflight{
 				SessionId:         cm.sessionID,
-				MonitorSetVersion: cm.config.MonitorsVersion,
-				ResumeAfter:       cm.config.ResumeAfter,
+				MonitorSetVersion: config.MonitorsVersion,
+				ResumeAfter:       config.ResumeAfter,
 			},
 		},
 	})
@@ -527,7 +552,7 @@ func (cm *chainManagerProxy) patchConfig(patch *ChainConfigPatch) error {
 		return err
 	}
 
-	for _, m := range cm.config.Monitors {
+	for _, m := range config.Monitors {
 		err = stream.Send(&mgrpc.SetMonitorsRequest{
 			MsgType: &mgrpc.SetMonitorsRequest_Monitor{
 				Monitor: m,
@@ -539,5 +564,10 @@ func (cm *chainManagerProxy) patchConfig(patch *ChainConfigPatch) error {
 	}
 
 	_, err = stream.CloseAndRecv()
-	return err
+	if err != nil {
+		return err
+	}
+
+	cm.monitorsVersion = config.MonitorsVersion
+	return nil
 }
