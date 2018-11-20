@@ -58,7 +58,7 @@ func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
 		return nil, err
 	}
 	for ; len > 0; len-- {
-		fun, err := d.decodeFunSig()
+		fun, err := d.decodeFuncSig()
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
 	return ns, nil
 }
 
-func (d *Decoder) decodeFunSig() (*FuncDecl, error) {
+func (d *Decoder) decodeFuncSig() (*FuncDecl, error) {
 	name, err := d.decodeBytes()
 	if err != nil {
 		return nil, err

@@ -155,7 +155,7 @@ func (n *NamespaceDecl) Equal(x *NamespaceDecl) bool {
 		return false
 	}
 	for _, child := range x.children {
-		if childX := n.findChild(child.name); childX == nil || !childX.Equal(child) {
+		if childn := n.findChild(child.name); childn == nil || !childn.Equal(child) {
 			return false
 		}
 	}
