@@ -15,6 +15,7 @@ type StateStore interface {
 	WorkflowByID(id WorkflowID) (*workflow.WorkflowDecl, error)
 	MonitorsByChain(chain string) ([]*grpc.Monitor, error)
 	ActionStatesByEvent(wfid WorkflowID, eventName string) ([]*ActionState, error)
+	MBlockByHeight(height uint64) (*protos.MBlock, error)
 
 	// Write operations.
 	PutBlockReport(block *protos.Block) error

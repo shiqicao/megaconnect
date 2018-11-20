@@ -167,6 +167,14 @@ func (s *MemStateStore) ActionStatesByEvent(wfid WorkflowID, eventName string) (
 	return actionStates, nil
 }
 
+func (s *MemStateStore) MBlockByHeight(height uint64) (*protos.MBlock, error) {
+	if height >= uint64(len(s.committed.mblocks)) {
+		return nil, errors.New("Height out of range")
+	}
+
+	return s.committed.mblocks[height], nil
+}
+
 func (s *MemStateStore) lastMBlock() *protos.MBlock {
 	n := len(s.committed.mblocks)
 	if n == 0 {
