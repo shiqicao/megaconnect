@@ -185,6 +185,39 @@ func TestWorkflowEncoding(t *testing.T) {
 	)
 }
 
+func TestNamespaceDecl(t *testing.T) {
+	check := func(ns *NamespaceDecl) {
+		withGen(
+			func(ge genEncoder, gd genDecoder) {
+				e := ge()
+				err := e.EncodeNamespace(ns)
+				assert.NoError(t, err)
+				d := gd()
+				decoded, err := d.DecodeNamespace()
+				assert.NoError(t, err)
+				assert.True(t, decoded.Equal(ns))
+			},
+		)
+	}
+
+	check(NS("A"))
+	check(NS("A").AddChild(NS("B")))
+	check(NS("A").AddChild(NS("B").AddChild(NS("C"))))
+	check(NS("A").AddChild(NS("B")).AddChild(NS("C")))
+	check(NS("A").AddFunc(FD("A", Params{}, IntType, nil)))
+	check(NS("A").AddFunc(FD("A", Params{PARAM("a", IntType)}, IntType, nil)))
+	check(NS("A").AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)))
+	check(NS("A").
+		AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)).
+		AddFunc(FD("B", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)),
+	)
+	check(NS("A").
+		AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)).
+		AddFunc(FD("B", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)).
+		AddChild(NS("B")).AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)),
+	)
+}
+
 func TestPropEncoding(t *testing.T) {
 	assertExprEncoding(t, P("a"))
 	assertExprEncoding(t, EQ(P("a"), P("b")))

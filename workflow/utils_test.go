@@ -57,4 +57,8 @@ var (
 
 	NEG = UNI(MinusOp)
 	NOT = UNI(NotOp)
+
+	NS    = NewNamespaceDecl
+	FD    = NewFuncDecl
+	PARAM = NewParamDecl
 )
