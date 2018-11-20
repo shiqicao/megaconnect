@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package protos;
+option go_package = "github.com/megaspacelab/megaconnect/protos";
+
+
+// BigInt is an arbitrary precision integer.
+message BigInt {
+    // Bytes are interpreted as a big-endian unsigned integer.
+    bytes bytes = 1;
+    bool negative = 2;
+}

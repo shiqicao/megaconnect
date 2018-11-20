@@ -1,9 +1,11 @@
 syntax = "proto3";
 
 package grpc;
+option go_package = "github.com/megaspacelab/megaconnect/grpc";
+
+import "grpc/common.proto";
 
 import "google/protobuf/empty.proto";
-import "orchestrator.proto";
 
 
 // ChainManager manages a single chain.
@@ -64,7 +66,8 @@ message UpdateMonitorsRequest {
     }
 
     message RemoveMonitor {
-        bytes monitor_id = 1;
+        bytes workflow_id = 1;
+        string monitor_name = 2;
     }
 
     oneof msg_type {

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protos;
+option go_package = "github.com/megaspacelab/megaconnect/protos";
+
+import "protos/bigint.proto";
+
+
+// Block represents a block reported by a connected chain.
+message Block {
+    string chain = 1;
+    bytes hash = 2;
+    bytes parent_hash = 3;
+    BigInt height = 4;
+}

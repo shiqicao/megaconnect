@@ -1,4 +1,4 @@
-package grpc
+package protos
 
 import (
 	"math/big"

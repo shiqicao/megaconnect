@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package protos;
+option go_package = "github.com/megaspacelab/megaconnect/protos";
+
+
+// MonitorEvent is an event fired by a monitor.
+message MonitorEvent {
+    bytes workflow_id = 1;
+    string monitor_name = 2;
+    string event_name = 3;
+    bytes payload = 4;
+}
+
+// ActionEvent is an event fired by an action.
+message ActionEvent {
+    bytes workflow_id = 1;
+    string action_name = 2;
+    string event_name = 3;
+    bytes payload = 4;
+}
