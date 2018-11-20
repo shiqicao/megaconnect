@@ -79,6 +79,45 @@ func NewEncoder(w io.Writer, sortObjKey bool) *Encoder {
 	}
 }
 
+// EncodeNamespace serializes a namespace to binary format
+func (e *Encoder) EncodeNamespace(ns *NamespaceDecl) error {
+	if err := e.encodeString(ns.name); err != nil {
+		return err
+	}
+	e.encodeLengthI(len(ns.children))
+	for _, c := range ns.children {
+		if err := e.EncodeNamespace(c); err != nil {
+			return err
+		}
+	}
+	e.encodeLengthI(len(ns.funs))
+	for _, f := range ns.funs {
+		if err := e.encodeFuncSig(f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeFuncSig(fun *FuncDecl) error {
+	if err := e.encodeString(fun.name); err != nil {
+		return err
+	}
+	e.encodeLengthI(len(fun.params))
+	for _, p := range fun.params {
+		if err := e.encodeString(p.name); err != nil {
+			return err
+		}
+		if err := e.encodeType(p.ty); err != nil {
+			return err
+		}
+	}
+	if err := e.encodeType(fun.retType); err != nil {
+		return err
+	}
+	return nil
+}
+
 // EncodeMonitorDecl serializes a monitor declaration to binary format
 func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
 	if err := e.encodeId(md.Name()); err != nil {

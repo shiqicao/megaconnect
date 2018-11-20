@@ -35,6 +35,66 @@ func NewDecoder(reader io.Reader) *Decoder {
 	}
 }
 
+// DecodeNamespace decodes a namespace declaration to workflow lang
+func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
+	name, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	ns := NewNamespaceDecl(string(name))
+	len, err := d.decodeLength()
+	if err != nil {
+		return nil, err
+	}
+	for ; len > 0; len-- {
+		c, err := d.DecodeNamespace()
+		if err != nil {
+			return nil, err
+		}
+		ns.AddChild(c)
+	}
+	len, err = d.decodeLength()
+	if err != nil {
+		return nil, err
+	}
+	for ; len > 0; len-- {
+		fun, err := d.decodeFunSig()
+		if err != nil {
+			return nil, err
+		}
+		ns.AddFunc(fun)
+	}
+	return ns, nil
+}
+
+func (d *Decoder) decodeFunSig() (*FuncDecl, error) {
+	name, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	len, err := d.decodeLength()
+	if err != nil {
+		return nil, err
+	}
+	params := make(Params, 0, len)
+	for ; len > 0; len-- {
+		param, err := d.decodeBytes()
+		if err != nil {
+			return nil, err
+		}
+		ty, err := d.decodeType()
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, NewParamDecl(string(param), ty))
+	}
+	retTy, err := d.decodeType()
+	if err != nil {
+		return nil, err
+	}
+	return NewFuncDecl(string(name), params, retTy, nil), nil
+}
+
 // DecodeWorkflow encodes a workflow declaration to binary format
 func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 	mega, err := d.decodeUint32()

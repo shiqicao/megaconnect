@@ -30,6 +30,19 @@ func (p Params) Copy() Params {
 	return r
 }
 
+// Equal returns true if two Params are equivalent
+func (p Params) Equal(x Params) bool {
+	if len(p) != len(x) {
+		return false
+	}
+	for i, param := range p {
+		if param.name != x[i].name || !param.ty.Equal(x[i].ty) {
+			return false
+		}
+	}
+	return true
+}
+
 // FuncDecl is function declaration which represents a function definition.
 // With `evaluator`, FuncDecl is only for build-in functions.
 type FuncDecl struct {
@@ -64,6 +77,26 @@ func (f *FuncDecl) RetType() Type { return f.retType }
 // Parent returns containing namespace or nil if current is top level
 func (f *FuncDecl) Parent() *NamespaceDecl { return f.parent }
 
+// Equal returns true if two func *signatures* are equivalent
+func (f *FuncDecl) Equal(x *FuncDecl) bool {
+	return f.name == x.name &&
+		equalStrings(f.parent.FullName(), x.parent.FullName()) &&
+		f.params.Equal(x.params) &&
+		f.retType.Equal(x.retType)
+}
+
+func equalStrings(xs []string, ys []string) bool {
+	if len(xs) != len(ys) {
+		return false
+	}
+	for i, x := range xs {
+		if x != ys[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // ParamDecl stores parameter name and its type
 type ParamDecl struct {
 	name string
@@ -92,9 +125,6 @@ type NamespaceDecl struct {
 	funs     FuncDecls
 }
 
-// FuncDecls is a list of function declarations
-type FuncDecls []*FuncDecl
-
 // NewNamespaceDecl creates a new instance of NamespaceDecl
 func NewNamespaceDecl(name string) *NamespaceDecl {
 	return &NamespaceDecl{
@@ -109,6 +139,38 @@ func (n *NamespaceDecl) Parent() *NamespaceDecl { return n.parent }
 // Name returns identifier of this namespace
 func (n *NamespaceDecl) Name() string { return n.name }
 
+// FullName returns the unique name
+func (n *NamespaceDecl) FullName() []string {
+	ret := []string{}
+	cur := n
+	for ; cur != nil; cur = cur.parent {
+		ret = append(ret, cur.name)
+	}
+	return ret
+}
+
+// Equal returns true if two namespaces are equivalent
+func (n *NamespaceDecl) Equal(x *NamespaceDecl) bool {
+	if len(n.children) != len(x.children) {
+		return false
+	}
+	for _, child := range x.children {
+		if childX := n.findChild(child.name); childX == nil || !childX.Equal(child) {
+			return false
+		}
+	}
+	return equalStrings(n.FullName(), x.FullName()) && n.funs.Equal(x.funs)
+}
+
+func (n *NamespaceDecl) findChild(name string) *NamespaceDecl {
+	for _, child := range n.children {
+		if child.name == name {
+			return child
+		}
+	}
+	return nil
+}
+
 // AddFunc insert a function declaration to this namespace
 func (n *NamespaceDecl) AddFunc(funcDecl *FuncDecl) *NamespaceDecl {
 	funcDecl.parent = n
@@ -122,6 +184,9 @@ func (n *NamespaceDecl) AddChild(child *NamespaceDecl) *NamespaceDecl {
 	n.children = append(n.children, child)
 	return n
 }
+
+// FuncDecls is a list of function declarations
+type FuncDecls []*FuncDecl
 
 func (f FuncDecls) find(name string) *FuncDecl {
 	for _, x := range f {
@@ -140,6 +205,20 @@ func (f FuncDecls) Copy() FuncDecls {
 	r := make(FuncDecls, len(f))
 	copy(r, f)
 	return r
+}
+
+// Equal returns true if two FuncDecls are equivalent
+func (f FuncDecls) Equal(x FuncDecls) bool {
+	if len(f) != len(x) {
+		return false
+	}
+	for _, fun := range f {
+		xfun := x.find(fun.name)
+		if xfun == nil || !xfun.Equal(fun) {
+			return false
+		}
+	}
+	return true
 }
 
 // MonitorDecl represents a monitor unit in workflow lang
