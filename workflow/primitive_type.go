@@ -63,9 +63,15 @@ const (
 
 // Equal compares whether `ty` is the same primitive as the current one
 func (p *PrimitiveType) Equal(ty Type) bool {
+	if p == nil || ty == nil {
+		return false
+	}
 	pty, ok := ty.(*PrimitiveType)
 	if !ok {
 		return false
 	}
 	return pty.ty == p.ty
 }
+
+// IsNumeric returns true if a type is numerical type
+func IsNumeric(ty Type) bool { return ty != nil && (ty.Equal(IntType) || ty.Equal(RatType)) }

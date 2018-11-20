@@ -19,21 +19,25 @@ import (
 
 var (
 	// TrueConst is an instance of BoolConst
-	TrueConst = &BoolConst{value: true}
+	TrueConst = NewBoolConst(true)
 
 	// FalseConst is an instance of BoolConst
-	FalseConst = &BoolConst{value: false}
+	FalseConst = NewBoolConst(false)
 )
 
 // Expr represents expression in the language. All type of expression derives from it.
 type Expr interface {
 	Node
 	Equal(Expr) bool
+	Type() Type
 }
 
 type expr struct {
 	node
+	ty Type
 }
+
+func (e *expr) Type() Type { return e.ty }
 
 // Args is a list of function arguments, it is referenced in FuncCall expression
 type Args []Expr
@@ -125,7 +129,7 @@ func (f *FuncCall) Equal(expr Expr) bool {
 // Const represents a single value or an object, it derives from Expr
 type Const interface {
 	Expr
-	Type() Type
+	isNumeric() bool
 }
 
 // BoolConst is a value typed to BoolType
@@ -142,6 +146,14 @@ func GetBoolConst(value bool) *BoolConst {
 	return FalseConst
 }
 
+// NewBoolConst creates a new instace of BoolConst
+func NewBoolConst(value bool) *BoolConst {
+	return &BoolConst{
+		value: value,
+		expr:  expr{ty: BoolType},
+	}
+}
+
 // GetBoolConstFromStr converts value to TrueConst or FalseConst
 func GetBoolConstFromStr(value string) *BoolConst {
 	if value == "true" {
@@ -150,11 +162,10 @@ func GetBoolConstFromStr(value string) *BoolConst {
 	return FalseConst
 }
 
-// Type returns the type of this constant
-func (b *BoolConst) Type() Type { return BoolType }
-
 // Value returns corresponding value in hosting language(Go)
 func (b *BoolConst) Value() bool { return b.value }
+
+func (b *BoolConst) isNumeric() bool { return false }
 
 func (b *BoolConst) String() string { return strconv.FormatBool(b.value) }
 
@@ -190,6 +201,8 @@ func (s *StrConst) Type() Type { return StrType }
 // Value returns corresponding value in hosting language
 func (s *StrConst) Value() string { return s.value }
 
+func (s *StrConst) isNumeric() bool { return false }
+
 // Equal returns whether x is equal to the current value
 func (s *StrConst) Equal(x Expr) bool {
 	y, ok := x.(*StrConst)
@@ -216,6 +229,8 @@ func (i *IntConst) Type() Type { return IntType }
 
 // Value returns corresponding value in hosting language
 func (i *IntConst) Value() *big.Int { return new(big.Int).Set(i.value) }
+
+func (i *IntConst) isNumeric() bool { return true }
 
 func (i *IntConst) String() string { return i.value.String() }
 
@@ -248,6 +263,8 @@ func (r *RatConst) Type() Type { return RatType }
 // Value returns corresponding value in hosting language
 func (r *RatConst) Value() *big.Rat { return new(big.Rat).Set(r.value) }
 
+func (r *RatConst) isNumeric() bool { return true }
+
 // Equal returns true if x is equivalent to f
 func (r *RatConst) Equal(x Expr) bool {
 	y, ok := x.(*RatConst)
@@ -263,7 +280,6 @@ func (r *RatConst) Print() p.PrinterOp {
 // ObjConst represents an object, an object contains a list of fields and corresponding types
 type ObjConst struct {
 	expr
-	ty    *ObjType
 	value ObjFields
 }
 
@@ -298,7 +314,7 @@ func NewObjConst(values ObjFields) *ObjConst {
 		ty.Put(field, value.Type())
 	}
 	return &ObjConst{
-		ty:    NewObjType(ty),
+		expr:  expr{ty: NewObjType(ty)},
 		value: values.Copy(),
 	}
 }
@@ -328,16 +344,15 @@ func NewObjConstWithTy(ty *ObjType, values ObjFields) (*ObjConst, error) {
 	}
 
 	return &ObjConst{
-		ty:    ty,
+		expr:  expr{ty: ty},
 		value: values.Copy(),
 	}, nil
 }
 
-// Type returns the object type
-func (o *ObjConst) Type() Type { return o.ty }
-
 // Value returns a copy of fields
 func (o *ObjConst) Value() ObjFields { return o.value.Copy() }
+
+func (o *ObjConst) isNumeric() bool { return false }
 
 // Print pretty prints code
 func (o *ObjConst) Print() p.PrinterOp {

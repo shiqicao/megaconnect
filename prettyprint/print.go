@@ -11,6 +11,7 @@
 package prettyprint
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 )
@@ -109,8 +110,14 @@ var (
 	}
 )
 
-// Style provides a configurable settings for TxtPrinter
 type Style struct {
 	newline string
 	indent  string
+}
+
+func String(op PrinterOp) string {
+	var buf bytes.Buffer
+	printer := NewTxtPrinter(&buf)
+	op(printer)
+	return buf.String()
 }

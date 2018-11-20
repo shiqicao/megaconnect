@@ -13,12 +13,90 @@ package workflow
 import (
 	"fmt"
 	"reflect"
+
+	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
+
+type Errors func([]error) []error
+
+// ToErrors convert an error to Errors
+func ToErrors(err error) Errors {
+	if err == nil {
+		return nil
+	}
+	return func(errors []error) []error {
+		return append(errors, err)
+	}
+}
+
+// First returns first element in Errors, or nil if empty
+func (e Errors) First() error {
+	if e == nil {
+		return nil
+	}
+	errs := e.ToErr()
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs[0]
+}
+
+// Empty returns true if Errors is empty otherwise false
+func (e Errors) Empty() bool {
+	return e == nil || len(e([]error{})) == 0
+}
+
+// Wrap appends an error to Errors
+func (e Errors) Wrap(err error) Errors {
+	if err == nil {
+		return e
+	}
+	return func(errors []error) []error {
+		if e == nil {
+			return []error{err}
+		}
+		return append(e(errors), err)
+	}
+}
+
+// Concat joins two Errors
+func (e Errors) Concat(errors Errors) Errors {
+	if e == nil {
+		return errors
+	} else if errors == nil {
+		return e
+	}
+	return func(errs []error) []error {
+		return e(errors(errs))
+	}
+}
+
+// ToErr returns array of error represented by Errors
+func (e Errors) ToErr() []error {
+	if e == nil {
+		return []error{}
+	}
+	return e([]error{})
+}
 
 // TODO: Add an error base struct for storing (row, col) after parsing supported
 
+type WFError interface {
+	HasPos
+	error
+}
+
+type wfError struct {
+	hasPos
+}
+
+func (w *wfError) setPos(pos *Pos) *wfError {
+	return w
+}
+
 // ErrArgTypeMismatch is returned if argument type does not match parameter type
 type ErrArgTypeMismatch struct {
+	wfError
 	FuncName  string
 	ParamName string
 	ParamType Type
@@ -31,12 +109,17 @@ func (e *ErrArgTypeMismatch) Error() string {
 
 // ErrTypeMismatch returns if two types does not match
 type ErrTypeMismatch struct {
+	wfError
 	ExpectedTypes []Type
 	ActualType    Type
 }
 
 func (e *ErrTypeMismatch) Error() string {
-	return fmt.Sprintf("Expected %#q, but got %s ", e.ExpectedTypes, e.ActualType)
+	types := make([]p.PrinterOp, len(e.ExpectedTypes))
+	for i, p := range e.ExpectedTypes {
+		types[i] = p.Print()
+	}
+	return fmt.Sprintf("Expected %s, but got %s ", p.String(separatedBy(types, p.Text(", "))), PrintNode(e.ActualType))
 }
 
 // ErrNotSupported is returned if an operator is not supported
@@ -74,6 +157,7 @@ func (e *ErrObjFieldIncompatible) Error() string {
 
 // ErrObjFieldMissing is returned if expected field is missing in an object
 type ErrObjFieldMissing struct {
+	wfError
 	Field   string
 	ObjType *ObjType
 }
@@ -95,6 +179,7 @@ func (e *ErrObjFieldTypeMismatch) Error() string {
 
 // ErrSymbolNotResolved is returned if a symbol is not resolved
 type ErrSymbolNotResolved struct {
+	wfError
 	Symbol string
 }
 
@@ -104,6 +189,7 @@ func (e *ErrSymbolNotResolved) Error() string {
 
 // ErrAccessorRequireObjType is returned if the expression of an object accessor does not evaluate to an object
 type ErrAccessorRequireObjType struct {
+	wfError
 	Type Type
 }
 
@@ -132,6 +218,7 @@ func (e *ErrMissingArg) Error() string {
 
 // ErrVarNotFound is returned if a variable is not declared
 type ErrVarNotFound struct {
+	wfError
 	VarName string
 }
 
@@ -157,17 +244,19 @@ func (e *ErrEventExprNotSupport) Error() string {
 
 // ErrArgLenMismatch is returned if supplied arguments len does not match expected parameters len
 type ErrArgLenMismatch struct {
+	wfError
 	FuncName string
 	ArgLen   int
 	ParamLen int
 }
 
 func (e *ErrArgLenMismatch) Error() string {
-	return fmt.Sprintf("Number of arguments mismatch, %d arguments expected from function %s, only %d given", e.ParamLen, e.FuncName, e.ArgLen)
+	return fmt.Sprintf("Number of arguments mismatch, %d arguments expected from function %s, %d given", e.ParamLen, e.FuncName, e.ArgLen)
 }
 
 // ErrEventNotFound is returned if event is not found
 type ErrEventNotFound struct {
+	wfError
 	Name string
 }
 

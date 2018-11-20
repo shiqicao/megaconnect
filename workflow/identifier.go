@@ -90,6 +90,15 @@ type IdToExpr map[string]IdExpr
 // NewIdToExpr creates an instance of IdToExpr
 func NewIdToExpr() IdToExpr { return make(IdToExpr) }
 
+// ExprMap returns a map from id string to Expr
+func (i IdToExpr) ExprMap() map[string]Expr {
+	result := make(map[string]Expr, len(i))
+	for k, expr := range i {
+		result[k] = expr.Expr
+	}
+	return result
+}
+
 // Equal returns true if two IdToExpr are equivalent
 func (i IdToExpr) Equal(x IdToExpr) bool {
 	if len(i) != len(x) {
