@@ -12,6 +12,7 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 
 	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
@@ -26,7 +27,7 @@ type Pos struct {
 
 // Node represents a tree node in AST
 type Node interface {
-
+	fmt.Stringer
 	// Pos returns Pos or nil if a mapping does not exist
 	Pos() *Pos
 
@@ -36,9 +37,18 @@ type Node interface {
 }
 
 type node struct {
+	Node
 	pos *Pos
 }
 
+func (n *node) String() string {
+	var buf bytes.Buffer
+	printer := p.NewTxtPrinter(&buf)
+	n.Print()(printer)
+	return buf.String()
+}
+
+// TODO: replace PrintNode() by .String()
 // PrintNode returns string format of a node
 func PrintNode(node Node) string {
 	var buf bytes.Buffer
