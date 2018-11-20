@@ -71,10 +71,14 @@ var (
 	OR    = B(wf.OrOp)
 	EQ    = B(wf.EqualOp)
 	GT    = B(wf.GreaterThanOp)
+	GE    = B(wf.GreaterThanEqualOp)
+	LT    = B(wf.LessThanOp)
+	LE    = B(wf.LessThanEqualOp)
 	V     = wf.NewVar
 	ADD   = B(wf.PlusOp)
 	MINUS = B(wf.MinusOp)
 	MUL   = B(wf.MultOp)
+	DIV   = B(wf.DivOp)
 	I     = wf.NewIntConstFromI64
 	R     = func(n int64, d int64) *wf.RatConst { return wf.NewRatConst(big.NewRat(n, d)) }
 	S     = wf.NewStrConst
@@ -161,6 +165,11 @@ func TestExprParsing(t *testing.T) {
 	assertExprParsing(t, GT(AND(V("a"), V("b")), V("c")), "(a && b) > c")
 	assertExprParsing(t, MUL(ADD(V("a"), V("b")), V("c")), "(a + b) * c")
 	assertExprParsing(t, ADD(V("a"), MUL(V("b"), V("c"))), "a + b * c")
+	assertExprParsing(t, MUL(V("a"), ADD(V("b"), V("c"))), "a * (b + c)")
+	assertExprParsing(t, GE(V("b"), V("c")), "b >= c")
+	assertExprParsing(t, LT(V("b"), V("c")), "b < c")
+	assertExprParsing(t, LE(V("b"), V("c")), "b <= c")
+	assertExprParsing(t, DIV(V("b"), V("c")), "b / c")
 }
 
 func TestStrLit(t *testing.T) {
