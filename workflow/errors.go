@@ -13,12 +13,63 @@ package workflow
 import (
 	"fmt"
 	"reflect"
+
+	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
+
+type Errors func([]error) []error
+
+func ToErrors(err error) Errors {
+	return func(errors []error) []error {
+		return append(errors, err)
+	}
+}
+
+func (e Errors) Wrap(err error) Errors {
+	return func(errors []error) []error {
+		if e == nil {
+			return []error{err}
+		}
+		return append(errors, err)
+	}
+}
+
+func (e Errors) Concat(errors Errors) Errors {
+	if e == nil {
+		return errors
+	} else if errors == nil {
+		return e
+	}
+	return func(errs []error) []error {
+		return e(errors(errs))
+	}
+}
+
+func (e Errors) ToErr() []error {
+	if e == nil {
+		return []error{}
+	}
+	return e([]error{})
+}
 
 // TODO: Add an error base struct for storing (row, col) after parsing supported
 
+type WFError interface {
+	HasPos
+	error
+}
+
+type wfError struct {
+	hasPos
+}
+
+func (w *wfError) setPos(pos *Pos) *wfError {
+	return w
+}
+
 // ErrArgTypeMismatch is returned if argument type does not match parameter type
 type ErrArgTypeMismatch struct {
+	wfError
 	FuncName  string
 	ParamName string
 	ParamType Type
@@ -31,12 +82,17 @@ func (e *ErrArgTypeMismatch) Error() string {
 
 // ErrTypeMismatch returns if two types does not match
 type ErrTypeMismatch struct {
+	wfError
 	ExpectedTypes []Type
 	ActualType    Type
 }
 
 func (e *ErrTypeMismatch) Error() string {
-	return fmt.Sprintf("Expected %#q, but got %s ", e.ExpectedTypes, e.ActualType)
+	types := make([]p.PrinterOp, len(e.ExpectedTypes))
+	for i, p := range e.ExpectedTypes {
+		types[i] = p.Print()
+	}
+	return fmt.Sprintf("Expected %s, but got %s ", p.String(separatedBy(types, p.Text(", "))), PrintNode(e.ActualType))
 }
 
 // ErrNotSupported is returned if an operator is not supported
@@ -74,6 +130,7 @@ func (e *ErrObjFieldIncompatible) Error() string {
 
 // ErrObjFieldMissing is returned if expected field is missing in an object
 type ErrObjFieldMissing struct {
+	wfError
 	Field   string
 	ObjType *ObjType
 }
@@ -104,6 +161,7 @@ func (e *ErrSymbolNotResolved) Error() string {
 
 // ErrAccessorRequireObjType is returned if the expression of an object accessor does not evaluate to an object
 type ErrAccessorRequireObjType struct {
+	wfError
 	Type Type
 }
 
@@ -132,6 +190,7 @@ func (e *ErrMissingArg) Error() string {
 
 // ErrVarNotFound is returned if a variable is not declared
 type ErrVarNotFound struct {
+	wfError
 	VarName string
 }
 

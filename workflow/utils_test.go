@@ -26,6 +26,7 @@ var (
 	R   = func(n int64, d int64) *RatConst { return NewRatConst(big.NewRat(n, d)) }
 	R64 = NewRatConstFromF64
 	I   = NewIntConstFromI64
+	S   = NewStrConst
 	BIN = func(op Operator) func(Expr, Expr) *BinOp {
 		return func(x Expr, y Expr) *BinOp { return NewBinOp(op, x, y) }
 	}
@@ -35,6 +36,7 @@ var (
 	AND  = BIN(AndOp)
 	OR   = BIN(OrOp)
 	EQ   = BIN(EqualOp)
+	NE   = BIN(NotEqualOp)
 	LT   = BIN(LessThanOp)
 	LE   = BIN(LessThanEqualOp)
 	GT   = BIN(GreaterThanOp)
@@ -43,11 +45,16 @@ var (
 	MD   = NewMonitorDecl
 	V    = NewVar
 	P    = func(a string) *Props { return NewProps(V(a)) }
+	OA   = NewObjAccessor
 	// Variable declaration
 	VD = func(f string, e Expr) IdToExpr { return make(IdToExpr).Put(f, e) }
 	// Variable types
 	VT = func(f string, ty Type) IdToTy { return make(IdToTy).Put(f, ty) }
 	ID = NewId
+
+	// ObjConst
+	OC  = NewObjConst
+	OC1 = func(f string, c Const) *ObjConst { return OC(ObjFields{f: c}) }
 
 	// Arith
 	ADD   = BIN(PlusOp)

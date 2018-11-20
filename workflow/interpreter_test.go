@@ -203,6 +203,8 @@ func TestObjAccessor(t *testing.T) {
 		"b": subobj,
 	})
 	accessor := NewObjAccessor(obj, "a")
+	t.Logf("B %v", accessor)
+	t.Logf("B %T", accessor)
 	assertExpEval(t, TrueConst, accessor)
 
 	accessor = NewObjAccessor(obj, "b")
@@ -603,6 +605,10 @@ func (ib interpreterBuilder) withCache(cache Cache) interpreterBuilder {
 
 func (ib interpreterBuilder) assertExpEval(t *testing.T, expected Const, expr Expr) {
 	result, err := ib().EvalExpr(expr)
+	t.Logf("%v", result)
+	t.Logf("%T", result)
+	//t.Logf("%v", expr)
+	//t.Logf("%T", expr)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotNil(t, result.Type())

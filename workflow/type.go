@@ -54,6 +54,9 @@ func (o *ObjType) Print() p.PrinterOp {
 
 // Equal compares whether `ty` is equal current type
 func (o *ObjType) Equal(ty Type) bool {
+	if o == nil || ty == nil {
+		return false
+	}
 	oty, ok := ty.(*ObjType)
 	if !ok {
 		return false

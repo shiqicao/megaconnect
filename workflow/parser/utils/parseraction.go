@@ -237,14 +237,20 @@ func idAction(t interface{}, builder func(s string) wf.Node) wf.Node {
 }
 
 func setPos(node wf.Node, token *token.Token) {
-	node.SetPos(token.Line, token.Column, token.Line, token.Column+token.Offset)
+	pos := TokenToPos(token)
+	node.SetPos(&pos)
 }
 
 func mergePos(node wf.Node, s *wf.Pos, e *wf.Pos) {
 	if s == nil || e == nil {
 		return
 	}
-	node.SetPos(s.StartRow, s.StartCol, e.EndRow, e.EndCol)
+	node.SetPos(&wf.Pos{
+		StartRow: s.StartRow,
+		StartCol: s.StartCol,
+		EndRow:   e.EndRow,
+		EndCol:   e.EndCol,
+	})
 }
 
 func mergePosByNodes(node wf.Node, start wf.Node, end wf.Node) {
