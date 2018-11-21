@@ -3,6 +3,8 @@ syntax = "proto3";
 package grpc;
 option go_package = "github.com/megaspacelab/megaconnect/grpc";
 
+import "protos/mblock.proto";
+
 import "google/protobuf/empty.proto";
 
 // WorkflowManager handles workflow related requests.
@@ -12,6 +14,12 @@ service WorkflowManager {
 
     // UndeployWorkflow undeploys a workflow from the network.
     rpc UndeployWorkflow(UndeployWorkflowRequest) returns (google.protobuf.Empty);
+
+    // SubscribeMBlock will subscribe to new blocks from megaspace network.
+    rpc SubscribeMBlock(google.protobuf.Empty) returns (stream protos.MBlock);
+
+    // GetMBlockByHeight will get the block by height.
+    rpc GetMBlockByHeight(GetMBlockRequest) returns (protos.MBlock);
 }
 
 message DeployWorkflowRequest {
@@ -27,4 +35,9 @@ message UndeployWorkflowRequest {
 message DeployWorkflowResponse {
     // workflow_id is the ID of the deployed workflow
     bytes workflow_id = 1;
+}
+
+message GetMBlockRequest {
+    // height is the height of the MBlock 
+    uint64 height = 1;
 }

@@ -107,11 +107,11 @@ func (fm *FlowManager) UndeployWorkflow(
 	ctx context.Context,
 	req *mgrpc.UndeployWorkflowRequest,
 ) (*empty.Empty, error) {
-	fm.log.Debug("Received UndeployWorkflow request", zap.ByteString("Workflow ID", req.WorkflowId))
-
 	if req.WorkflowId == nil {
 		return nil, status.Error(codes.InvalidArgument, "Missing Workflow ID")
 	}
+
+	fm.log.Debug("Received UndeployWorkflow request", zap.ByteString("Workflow ID", req.WorkflowId))
 
 	id := common.ImmutableBytes(req.WorkflowId)
 
@@ -122,6 +122,27 @@ func (fm *FlowManager) UndeployWorkflow(
 	fm.log.Debug("UndeployWorkflow successful", zap.ByteString("Workflow ID", req.WorkflowId))
 
 	return &empty.Empty{}, nil
+}
+
+// SubscribeMBlock will subscribe to new blocks from megaspace network.
+func (fm *FlowManager) SubscribeMBlock(
+	e *empty.Empty,
+	server mgrpc.WorkflowManager_SubscribeMBlockServer,
+) error {
+	return nil
+}
+
+// GetMBlockByHeight will get the block by height.
+func (fm *FlowManager) GetMBlockByHeight(
+	ctx context.Context,
+	req *mgrpc.GetMBlockRequest,
+) (*protos.MBlock, error) {
+	fm.log.Debug("Received GetMBlockByHeight request", zap.Uint64("Height", req.Height))
+	block, err := fm.stateStore.MBlockByHeight(req.Height)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
 // GetChainConfig returns the current ChainConfig and a subscription for future patches for chainID.
