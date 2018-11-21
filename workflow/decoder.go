@@ -67,6 +67,30 @@ func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
 	return ns, nil
 }
 
+// DecodeActionDecl decodes an action declaration to workflow lang AST
+func (d *Decoder) DecodeActionDecl() (*ActionDecl, error) {
+	name, err := d.decodeBytes()
+	if err != nil {
+		return nil, err
+	}
+	expr, err := d.decodeEventExpr()
+	if err != nil {
+		return nil, err
+	}
+	len, err := d.decodeLength()
+	if err != nil {
+		return nil, err
+	}
+	stmts := make(Stmts, len)
+	for ; len > 0; len-- {
+		stmts[len-1], err = d.decodeStmt()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return NewActionDecl(NewIdB(name), expr, stmts), nil
+}
+
 func (d *Decoder) decodeFuncSig() (*FuncDecl, error) {
 	name, err := d.decodeBytes()
 	if err != nil {
@@ -130,26 +154,11 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 			wf.AddChild(m)
 			continue
 		case declKindAction:
-			name, err := d.decodeBytes()
+			a, err := d.DecodeActionDecl()
 			if err != nil {
 				return nil, err
 			}
-			expr, err := d.decodeEventExpr()
-			if err != nil {
-				return nil, err
-			}
-			len, err := d.decodeLength()
-			if err != nil {
-				return nil, err
-			}
-			stmts := make(Stmts, len)
-			for ; len > 0; len-- {
-				stmts[len-1], err = d.decodeStmt()
-				if err != nil {
-					return nil, err
-				}
-			}
-			wf.AddChild(NewActionDecl(NewIdB(name), expr, stmts))
+			wf.AddChild(a)
 			continue
 		case declKindEvent:
 			name, err := d.decodeBytes()
