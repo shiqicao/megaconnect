@@ -1,18 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
 
+	"github.com/fsnotify/fsnotify"
 	mcli "github.com/megaspacelab/megaconnect/cli"
 	"github.com/megaspacelab/megaconnect/flowmanager"
 	"github.com/megaspacelab/megaconnect/grpc"
-	wf "github.com/megaspacelab/megaconnect/workflow"
-
-	"github.com/fsnotify/fsnotify"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/reflection"
 	cli "gopkg.in/urfave/cli.v2"
@@ -55,7 +56,7 @@ func main() {
 				}
 			}()
 
-			err = grpc.Serve(listenAddr, []grpc.RegisterFunc{orch.Register, reflection.Register}, actualAddr)
+			err = grpc.Serve(listenAddr, []grpc.RegisterFunc{orch.Register, fm.Register, reflection.Register}, actualAddr)
 			done <- struct{}{}
 			if err != nil {
 				log.Error("Failed to serve", zap.Error(err))
@@ -134,35 +135,26 @@ func loadAndWatchChainConfigs(
 func reloadWorkflow(fm *flowmanager.FlowManager, log *zap.Logger, file string) error {
 	log.Info("Reloading workflow", zap.String("file", file))
 
-	fs, err := os.Open(file)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
-	if _, ok := err.(*os.PathError); ok {
-		log.Debug("File does not exist", zap.String("file", file))
-		return nil
-	} else if err != nil {
+	if _, err := os.Stat(file); err != nil {
+		log.Debug("File open error", zap.String("file", file))
 		return err
 	}
 
-	workflow, err := wf.NewDecoder(fs).DecodeWorkflow()
+	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
 	}
 
-	if workflow.Name().String() != path.Base(file) {
-		log.Error("Workflow/file name mismatch",
-			zap.Stringer("workflow", workflow.Name()),
-			zap.String("file", file),
-		)
-		return fmt.Errorf("Workflow name %s mismatches file name %s", workflow.Name(), file)
+	req := &mgrpc.DeployWorkflowRequest{
+		Payload: data,
 	}
-	if err = fm.DeployWorkflow(workflow); err != nil {
-		log.Error("Failed to deploy", zap.Stringer("workflow", workflow.Name()), zap.Error(err))
+	ctx := context.Background()
+	id, err := fm.DeployWorkflow(ctx, req)
+	if err != nil {
+		log.Error("Failed to deploy", zap.String("file", file))
 		return err
 	}
+	log.Debug("Workflow deployed", zap.String("Workflow ID", id.String()))
 
 	return nil
 }

@@ -1,12 +1,13 @@
 package flowmanager
 
 import (
+	"context"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/protos"
 	w "github.com/megaspacelab/megaconnect/workflow"
-
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 )
@@ -96,17 +97,35 @@ func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
 }
 
 func (s *FlowManagerSuite) TestDeployAndUndeployWorkflow() {
+	ctx := context.Background()
 	config, sub, err := s.fm.GetChainConfig(chainID)
 	s.Require().NoError(err)
 	s.Require().NotNil(sub)
 	s.Require().NotNil(config)
 	s.Require().Empty(config.Monitors)
 
-	// Deploy
+	// deploy a valid workflow should be successful
 	wf := s.workflow1()
-	err = s.fm.DeployWorkflow(wf)
+	bin, err := w.EncodeWorkflow(wf)
+	s.Require().NoError(err)
+	id, err := s.fm.DeployWorkflow(ctx, &mgrpc.DeployWorkflowRequest{
+		Payload: bin,
+	})
+	s.Require().Equal(id.WorkflowId, []byte(wf.Name().String()))
 	s.Require().NoError(err)
 	s.Require().Empty(sub.Patches(), "Workflow activated too early")
+
+	// deploy a workflow twice should fail gracefully
+	_, err = s.fm.DeployWorkflow(ctx, &mgrpc.DeployWorkflowRequest{
+		Payload: bin,
+	})
+	s.Require().Error(err)
+
+	// deploy a workflow without payload should fail gracefully
+	_, err = s.fm.DeployWorkflow(ctx, &mgrpc.DeployWorkflowRequest{
+		Payload: nil,
+	})
+	s.Require().Error(err)
 
 	mblock, err := s.fm.FinalizeAndCommitMBlock()
 	s.Require().NoError(err)
@@ -132,9 +151,24 @@ func (s *FlowManagerSuite) TestDeployAndUndeployWorkflow() {
 		s.FailNow("Config wasn't updated after workflow deployment")
 	}
 
-	err = s.fm.UndeployWorkflow(GetWorkflowID(wf))
+	// undeploy a deployed workflow should be successful
+	_, err = s.fm.UndeployWorkflow(ctx, &mgrpc.UndeployWorkflowRequest{
+		WorkflowId: id.WorkflowId,
+	})
 	s.Require().NoError(err)
 	s.Require().Empty(sub.Patches(), "Workflow deactivated too early")
+
+	// undeploy a non-existing workflow should not fail gracefully
+	_, err = s.fm.UndeployWorkflow(ctx, &mgrpc.UndeployWorkflowRequest{
+		WorkflowId: []byte("invalid"),
+	})
+	s.Require().Error(err)
+
+	// undeploy a workflow without workflow id should fail gracefully
+	_, err = s.fm.UndeployWorkflow(ctx, &mgrpc.UndeployWorkflowRequest{
+		WorkflowId: nil,
+	})
+	s.Require().Error(err)
 
 	mblock, err = s.fm.FinalizeAndCommitMBlock()
 	s.Require().NoError(err)
@@ -148,7 +182,7 @@ func (s *FlowManagerSuite) TestDeployAndUndeployWorkflow() {
 
 func (s *FlowManagerSuite) TestReportBlockEvents() {
 	wf := s.workflow1()
-	err := s.fm.DeployWorkflow(wf)
+	err := s.fm.deployWorkflow(wf)
 	s.Require().NoError(err)
 
 	_, err = s.fm.FinalizeAndCommitMBlock()

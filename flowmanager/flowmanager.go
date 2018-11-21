@@ -11,17 +11,21 @@
 package flowmanager
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/megaspacelab/megaconnect/common"
-	"github.com/megaspacelab/megaconnect/grpc"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/protos"
 	"github.com/megaspacelab/megaconnect/unsafe"
 	"github.com/megaspacelab/megaconnect/workflow"
-
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -62,6 +66,64 @@ func NewFlowManager(stateStore StateStore, log *zap.Logger) *FlowManager {
 	}
 }
 
+// Register registers this FlowManager to the gRPC server.
+func (fm *FlowManager) Register(server *grpc.Server) {
+	mgrpc.RegisterWorkflowManagerServer(server, fm)
+}
+
+// DeployWorkflow is invoked to deploy a workflow
+func (fm *FlowManager) DeployWorkflow(
+	ctx context.Context,
+	req *mgrpc.DeployWorkflowRequest,
+) (*mgrpc.DeployWorkflowResponse, error) {
+	fm.log.Debug("Received DeployWorkflow request")
+
+	if req.Payload == nil {
+		return nil, status.Error(codes.InvalidArgument, "Missing Payload")
+	}
+
+	workflow, err := workflow.NewByteDecoder(req.Payload).DecodeWorkflow()
+	if err != nil {
+		return nil, err
+	}
+
+	err = fm.deployWorkflow(workflow)
+	if err != nil {
+		return nil, err
+	}
+
+	id := GetWorkflowID(workflow).Bytes()
+
+	resp := &mgrpc.DeployWorkflowResponse{
+		WorkflowId: id,
+	}
+	fm.log.Debug("DeployWorkflow successful", zap.ByteString("Workflow ID", id))
+
+	return resp, nil
+}
+
+// UndeployWorkflow is invoked to undeploy a workflow
+func (fm *FlowManager) UndeployWorkflow(
+	ctx context.Context,
+	req *mgrpc.UndeployWorkflowRequest,
+) (*empty.Empty, error) {
+	fm.log.Debug("Received UndeployWorkflow request", zap.ByteString("Workflow ID", req.WorkflowId))
+
+	if req.WorkflowId == nil {
+		return nil, status.Error(codes.InvalidArgument, "Missing Workflow ID")
+	}
+
+	id := common.ImmutableBytes(req.WorkflowId)
+
+	err := fm.undeployWorkflow(id)
+	if err != nil {
+		return nil, err
+	}
+	fm.log.Debug("UndeployWorkflow successful", zap.ByteString("Workflow ID", req.WorkflowId))
+
+	return &empty.Empty{}, nil
+}
+
 // GetChainConfig returns the current ChainConfig and a subscription for future patches for chainID.
 func (fm *FlowManager) GetChainConfig(chainID string) (*ChainConfig, *ChainConfigSub, error) {
 	fm.lock.Lock()
@@ -72,13 +134,13 @@ func (fm *FlowManager) GetChainConfig(chainID string) (*ChainConfig, *ChainConfi
 		return nil, nil, err
 	}
 
-	var resumeAfter *grpc.BlockSpec
+	var resumeAfter *mgrpc.BlockSpec
 	lastBlock, err := fm.stateStore.LastReportedBlockByChain(chainID)
 	if err != nil {
 		return nil, nil, err
 	}
 	if lastBlock != nil {
-		resumeAfter = &grpc.BlockSpec{
+		resumeAfter = &mgrpc.BlockSpec{
 			Hash:   lastBlock.Hash,
 			Height: lastBlock.Height,
 		}
@@ -240,8 +302,8 @@ func (fm *FlowManager) processEventWithLock(
 	}
 }
 
-// DeployWorkflow deploys a workflow.
-func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
+// doDeployWorkflow deploys a workflow.
+func (fm *FlowManager) deployWorkflow(wf *workflow.WorkflowDecl) error {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
 
@@ -260,8 +322,8 @@ func (fm *FlowManager) DeployWorkflow(wf *workflow.WorkflowDecl) error {
 	return fmt.Errorf("Workflow already exists %v", wfid)
 }
 
-// UndeployWorkflow undeploys a workflow.
-func (fm *FlowManager) UndeployWorkflow(wfid WorkflowID) error {
+// undeployWorkflow undeploys a workflow.
+func (fm *FlowManager) undeployWorkflow(wfid WorkflowID) error {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
 
@@ -358,7 +420,7 @@ func (fm *FlowManager) finalizeMBlockWithLock() (*protos.MBlock, map[string]*Cha
 			}
 
 			for _, m := range wf.MonitorDecls() {
-				mid := &grpc.MonitorID{
+				mid := &mgrpc.MonitorID{
 					WorkflowID:  wfid,
 					MonitorName: m.Name().Id(),
 				}
@@ -385,7 +447,7 @@ func (fm *FlowManager) finalizeMBlockWithLock() (*protos.MBlock, map[string]*Cha
 
 		// It's possible there are no previous block reports for this chain.
 		if block != nil {
-			patch.ResumeAfter = &grpc.BlockSpec{
+			patch.ResumeAfter = &mgrpc.BlockSpec{
 				Hash:   block.Hash,
 				Height: block.Height,
 			}

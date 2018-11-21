@@ -20,11 +20,10 @@ import (
 	"sync"
 	"time"
 
-	mgrpc "github.com/megaspacelab/megaconnect/grpc"
-	"github.com/megaspacelab/megaconnect/protos"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	mgrpc "github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/protos"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -94,6 +93,7 @@ func NewOrchestrator(fm *FlowManager, log *zap.Logger) *Orchestrator {
 // Register registers this Orchestrator to the gRPC server.
 func (o *Orchestrator) Register(server *grpc.Server) {
 	mgrpc.RegisterOrchestratorServer(server, o)
+	mgrpc.RegisterWorkflowManagerServer(server, o.flowManager)
 }
 
 // RegisterChainManager is invoked by ChainManagers to register themselves with this Orchestrator.
