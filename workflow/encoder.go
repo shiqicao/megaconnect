@@ -118,6 +118,24 @@ func (e *Encoder) encodeFuncSig(fun *FuncDecl) error {
 	return nil
 }
 
+// EncodeActionDecl serializes a action declaration to binary format
+func (e *Encoder) EncodeActionDecl(action *ActionDecl) error {
+	if err := e.encodeId(action.name); err != nil {
+		return err
+	}
+	if err := e.encodeEventExpr(action.trigger); err != nil {
+		return err
+	}
+	len := len(action.body)
+	e.encodeLengthI(len)
+	for _, stmt := range action.body {
+		if err := e.encodeStmt(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // EncodeMonitorDecl serializes a monitor declaration to binary format
 func (e *Encoder) EncodeMonitorDecl(md *MonitorDecl) error {
 	if err := e.encodeId(md.Name()); err != nil {
@@ -390,18 +408,8 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 				return err
 			}
 		case *ActionDecl:
-			if err = e.encodeId(decl.name); err != nil {
+			if err = e.EncodeActionDecl(decl); err != nil {
 				return err
-			}
-			if err = e.encodeEventExpr(decl.trigger); err != nil {
-				return err
-			}
-			len := len(decl.body)
-			e.encodeLengthI(len)
-			for _, stmt := range decl.body {
-				if err = e.encodeStmt(stmt); err != nil {
-					return err
-				}
 			}
 		case *EventDecl:
 			if err = e.encodeId(decl.name); err != nil {
