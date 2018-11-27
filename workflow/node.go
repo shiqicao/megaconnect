@@ -11,65 +11,20 @@
 package workflow
 
 import (
-	"bytes"
-
 	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
 
-// Pos maps node to source code
-type Pos struct {
-	StartRow int
-	StartCol int
-	EndRow   int
-	EndCol   int
-}
-
 // Node represents a tree node in AST
 type Node interface {
-
-	// Pos returns Pos or nil if a mapping does not exist
-	Pos() *Pos
-
-	SetPos(startRow int, startCol int, endRow int, endCol int)
-
+	HasPos
 	Print() p.PrinterOp
 }
 
 type node struct {
-	pos *Pos
+	hasPos
 }
 
 // PrintNode returns string format of a node
 func PrintNode(node Node) string {
-	var buf bytes.Buffer
-	printer := p.NewTxtPrinter(&buf)
-	node.Print()(printer)
-	return buf.String()
-}
-
-func (n *node) SetPos(startRow int, startCol int, endRow int, endCol int) {
-	pos := Pos{
-		StartRow: startRow,
-		StartCol: startCol,
-		EndRow:   endRow,
-		EndCol:   endCol,
-	}
-	n.pos = &pos
-}
-
-func (n *node) setPos(pos *Pos) {
-	if pos == nil {
-		n.pos = nil
-		return
-	}
-	p := *pos
-	n.pos = &p
-}
-
-func (n *node) Pos() *Pos {
-	if n.pos == nil {
-		return nil
-	}
-	r := *n.pos
-	return &r
+	return p.String(node.Print())
 }

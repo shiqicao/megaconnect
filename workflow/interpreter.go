@@ -45,25 +45,19 @@ func NewInterpreter(env *Env, cache Cache, resolver *Resolver, logger *zap.Logge
 // EvalMonitor evaluates a monitor. It pushes a scope with var declaration and pops it up after evaluation.
 // It creates a new instance of an event defined in monitor if condition evaluates to true
 func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (*FireEventResult, error) {
+	if err := i.resolver.ResolveMonitor(monitor).First(); err != nil {
+		return nil, err
+	}
 	// push variable declarations
 	i.vars = make(map[string]Expr, len(monitor.vars))
 	for key, value := range monitor.vars {
 		if _, ok := i.vars[key]; ok {
 			return nil, &ErrVarDeclaredAlready{VarName: key}
 		}
-		if err := i.resolver.resolveExpr(value.Expr); err != nil {
-			return nil, err
-		}
 		i.vars[key] = value.Expr
 	}
 	defer func() { i.vars = nil }()
 
-	if err := i.resolver.resolveExpr(monitor.Condition()); err != nil {
-		return nil, err
-	}
-	if err := i.resolver.resolveExpr(monitor.event.eventObj); err != nil {
-		return nil, err
-	}
 	result, err := i.evalExpr(monitor.Condition())
 	if err != nil {
 		return nil, err
@@ -129,7 +123,7 @@ func (i *Interpreter) evalEventExpr(eexpr EventExpr) (bool, error) {
 
 // EvalAction evaluates an action
 func (i *Interpreter) EvalAction(action *ActionDecl) ([]StmtResult, error) {
-	if err := i.resolver.resolveAction(action); err != nil {
+	if err := i.resolver.resolveAction(action).First(); err != nil {
 		return nil, err
 	}
 	return i.evalAction(action)
@@ -179,7 +173,7 @@ func (i *Interpreter) evalStmt(stmt Stmt) (StmtResult, error) {
 // EvalExpr evaluates an unbound expression. Unbound expression contains symbols(like function names) unresolved.
 // It will resolve and type check before execution. It should not used for a bound expression, it will try to bind symbols again.
 func (i *Interpreter) EvalExpr(expr Expr) (Const, error) {
-	err := i.resolver.resolveExpr(expr)
+	err := i.resolver.resolveExpr(expr).First()
 	if err != nil {
 		return nil, err
 	}

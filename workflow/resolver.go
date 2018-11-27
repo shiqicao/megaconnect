@@ -17,57 +17,78 @@ type Resolver struct {
 }
 
 // NewResolver creates a new instance of Resolver
-func NewResolver(libs []*NamespaceDecl, defaultNamespace NamespacePrefix) *Resolver {
+func NewResolver(
+	libs []*NamespaceDecl,
+	defaultNamespace NamespacePrefix,
+) *Resolver {
 	return &Resolver{
 		libs:             libs,
 		defaultNamespace: defaultNamespace,
 	}
 }
 
-// resolveAction resolves all symbols in action declaration
-func (r *Resolver) resolveAction(action *ActionDecl) error {
-	for _, s := range action.body {
-		if err := r.resolveStmt(s); err != nil {
-			return err
-		}
+// ResolveWorkflow returns errors if any symbol can't be resolved.
+// It also sets declaration on symbols.
+func (r *Resolver) ResolveWorkflow(wf *WorkflowDecl) Errors {
+	var errs Errors
+	for _, m := range wf.MonitorDecls() {
+		errs = errs.Concat(r.ResolveMonitor(m))
 	}
-	return nil
+	for _, a := range wf.ActionDecls() {
+		errs = errs.Concat(r.resolveAction(a))
+	}
+	return errs
 }
 
-func (r *Resolver) resolveStmt(stmt Stmt) error {
+// ResolveMonitor resolves all symbols in action declaration
+func (r *Resolver) ResolveMonitor(monitor *MonitorDecl) Errors {
+	errs := r.resolveExpr(monitor.cond).
+		Concat(r.resolveStmt(monitor.event))
+	for _, v := range monitor.vars {
+		errs = errs.Concat(r.resolveExpr(v.Expr))
+	}
+	return errs
+}
+
+// resolveAction resolves all symbols in action declaration
+func (r *Resolver) resolveAction(action *ActionDecl) Errors {
+	var errs Errors
+	for _, s := range action.body {
+		errs = errs.Concat(r.resolveStmt(s))
+	}
+	return errs
+}
+
+func (r *Resolver) resolveStmt(stmt Stmt) Errors {
 	switch s := stmt.(type) {
 	case *Fire:
 		return r.resolveExpr(s.eventObj)
 	default:
-		return ErrNotSupportedByType(stmt)
+		return ToErrors(ErrNotSupportedByType(stmt))
 	}
 }
 
-func (r *Resolver) resolveExpr(expr Expr) error {
+func (r *Resolver) resolveExpr(expr Expr) Errors {
 	switch e := expr.(type) {
 	case *BinOp:
-		err := r.resolveExpr(e.Left())
-		if err != nil {
-			return err
-		}
-		return r.resolveExpr(e.Right())
+		return r.resolveExpr(e.Left()).
+			Concat(r.resolveExpr(e.Right()))
 	case *UniOp:
 		return r.resolveExpr(e.Operant())
 	case *ObjAccessor:
 		return r.resolveExpr(e.Receiver())
 	case *FuncCall:
+		var errs Errors
 		for _, arg := range e.Args() {
-			if err := r.resolveExpr(arg); err != nil {
-				return err
-			}
+			errs = errs.Concat(r.resolveExpr(arg))
 		}
-		return r.resolveFuncCall(e)
+		return errs.Wrap(r.resolveFuncCall(e))
 	case *ObjLit:
+		var errs Errors
 		for _, expr := range e.fields {
-			if err := r.resolveExpr(expr.Expr); err != nil {
-				return err
-			}
+			errs = errs.Concat(r.resolveExpr(expr.Expr))
 		}
+		return errs
 	}
 	return nil
 }
