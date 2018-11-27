@@ -93,7 +93,6 @@ func NewOrchestrator(fm *FlowManager, log *zap.Logger) *Orchestrator {
 // Register registers this Orchestrator to the gRPC server.
 func (o *Orchestrator) Register(server *grpc.Server) {
 	mgrpc.RegisterOrchestratorServer(server, o)
-	mgrpc.RegisterWorkflowManagerServer(server, o.flowManager)
 }
 
 // RegisterChainManager is invoked by ChainManagers to register themselves with this Orchestrator.
