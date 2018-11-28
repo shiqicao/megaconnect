@@ -17,10 +17,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/megaspacelab/megaconnect/prettyprint"
+
 	"github.com/megaspacelab/megaconnect/chainmanager"
 	mcli "github.com/megaspacelab/megaconnect/cli"
 	"github.com/megaspacelab/megaconnect/connector"
 	"github.com/megaspacelab/megaconnect/grpc"
+	"github.com/megaspacelab/megaconnect/workflow"
 
 	"go.uber.org/zap"
 	cli "gopkg.in/urfave/cli.v2"
@@ -29,11 +32,11 @@ import (
 // Runner makes it easy to run ChainManager with a specific connector.Connector implementation.
 type Runner cli.App
 
+type connBuilder func(ctx *cli.Context, logger *zap.Logger) (connector.Connector, error)
+
 // NewRunner creates a new Runner.
 // Caller can customize the returned Runner as needed, before invoking its Run method.
-func NewRunner(
-	newConnector func(ctx *cli.Context, logger *zap.Logger) (connector.Connector, error),
-) *Runner {
+func NewRunner(newConnector connBuilder) *Runner {
 	cmidFlag := cli.StringFlag{
 		Name:  "cmid",
 		Usage: "ID of this ChainManager instance",
@@ -79,6 +82,18 @@ func NewRunner(
 				conn,
 				logger,
 			)
+		},
+		Commands: []*cli.Command{
+			&cli.Command{
+				Name:   "dumplib",
+				Action: dumpapi(newConnector),
+				Flags: []cli.Flag{
+					&cli.PathFlag{
+						Name:    "output",
+						Aliases: []string{"o"},
+					},
+				},
+			},
 		},
 	}
 	return app
@@ -149,4 +164,42 @@ func defaultCMID() string {
 		return "cm"
 	}
 	return host
+}
+
+func dumpapi(builder connBuilder) func(*cli.Context) error {
+	return func(ctx *cli.Context) error {
+		debug := ctx.Bool(mcli.DebugFlag.Name)
+		logger, err := mcli.NewLogger(debug)
+		conn, err := builder(ctx, logger)
+		if err != nil {
+			return err
+		}
+		namespace := conn.Namespace()
+		output := ctx.Path("output")
+		if output == "" {
+			return fmt.Errorf("missing output path")
+		}
+
+		outputfs, err := os.Create(output)
+		defer outputfs.Close()
+		if err != nil {
+			return err
+		}
+		// wfns stands for workflow namespace
+		srcfs, err := os.Create(output + ".wfns")
+		defer srcfs.Close()
+		if err != nil {
+			return err
+		}
+		encoder := workflow.NewEncoder(outputfs, false)
+		err = encoder.EncodeNamespace(namespace)
+		if err != nil {
+			return err
+		}
+		err = namespace.Print()(prettyprint.NewTxtPrinter(srcfs))
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }
