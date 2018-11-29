@@ -302,7 +302,7 @@ func (fm *FlowManager) processEventWithLock(
 	}
 }
 
-// doDeployWorkflow deploys a workflow.
+// deployWorkflow deploys a workflow.
 func (fm *FlowManager) deployWorkflow(wf *workflow.WorkflowDecl) error {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
