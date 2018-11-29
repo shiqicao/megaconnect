@@ -86,7 +86,7 @@ func NewRunner(newConnector connBuilder) *Runner {
 		Commands: []*cli.Command{
 			&cli.Command{
 				Name:   "dumplib",
-				Action: dumpapi(newConnector),
+				Action: mcli.ToExitCode(dumpapi(newConnector)),
 				Flags: []cli.Flag{
 					&cli.PathFlag{
 						Name:    "output",
@@ -196,10 +196,6 @@ func dumpapi(builder connBuilder) func(*cli.Context) error {
 		if err != nil {
 			return err
 		}
-		err = namespace.Print()(prettyprint.NewTxtPrinter(srcfs))
-		if err != nil {
-			return err
-		}
-		return nil
+		return namespace.Print()(prettyprint.NewTxtPrinter(srcfs))
 	}
 }
