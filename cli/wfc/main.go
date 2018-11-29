@@ -53,24 +53,24 @@ func main() {
 	app := &cli.App{
 		Name:   "Workflow compiler",
 		Flags:  []cli.Flag{output, &mcli.DebugFlag},
-		Action: toExitCode(compile),
+		Action: mcli.ToExitCode(compile),
 		Commands: []*cli.Command{
 			&cli.Command{
 				Name:   "reflect",
 				Usage:  "decompile a binary to workflow",
-				Action: toExitCode(decompile),
+				Action: mcli.ToExitCode(decompile),
 				Flags:  []cli.Flag{output},
 			},
 			&cli.Command{
 				Name:   "deploy",
 				Usage:  "deploy a workflow to MegaSpace",
-				Action: toExitCode(deploy),
+				Action: mcli.ToExitCode(deploy),
 				Flags:  []cli.Flag{wmAddr},
 			},
 			&cli.Command{
 				Name:   "undeploy",
 				Usage:  "undeploy a workflow from MegaSpace",
-				Action: toExitCode(undeploy),
+				Action: mcli.ToExitCode(undeploy),
 				Flags:  []cli.Flag{wmAddr, wfid},
 			},
 		},
@@ -78,20 +78,6 @@ func main() {
 		ErrWriter: os.Stderr,
 	}
 	app.Run(os.Args)
-}
-
-func toExitCode(f func(*cli.Context) error) func(*cli.Context) error {
-	return func(ctx *cli.Context) error {
-		err := f(ctx)
-		if err == nil {
-			return nil
-		}
-		exitErr, ok := err.(cli.ExitCoder)
-		if !ok {
-			return cli.Exit(err.Error(), 1)
-		}
-		return exitErr
-	}
 }
 
 func decompile(ctx *cli.Context) error {
