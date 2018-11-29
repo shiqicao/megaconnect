@@ -23,7 +23,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const blockSubscriptionBufferSize = 100
+const (
+	blockSubscriptionBufferSize = 100
+	chainId                     = "Example"
+)
 
 var one = big.NewInt(1)
 
@@ -49,7 +52,7 @@ func New(logger *zap.Logger, blockInterval time.Duration) (connector.Connector, 
 func (c *Connector) Metadata() *connector.Metadata {
 	return &connector.Metadata{
 		ConnectorID:            "Example Connector",
-		ChainID:                "Example",
+		ChainID:                chainId,
 		HealthCheckInterval:    50 * time.Millisecond,
 		HealthCheckGracePeriod: 250 * time.Millisecond,
 	}
@@ -166,7 +169,23 @@ func (c *Connector) IsValidAddress(addr string) bool {
 
 // Namespace returns the namespace and APIs supported by workflow language for the connector.
 func (c *Connector) Namespace() *wf.NamespaceDecl {
-	return nil
+	ns := wf.NewNamespaceDecl(chainId)
+	ns.AddFunc(
+		wf.NewFuncDecl("GetBlockInterval", wf.Params{}, wf.IntType, func(_ *wf.Env, _ map[string]wf.Const) (wf.Const, error) {
+			return wf.NewIntConstFromI64(c.blockInterval.Nanoseconds()), nil
+		}),
+	).AddFunc(
+		wf.NewFuncDecl(
+			"Echo",
+			wf.Params{wf.NewParamDecl("x", wf.StrType)},
+			wf.StrType,
+			func(_ *wf.Env, args map[string]wf.Const) (wf.Const, error) {
+				x := args["x"]
+				return x, nil
+			},
+		),
+	)
+	return ns
 }
 
 type subscription struct {

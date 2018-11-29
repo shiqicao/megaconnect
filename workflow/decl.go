@@ -85,6 +85,20 @@ func (f *FuncDecl) Equal(x *FuncDecl) bool {
 		f.retType.Equal(x.retType)
 }
 
+// Print prints function signature
+func (f *FuncDecl) Print() p.PrinterOp {
+	params := []p.PrinterOp{}
+	for _, param := range f.params {
+		params = append(params, p.Concat(p.Text(param.name), p.Text(" "), param.ty.Print()))
+	}
+	return p.Concat(
+		p.Text(f.name),
+		paren(separatedBy(params, p.Text(","))),
+		p.Text(" "),
+		f.retType.Print(),
+	)
+}
+
 func equalStrings(xs []string, ys []string) bool {
 	if len(xs) != len(ys) {
 		return false
@@ -183,6 +197,17 @@ func (n *NamespaceDecl) AddChild(child *NamespaceDecl) *NamespaceDecl {
 	child.parent = n
 	n.children = append(n.children, child)
 	return n
+}
+
+func (n *NamespaceDecl) Print() p.PrinterOp {
+	children := []p.PrinterOp{}
+	for _, f := range n.funs {
+		children = append(children, f.Print())
+	}
+	for _, c := range n.children {
+		children = append(children, c.Print())
+	}
+	return declPrintCore("namespace", p.Text(n.name), separatedBy(children, p.Line()))
 }
 
 // FuncDecls is a list of function declarations
@@ -488,10 +513,14 @@ func (a *ActionDecl) Print() p.PrinterOp {
 }
 
 func declPrint(keyword string, id *Id, body p.PrinterOp) p.PrinterOp {
+	return declPrintCore(keyword, id.Print(), body)
+}
+
+func declPrintCore(keyword string, id p.PrinterOp, body p.PrinterOp) p.PrinterOp {
 	return p.Concat(
 		p.Text(keyword),
 		p.Text(" "),
-		id.Print(),
+		id,
 		p.Text(" {"),
 		p.Nest(1, body),
 		p.Line(),
