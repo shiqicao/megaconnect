@@ -67,7 +67,7 @@ import (
 
 // Workflow Declaration
 Workflow 
-  : kdWorkflow id "{" Decls "}" << wf.NewWorkflowDecl(pa.Id($1), 0).AddChildren($3.([]wf.Decl)), nil>>
+  : kdWorkflow id "{" Decls "}" << wf.NewWorkflowDecl(pa.Id($1), 0).AddDecls($3.([]wf.Decl)), nil>>
   ;
 
 Decls 

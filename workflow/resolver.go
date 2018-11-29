@@ -124,7 +124,7 @@ func resolveFun(nss []*NamespaceDecl, name string, prefix NamespacePrefix) *Func
 	}
 
 	if len(prefix) > 1 {
-		return resolveFun(ns.children, name, prefix[1:])
+		return resolveFun(ns.namespaces, name, prefix[1:])
 	}
 
 	for _, fun := range ns.funs {

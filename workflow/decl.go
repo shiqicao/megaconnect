@@ -133,10 +133,10 @@ func (p *ParamDecl) Type() Type { return p.ty }
 
 // NamespaceDecl captures namespace declaraion, it includes function declaraion and child namespace
 type NamespaceDecl struct {
-	parent   *NamespaceDecl
-	name     string
-	children []*NamespaceDecl
-	funs     FuncDecls
+	parent     *NamespaceDecl
+	name       string
+	namespaces []*NamespaceDecl
+	funs       FuncDecls
 }
 
 // NewNamespaceDecl creates a new instance of NamespaceDecl
@@ -165,21 +165,21 @@ func (n *NamespaceDecl) FullName() []string {
 
 // Equal returns true if two namespaces are equivalent
 func (n *NamespaceDecl) Equal(x *NamespaceDecl) bool {
-	if len(n.children) != len(x.children) {
+	if len(n.namespaces) != len(x.namespaces) {
 		return false
 	}
-	for _, child := range x.children {
-		if childn := n.findChild(child.name); childn == nil || !childn.Equal(child) {
+	for _, ns := range x.namespaces {
+		if nsn := n.findNamespace(ns.name); nsn == nil || !nsn.Equal(ns) {
 			return false
 		}
 	}
 	return equalStrings(n.FullName(), x.FullName()) && n.funs.Equal(x.funs)
 }
 
-func (n *NamespaceDecl) findChild(name string) *NamespaceDecl {
-	for _, child := range n.children {
-		if child.name == name {
-			return child
+func (n *NamespaceDecl) findNamespace(name string) *NamespaceDecl {
+	for _, ns := range n.namespaces {
+		if ns.name == name {
+			return ns
 		}
 	}
 	return nil
@@ -193,9 +193,9 @@ func (n *NamespaceDecl) AddFunc(funcDecl *FuncDecl) *NamespaceDecl {
 }
 
 // AddChild insert a namespace as child namespace
-func (n *NamespaceDecl) AddChild(child *NamespaceDecl) *NamespaceDecl {
-	child.parent = n
-	n.children = append(n.children, child)
+func (n *NamespaceDecl) AddNamespace(ns *NamespaceDecl) *NamespaceDecl {
+	ns.parent = n
+	n.namespaces = append(n.namespaces, ns)
 	return n
 }
 
@@ -204,7 +204,7 @@ func (n *NamespaceDecl) Print() p.PrinterOp {
 	for _, f := range n.funs {
 		children = append(children, f.Print())
 	}
-	for _, c := range n.children {
+	for _, c := range n.namespaces {
 		children = append(children, c.Print())
 	}
 	return declPrintCore("namespace", p.Text(n.name), separatedBy(children, p.Line()))
@@ -360,28 +360,28 @@ func (e *EventDecl) Print() p.PrinterOp {
 // WorkflowDecl represents a workflow declaration
 type WorkflowDecl struct {
 	node
-	version  uint32
-	name     *Id
-	children []Decl
+	version uint32
+	name    *Id
+	decls   []Decl
 }
 
 // NewWorkflowDecl creates a new instance of WorkflowDecl
 func NewWorkflowDecl(name *Id, version uint32) *WorkflowDecl {
 	return &WorkflowDecl{
-		version:  version,
-		name:     name,
-		children: make([]Decl, 0),
+		version: version,
+		name:    name,
+		decls:   make([]Decl, 0),
 	}
 }
 
 // Equal returns true if `x` is the same workflow declaration
 func (w *WorkflowDecl) Equal(x *WorkflowDecl) bool {
-	if len(w.children) != len(x.children) {
+	if len(w.decls) != len(x.decls) {
 		return false
 	}
 	// declaration order of action declaration implies execution order
-	for i := len(w.children) - 1; i >= 0; i-- {
-		if !w.children[i].Equal(x.children[i]) {
+	for i := len(w.decls) - 1; i >= 0; i-- {
+		if !w.decls[i].Equal(x.decls[i]) {
 			return false
 		}
 	}
@@ -396,7 +396,7 @@ func (w *WorkflowDecl) Name() *Id { return w.name }
 
 // EventDecls returns all event declarations
 func (w *WorkflowDecl) EventDecls() (events []*EventDecl) {
-	for _, d := range w.children {
+	for _, d := range w.decls {
 		if e, ok := d.(*EventDecl); ok {
 			events = append(events, e)
 		}
@@ -406,7 +406,7 @@ func (w *WorkflowDecl) EventDecls() (events []*EventDecl) {
 
 // ActionDecls returns all event declarations
 func (w *WorkflowDecl) ActionDecls() (actions []*ActionDecl) {
-	for _, d := range w.children {
+	for _, d := range w.decls {
 		if e, ok := d.(*ActionDecl); ok {
 			actions = append(actions, e)
 		}
@@ -416,7 +416,7 @@ func (w *WorkflowDecl) ActionDecls() (actions []*ActionDecl) {
 
 // MonitorDecls returns all monitor declarations in order
 func (w *WorkflowDecl) MonitorDecls() (monitors []*MonitorDecl) {
-	for _, d := range w.children {
+	for _, d := range w.decls {
 		if e, ok := d.(*MonitorDecl); ok {
 			monitors = append(monitors, e)
 		}
@@ -424,27 +424,28 @@ func (w *WorkflowDecl) MonitorDecls() (monitors []*MonitorDecl) {
 	return
 }
 
-// AddChild adds a child declaraion
-func (w *WorkflowDecl) AddChild(child Decl) *WorkflowDecl {
-	w.children = append(w.children, child)
-	child.setParent(w)
+// AddDecl adds a child declaraion
+func (w *WorkflowDecl) AddDecl(decl Decl) *WorkflowDecl {
+	w.decls = append(w.decls, decl)
+	decl.setParent(w)
 	return w
 }
 
-func (w *WorkflowDecl) AddChildren(children []Decl) *WorkflowDecl {
-	for _, child := range children {
-		w.AddChild(child)
+// AddDecls adds a list of child declarations
+func (w *WorkflowDecl) AddDecls(decls []Decl) *WorkflowDecl {
+	for _, decl := range decls {
+		w.AddDecl(decl)
 	}
 	return w
 }
 
 // Print pretty prints code
 func (w *WorkflowDecl) Print() p.PrinterOp {
-	children := []p.PrinterOp{}
-	for _, c := range w.children {
-		children = append(children, c.Print())
+	decls := []p.PrinterOp{}
+	for _, c := range w.decls {
+		decls = append(decls, c.Print())
 	}
-	return declPrint("workflow", w.name, separatedBy(children, p.Line()))
+	return declPrint("workflow", w.name, separatedBy(decls, p.Line()))
 }
 
 // ActionDecl represents an action declaration

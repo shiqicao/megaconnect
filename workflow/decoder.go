@@ -51,7 +51,7 @@ func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
 		if err != nil {
 			return nil, err
 		}
-		ns.AddChild(c)
+		ns.AddNamespace(c)
 	}
 	len, err = d.decodeLength()
 	if err != nil {
@@ -151,14 +151,14 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 			if err != nil {
 				return nil, err
 			}
-			wf.AddChild(m)
+			wf.AddDecl(m)
 			continue
 		case declKindAction:
 			a, err := d.DecodeActionDecl()
 			if err != nil {
 				return nil, err
 			}
-			wf.AddChild(a)
+			wf.AddDecl(a)
 			continue
 		case declKindEvent:
 			name, err := d.decodeBytes()
@@ -169,7 +169,7 @@ func (d *Decoder) DecodeWorkflow() (*WorkflowDecl, error) {
 			if err != nil {
 				return nil, err
 			}
-			wf.AddChild(NewEventDecl(NewIdB(name), objTy))
+			wf.AddDecl(NewEventDecl(NewIdB(name), objTy))
 			continue
 		default:
 			return nil, &ErrNotSupported{Name: string(kind)}

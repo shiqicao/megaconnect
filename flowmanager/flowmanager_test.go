@@ -32,28 +32,28 @@ func (s *FlowManagerSuite) SetupTest() {
 
 func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
 	wf := w.NewWorkflowDecl(w.NewId("TestWorkflow"), 1)
-	wf.AddChild(w.NewEventDecl(
+	wf.AddDecl(w.NewEventDecl(
 		w.NewId("TestEvent"),
 		w.NewObjType(w.NewIdToTy().Put(
 			"balance",
 			w.IntType,
 		)),
 	))
-	wf.AddChild(w.NewEventDecl(
+	wf.AddDecl(w.NewEventDecl(
 		w.NewId("TestEvent2"),
 		w.NewObjType(w.NewIdToTy().Put(
 			"balance",
 			w.IntType,
 		)),
 	))
-	wf.AddChild(w.NewEventDecl(
+	wf.AddDecl(w.NewEventDecl(
 		w.NewId("TestEvent3"),
 		w.NewObjType(w.NewIdToTy().Put(
 			"balance",
 			w.IntType,
 		)),
 	))
-	wf.AddChild(w.NewMonitorDecl(
+	wf.AddDecl(w.NewMonitorDecl(
 		w.NewId("TestMonitor"),
 		w.TrueConst,
 		w.NewIdToExpr().Put(
@@ -69,7 +69,7 @@ func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
 		),
 		chainID,
 	))
-	wf.AddChild(w.NewActionDecl(
+	wf.AddDecl(w.NewActionDecl(
 		w.NewId("TestAction"),
 		w.NewEVar("TestEvent"),
 		[]w.Stmt{
@@ -79,7 +79,7 @@ func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
 			),
 		},
 	))
-	wf.AddChild(w.NewActionDecl(
+	wf.AddDecl(w.NewActionDecl(
 		w.NewId("TestAction2"),
 		w.NewEBinOp(
 			w.AndEOp,
