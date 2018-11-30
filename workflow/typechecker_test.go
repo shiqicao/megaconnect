@@ -148,7 +148,7 @@ func TestPropsTC(t *testing.T) {
 	tcb.assertExpErr(t, P("a"))
 	tcb.withStack(scope{"a": T}).assertExpErr(t, P("a"))
 
-	wf := W("a").AddChild(ED("a", OT1("a", BoolType)))
+	wf := W("a").AddDecl(ED("a", OT1("a", BoolType)))
 	tcb.withWf(wf).assertExp(t, P("a"), OT1("a", BoolType))
 	tcb.withWf(wf).assertExpErr(t, P("b"))
 	tcb.withWf(wf).withStack(scope{"a": T}).assertExp(t, P("a"), OT1("a", BoolType))
@@ -158,7 +158,7 @@ func TestMonitorTC(t *testing.T) {
 	tcb := newtc()
 
 	// Test Vars
-	wf := W("a").AddChild(ED("a", OT1("a", BoolType)))
+	wf := W("a").AddDecl(ED("a", OT1("a", BoolType)))
 	md := func(vars IdToExpr) *MonitorDecl {
 		return MD(ID("a"), T, vars, FIRE("a", OL1("a", T)), "B")
 	}
@@ -186,16 +186,16 @@ func TestActionTC(t *testing.T) {
 
 	// Test trigger
 	tcb.assertActionErrN(t, 1, ACT(ID("a"), EV("a"), Stmts{}))
-	wf := W("a").AddChild(ED("a", OT1("a", BoolType)))
+	wf := W("a").AddDecl(ED("a", OT1("a", BoolType)))
 	tcb.withWf(wf).assertActionErrN(t, 1, ACT(ID("a"), EAND(EV("a"), EV("b")), Stmts{}))
 	tcb.withWf(wf).assertActionErrN(t, 1, ACT(ID("a"), EOR(EV("a"), EV("b")), Stmts{}))
 
 	tcb.withWf(wf).assertAction(t, ACT(ID("a"), EOR(EV("a"), EV("a")), Stmts{}))
-	wf = W("a").AddChild(ED("a", OT1("a", BoolType))).AddChild(ED("b", OT1("b", IntType)))
+	wf = W("a").AddDecl(ED("a", OT1("a", BoolType))).AddDecl(ED("b", OT1("b", IntType)))
 	tcb.withWf(wf).assertAction(t, ACT(ID("a"), EOR(EV("a"), EV("b")), Stmts{}))
 
 	// Test Stmt
-	wf = W("a").AddChild(ED("a", OT1("a", BoolType))).AddChild(ED("b", OT1("b", IntType)))
+	wf = W("a").AddDecl(ED("a", OT1("a", BoolType))).AddDecl(ED("b", OT1("b", IntType)))
 	tcb.withWf(wf).assertAction(t, ACT(ID("a"), EV("a"), Stmts{FIRE("a", OL1("a", T))}))
 	tcb.withWf(wf).assertActionErrN(t, 1, ACT(ID("a"), EV("a"), Stmts{FIRE("b", OL1("a", T))}))
 	tcb.withWf(wf).assertActionErrN(t, 1, ACT(ID("a"), EV("a"), Stmts{FIRE("a", OL1("a", I(1)))}))

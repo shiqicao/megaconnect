@@ -74,7 +74,7 @@ func TestResolveFuncCall(t *testing.T) {
 	f = withNamespace(ID("B"), ID("A"))
 	assert.Error(t, r.resolveFuncCall(f))
 
-	lib = []*NamespaceDecl{NewNamespaceDecl("B").AddChild(A)}
+	lib = []*NamespaceDecl{NewNamespaceDecl("B").AddNamespace(A)}
 	r = NewResolver(lib, nil)
 	f = withNamespace(ID("A"))
 	assert.Error(t, r.resolveFuncCall(f))

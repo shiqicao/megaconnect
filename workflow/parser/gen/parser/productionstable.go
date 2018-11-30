@@ -34,13 +34,13 @@ var productionsTable = ProdTab{
 		},
 	},
 	ProdTabEntry{
-		String: `Workflow : kdWorkflow id "{" Decls "}"	<< wf.NewWorkflowDecl(pa.Id(X[1]), 0).AddChildren(X[3].([]wf.Decl)), nil >>`,
+		String: `Workflow : kdWorkflow id "{" Decls "}"	<< wf.NewWorkflowDecl(pa.Id(X[1]), 0).AddDecls(X[3].([]wf.Decl)), nil >>`,
 		Id:         "Workflow",
 		NTType:     1,
 		Index:      1,
 		NumSymbols: 5,
 		ReduceFunc: func(X []Attrib) (Attrib, error) {
-			return wf.NewWorkflowDecl(pa.Id(X[1]), 0).AddChildren(X[3].([]wf.Decl)), nil
+			return wf.NewWorkflowDecl(pa.Id(X[1]), 0).AddDecls(X[3].([]wf.Decl)), nil
 		},
 	},
 	ProdTabEntry{

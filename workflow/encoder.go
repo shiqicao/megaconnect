@@ -84,8 +84,8 @@ func (e *Encoder) EncodeNamespace(ns *NamespaceDecl) error {
 	if err := e.encodeString(ns.name); err != nil {
 		return err
 	}
-	e.encodeLengthI(len(ns.children))
-	for _, c := range ns.children {
+	e.encodeLengthI(len(ns.namespaces))
+	for _, c := range ns.namespaces {
 		if err := e.EncodeNamespace(c); err != nil {
 			return err
 		}
@@ -395,14 +395,14 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 	if err := e.encodeId(wf.Name()); err != nil {
 		return err
 	}
-	e.encodeLengthI(len(wf.children))
-	for _, child := range wf.children {
-		kind, err := getDeclKind(child)
+	e.encodeLengthI(len(wf.decls))
+	for _, decl := range wf.decls {
+		kind, err := getDeclKind(decl)
 		if err != nil {
 			return err
 		}
 		e.encodeBigEndian(kind)
-		switch decl := child.(type) {
+		switch decl := decl.(type) {
 		case *MonitorDecl:
 			if err = e.EncodeMonitorDecl(decl); err != nil {
 				return err
@@ -419,7 +419,7 @@ func (e *Encoder) EncodeWorkflow(wf *WorkflowDecl) error {
 				return err
 			}
 		default:
-			return ErrNotSupportedByType(child)
+			return ErrNotSupportedByType(decl)
 		}
 	}
 	return nil
