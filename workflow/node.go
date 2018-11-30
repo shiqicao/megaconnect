@@ -18,6 +18,7 @@ import (
 type Node interface {
 	HasPos
 	Print() p.PrinterOp
+	Children() []Node
 }
 
 type node struct {
@@ -27,4 +28,11 @@ type node struct {
 // PrintNode returns string format of a node
 func PrintNode(node Node) string {
 	return p.String(node.Print())
+}
+
+func NodeWalker(root Node, visitor func(n Node)) {
+	visitor(root)
+	for _, child := range root.Children() {
+		NodeWalker(child, visitor)
+	}
 }

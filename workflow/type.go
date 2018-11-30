@@ -30,6 +30,9 @@ type ObjType struct {
 // NewObjType creates a new ObjType
 func NewObjType(fields IdToTy) *ObjType { return &ObjType{fields: fields.Copy()} }
 
+// Children returns a list of child nodes
+func (o *ObjType) Children() []Node { return o.fields.Nodes() }
+
 // FieldsCount return number of fields
 func (o *ObjType) FieldsCount() int { return len(o.fields) }
 

@@ -33,6 +33,8 @@ type PrimitiveType struct {
 	mths FuncDecls
 }
 
+func (p *PrimitiveType) Children() []Node { return nil }
+
 // Methods returns a list of methods applicable to this type.
 // Currently it only contains build-in functions for the primitive types
 func (p *PrimitiveType) Methods() FuncDecls { return p.mths.Copy() }

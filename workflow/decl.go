@@ -257,6 +257,11 @@ func NewMonitorDecl(name *Id, cond Expr, vars IdToExpr, event *Fire, chain strin
 	}
 }
 
+// Children returns a list of child nodes
+func (m *MonitorDecl) Children() []Node {
+	return append(m.vars.Nodes(), m.name, m.cond, m.event)
+}
+
 // Name returns monitor name
 func (m *MonitorDecl) Name() *Id { return m.name }
 
@@ -329,6 +334,9 @@ func NewEventDecl(name *Id, ty *ObjType) *EventDecl {
 	}
 }
 
+// Children returns a list of child nodes
+func (e *EventDecl) Children() []Node { return []Node{e.name, e.ty} }
+
 // Equal returns true if x is the same event declaration
 func (e *EventDecl) Equal(x Decl) bool {
 	y, ok := x.(*EventDecl)
@@ -394,6 +402,15 @@ func (w *WorkflowDecl) EventDecls() (events []*EventDecl) {
 	return
 }
 
+// Children returns a list of child nodes
+func (w *WorkflowDecl) Children() []Node {
+	var nodes []Node
+	for _, d := range w.decls {
+		nodes = append(nodes, d)
+	}
+	return nodes
+}
+
 // ActionDecls returns all event declarations
 func (w *WorkflowDecl) ActionDecls() (actions []*ActionDecl) {
 	for _, d := range w.decls {
@@ -453,6 +470,11 @@ func NewActionDecl(name *Id, trigger EventExpr, body Stmts) *ActionDecl {
 		trigger: trigger,
 		body:    body.Copy(),
 	}
+}
+
+// Children returns a list of child nodes
+func (a *ActionDecl) Children() []Node {
+	return append([]Node{a.name, a.trigger}, a.body.Nodes()...)
 }
 
 // Equal returns true if x is the same action declaration

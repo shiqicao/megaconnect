@@ -472,7 +472,7 @@ func TestObjLit(t *testing.T) {
 func TestMonitor(t *testing.T) {
 	assertM := func(m *MonitorDecl, fireResult *FireEventResult) {
 		var cache *FuncCallCache
-		i := NewInterpreter(NewEnv(nil), cache, nil, zap.NewNop())
+		i := NewInterpreter(NewEnv(nil), cache, NewResolver(nil), zap.NewNop())
 		r, err := i.EvalMonitor(m)
 		assert.NoError(t, err)
 		if fireResult == nil {
@@ -570,7 +570,7 @@ func (ib interpreterBuilder) withLibs(libs []*NamespaceDecl) interpreterBuilder 
 	return func() *Interpreter {
 		i := ib()
 		if i.resolver == nil {
-			i.resolver = NewResolver(nil, nil)
+			i.resolver = NewResolver(nil)
 		}
 		i.resolver.libs = libs
 		return i
@@ -601,8 +601,16 @@ func (ib interpreterBuilder) withCache(cache Cache) interpreterBuilder {
 	}
 }
 
+// EvalExpr is not exposed from interpreter, so directly testing expression evaluation
+// should call resolver first
+func (ib interpreterBuilder) evalExpr(expr Expr) (Const, error) {
+	i := ib()
+	i.resolver.resolveExpr(expr)
+	return i.evalExpr(expr)
+}
+
 func (ib interpreterBuilder) assertExpEval(t *testing.T, expected Const, expr Expr) {
-	result, err := ib().EvalExpr(expr)
+	result, err := ib.evalExpr(expr)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotNil(t, result.Type())
@@ -611,15 +619,13 @@ func (ib interpreterBuilder) assertExpEval(t *testing.T, expected Const, expr Ex
 }
 
 func (ib interpreterBuilder) assertExpEvalErr(t *testing.T, expr Expr) {
-	i := ib()
-	result, err := i.EvalExpr(expr)
+	result, err := ib.evalExpr(expr)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
 
 func (ib interpreterBuilder) assertExpEvalEqualErr(t *testing.T, expr Expr, errStr string) {
-	i := ib()
-	result, err := i.EvalExpr(expr)
+	result, err := ib.evalExpr(expr)
 	assert.EqualError(t, err, errStr)
 	assert.Nil(t, result)
 }

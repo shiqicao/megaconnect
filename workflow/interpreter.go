@@ -45,8 +45,8 @@ func NewInterpreter(env *Env, cache Cache, resolver *Resolver, logger *zap.Logge
 // EvalMonitor evaluates a monitor. It pushes a scope with var declaration and pops it up after evaluation.
 // It creates a new instance of an event defined in monitor if condition evaluates to true
 func (i *Interpreter) EvalMonitor(monitor *MonitorDecl) (*FireEventResult, error) {
-	if err := i.resolver.ResolveMonitor(monitor).First(); err != nil {
-		return nil, err
+	if errs := i.resolver.ResolveMonitor(monitor); !errs.Empty() {
+		return nil, errs.First()
 	}
 	// push variable declarations
 	i.vars = make(map[string]Expr, len(monitor.vars))
@@ -123,8 +123,8 @@ func (i *Interpreter) evalEventExpr(eexpr EventExpr) (bool, error) {
 
 // EvalAction evaluates an action
 func (i *Interpreter) EvalAction(action *ActionDecl) ([]StmtResult, error) {
-	if err := i.resolver.resolveAction(action).First(); err != nil {
-		return nil, err
+	if errs := i.resolver.resolveAction(action); !errs.Empty() {
+		return nil, errs.First()
 	}
 	return i.evalAction(action)
 }
@@ -168,16 +168,6 @@ func (i *Interpreter) evalStmt(stmt Stmt) (StmtResult, error) {
 	default:
 		return nil, ErrNotSupportedByType(stmt)
 	}
-}
-
-// EvalExpr evaluates an unbound expression. Unbound expression contains symbols(like function names) unresolved.
-// It will resolve and type check before execution. It should not used for a bound expression, it will try to bind symbols again.
-func (i *Interpreter) EvalExpr(expr Expr) (Const, error) {
-	err := i.resolver.resolveExpr(expr).First()
-	if err != nil {
-		return nil, err
-	}
-	return i.evalExpr(expr)
 }
 
 func (i *Interpreter) evalExpr(expr Expr) (Const, error) {

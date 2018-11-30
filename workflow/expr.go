@@ -69,6 +69,14 @@ func (a Args) Print() p.PrinterOp {
 	return separatedBy(ops, p.Text(", "))
 }
 
+// Nodes returns a list of node
+func (a Args) Nodes() (nodes []Node) {
+	for _, arg := range a {
+		nodes = append(nodes, arg)
+	}
+	return
+}
+
 // FuncCall represents a function invoking expression
 type FuncCall struct {
 	expr
@@ -121,15 +129,26 @@ func (f *FuncCall) Equal(expr Expr) bool {
 		f.NamespacePrefix().Equal(y.NamespacePrefix())
 }
 
+// Children returns a list of child nodes
+func (f *FuncCall) Children() []Node {
+	nodes := append(f.args.Nodes(), f.name)
+	return append(nodes, f.ns.Nodes()...)
+}
+
 // Const represents a single value or an object, it derives from Expr
 type Const interface {
 	Expr
 	isNumeric() bool
 }
 
+type primitiveConst struct{ expr }
+
+// Children returns a list child nodes
+func (p *primitiveConst) Children() []Node { return nil }
+
 // BoolConst is a value typed to BoolType
 type BoolConst struct {
-	expr
+	primitiveConst
 	value bool
 }
 
@@ -143,10 +162,11 @@ func GetBoolConst(value bool) *BoolConst {
 
 // NewBoolConst creates a new instace of BoolConst
 func NewBoolConst(value bool) *BoolConst {
-	return &BoolConst{
+	result := &BoolConst{
 		value: value,
-		expr:  expr{ty: BoolType},
 	}
+	result.ty = BoolType
+	return result
 }
 
 // GetBoolConstFromStr converts value to TrueConst or FalseConst
@@ -183,7 +203,7 @@ func (b *BoolConst) Print() p.PrinterOp {
 
 // StrConst is a value typed to StrType
 type StrConst struct {
-	expr
+	primitiveConst
 	value string
 }
 
@@ -209,7 +229,7 @@ func (s *StrConst) Print() p.PrinterOp { return p.Text("\"" + s.value + "\"") }
 
 // IntConst represents a big interger
 type IntConst struct {
-	expr
+	primitiveConst
 	value *big.Int
 }
 
@@ -240,7 +260,7 @@ func (i *IntConst) Print() p.PrinterOp { return p.Text(i.value.String()) }
 
 // RatConst represents a big rational number
 type RatConst struct {
-	expr
+	primitiveConst
 	value *big.Rat
 }
 
@@ -302,6 +322,14 @@ func (o ObjFields) Copy() ObjFields {
 	return result
 }
 
+// Nodes returns a list of nodes
+func (o ObjFields) Nodes() (nodes []Node) {
+	for _, value := range o {
+		nodes = append(nodes, value)
+	}
+	return
+}
+
 // NewObjConst converts a list of named `Const` to ObjConst, it also calculates type of this ObjConst
 func NewObjConst(values ObjFields) *ObjConst {
 	ty := make(IdToTy, len(values))
@@ -346,6 +374,9 @@ func NewObjConstWithTy(ty *ObjType, values ObjFields) (*ObjConst, error) {
 
 // Value returns a copy of fields
 func (o *ObjConst) Value() ObjFields { return o.value.Copy() }
+
+// Children returns a list of child nodes
+func (o *ObjConst) Children() []Node { return o.value.Nodes() }
 
 func (o *ObjConst) isNumeric() bool { return false }
 
@@ -415,6 +446,14 @@ func (n NamespacePrefix) Copy() NamespacePrefix {
 	return append(n[:0:0], n...)
 }
 
+// Nodes returns a list of node
+func (n NamespacePrefix) Nodes() (nodes []Node) {
+	for _, node := range n {
+		nodes = append(nodes, node)
+	}
+	return
+}
+
 // ObjAccessor represents field selection operation,
 // for example, A.foo, where A is an object and foo is a field of A
 type ObjAccessor struct {
@@ -430,6 +469,9 @@ func NewObjAccessor(receiver Expr, field string) *ObjAccessor {
 		field:    field,
 	}
 }
+
+// Children returns a list of child nodes
+func (o *ObjAccessor) Children() []Node { return []Node{o.receiver} }
 
 // Receiver returns the expression which is expected to be evaluated to an object
 func (o *ObjAccessor) Receiver() Expr { return o.receiver }
@@ -478,6 +520,9 @@ func NewVar(name string) *Var {
 	return &Var{name: name}
 }
 
+// Children returns a list of child nodes
+func (v *Var) Children() []Node { return nil }
+
 // Equal returns true if `expr` is the same variable
 func (v *Var) Equal(expr Expr) bool {
 	y, ok := expr.(*Var)
@@ -503,6 +548,9 @@ func NewObjLit(fields IdToExpr) *ObjLit {
 		fields: fields.Copy(),
 	}
 }
+
+// Children returns a list of child nodes
+func (o *ObjLit) Children() []Node { return o.fields.Nodes() }
 
 // Equal returns true if two ObjLit are equivalent
 func (o *ObjLit) Equal(expr Expr) bool {
@@ -536,6 +584,9 @@ func NewProps(v *Var) *Props {
 		eventVar: v,
 	}
 }
+
+// Children returns a list of child nodes
+func (pr *Props) Children() []Node { return []Node{pr.eventVar} }
 
 // Print pretty prints code
 func (pr *Props) Print() p.PrinterOp {

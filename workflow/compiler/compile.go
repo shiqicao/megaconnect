@@ -14,20 +14,57 @@ package compiler
 
 import (
 	"fmt"
+	"io"
 
 	wf "github.com/megaspacelab/megaconnect/workflow"
 	"github.com/megaspacelab/megaconnect/workflow/parser"
 )
 
 // Compile compiles from workflow source code to binary format
-func Compile(src string) ([]byte, error) {
+func Compile(src string, nss []*wf.NamespaceDecl) ([]byte, wf.Errors) {
 	w, err := parser.Parse(src)
 	if err != nil {
 		fmt.Printf(err.Error())
-		return nil, err
+		return nil, wf.ToErrors(err)
 	}
 
-	// TODO: validation & type checker
+	if errs := wf.WorkflowValidator.Validate(w); !errs.Empty() {
+		return nil, errs
+	}
 
-	return wf.EncodeWorkflow(w)
+	if errs := wf.NewResolver(nss).ResolveWorkflow(w); !errs.Empty() {
+		return nil, errs
+	}
+
+	if errs := wf.NewTypeChecker(w).Check(); !errs.Empty() {
+		return nil, errs
+	}
+
+	bin, err := wf.EncodeWorkflow(w)
+	if err != nil {
+		return nil, wf.ToErrors(err)
+	}
+	return bin, nil
+}
+
+// DecodeBinary decode workflow binary with static analyzing
+func DecodeBinary(r io.Reader, nss []*wf.NamespaceDecl, check bool) (*wf.WorkflowDecl, wf.Errors) {
+	w, err := wf.NewDecoder(r).DecodeWorkflow()
+	if err != nil {
+		return nil, wf.ToErrors(err)
+	}
+	if check {
+		if errs := wf.WorkflowValidator.Validate(w); !errs.Empty() {
+			return nil, errs
+		}
+
+		if errs := wf.NewResolver(nss).ResolveWorkflow(w); !errs.Empty() {
+			return nil, errs
+		}
+
+		if errs := wf.NewTypeChecker(w).Check(); !errs.Empty() {
+			return nil, errs
+		}
+	}
+	return w, nil
 }

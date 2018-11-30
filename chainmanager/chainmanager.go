@@ -99,7 +99,7 @@ func New(
 		logger:     logger,
 		monitors:   make(map[mgrpc.MonitorID]*mgrpc.Monitor),
 		blockCache: ring.New(blockCacheSize),
-		chainAPI:   newChainAPI(id, conn),
+		chainAPI:   newChainAPI(conn.Metadata().ChainID, conn),
 	}
 }
 
@@ -354,7 +354,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	interpreter := wf.NewInterpreter(
 		wf.NewEnv(nil),
 		cache,
-		wf.NewResolver([]*wf.NamespaceDecl{api}, wf.NamespacePrefix{wf.NewId(e.id)}),
+		wf.NewResolver([]*wf.NamespaceDecl{api}),
 		e.logger,
 	)
 	events := []*protos.MonitorEvent{}

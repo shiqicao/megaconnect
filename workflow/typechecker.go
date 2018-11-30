@@ -94,7 +94,7 @@ func (t *TypeChecker) checkTrigger(action *ActionDecl) Errors {
 	for _, e := range triggerEvents {
 		_, ok := t.events[e]
 		if !ok {
-			errs = errs.Wrap(setPos(&ErrEventNotFound{Name: e}, action))
+			errs = errs.Wrap(SetErrPos(&ErrEventNotFound{Name: e}, action))
 		}
 	}
 	return errs
@@ -103,14 +103,14 @@ func (t *TypeChecker) checkTrigger(action *ActionDecl) Errors {
 func (t *TypeChecker) checkFire(fire *Fire) Errors {
 	event, ok := t.events[fire.eventName]
 	if !ok {
-		return ToErrors(setPos(&ErrEventNotFound{Name: fire.eventName}, fire))
+		return ToErrors(SetErrPos(&ErrEventNotFound{Name: fire.eventName}, fire))
 	}
 	return t.inferExpr(fire.eventObj).
 		Concat(expectTy(fire.eventObj, event.ty))
 }
 
 func (t *TypeChecker) inferExpr(expr Expr) Errors {
-	toErrors := func(err WFError) Errors { return ToErrors(setPos(err, expr)) }
+	toErrors := func(err ErrWithPos) Errors { return ToErrors(SetErrPos(err, expr)) }
 	if expr.Type() != nil {
 		return nil
 	}
@@ -178,7 +178,7 @@ func (t *TypeChecker) inferExpr(expr Expr) Errors {
 		}
 		fieldTy, ok := ty.fields[e.field]
 		if !ok {
-			return errs.Wrap((setPos(&ErrObjFieldMissing{Field: e.field, ObjType: ty}, e)))
+			return errs.Wrap((SetErrPos(&ErrObjFieldMissing{Field: e.field, ObjType: ty}, e)))
 		}
 		e.ty = fieldTy.ty
 		return errs
@@ -248,7 +248,7 @@ func expectObjTy(expr Expr) (*ObjType, Errors) {
 	}
 	objTy, ok := expr.Type().(*ObjType)
 	if !ok {
-		return nil, ToErrors(setPos(&ErrAccessorRequireObjType{Type: expr.Type()}, expr))
+		return nil, ToErrors(SetErrPos(&ErrAccessorRequireObjType{Type: expr.Type()}, expr))
 	}
 	return objTy, nil
 }
@@ -267,16 +267,11 @@ func matchTy(expr Expr, tys ...Type) (Type, Errors) {
 		}
 	}
 	return nil, ToErrors(
-		setPos(&ErrTypeMismatch{ExpectedTypes: tys, ActualType: expr.Type()}, expr),
+		SetErrPos(&ErrTypeMismatch{ExpectedTypes: tys, ActualType: expr.Type()}, expr),
 	)
 }
 
 func expectTy(expr Expr, tys ...Type) Errors {
 	_, errs := matchTy(expr, tys...)
 	return errs
-}
-
-func setPos(err WFError, pos interface{ Pos() *Pos }) WFError {
-	err.SetPos(pos.Pos())
-	return err
 }
