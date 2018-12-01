@@ -16,12 +16,13 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/megaspacelab/megaconnect/common"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/protos"
 	"github.com/megaspacelab/megaconnect/unsafe"
 	"github.com/megaspacelab/megaconnect/workflow"
+
+	"github.com/golang/protobuf/ptypes/empty"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -87,17 +88,15 @@ func (fm *FlowManager) DeployWorkflow(
 		return nil, err
 	}
 
-	err = fm.deployWorkflow(workflow)
+	id, err := fm.deployWorkflow(workflow)
 	if err != nil {
 		return nil, err
 	}
 
-	id := GetWorkflowID(workflow).Bytes()
-
 	resp := &mgrpc.DeployWorkflowResponse{
-		WorkflowId: id,
+		WorkflowId: id.UnsafeBytes(),
 	}
-	fm.log.Debug("DeployWorkflow successful", zap.ByteString("Workflow ID", id))
+	fm.log.Debug("DeployWorkflow successful", zap.Stringer("Workflow ID", *id))
 
 	return resp, nil
 }
@@ -113,13 +112,13 @@ func (fm *FlowManager) UndeployWorkflow(
 		return nil, status.Error(codes.InvalidArgument, "Missing Workflow ID")
 	}
 
-	id := common.ImmutableBytes(req.WorkflowId)
+	id := WorkflowID(req.WorkflowId)
 
 	err := fm.undeployWorkflow(id)
 	if err != nil {
 		return nil, err
 	}
-	fm.log.Debug("UndeployWorkflow successful", zap.ByteString("Workflow ID", req.WorkflowId))
+	fm.log.Debug("UndeployWorkflow successful", zap.Stringer("Workflow ID", id))
 
 	return &empty.Empty{}, nil
 }
@@ -303,7 +302,7 @@ func (fm *FlowManager) processEventWithLock(
 }
 
 // deployWorkflow deploys a workflow.
-func (fm *FlowManager) deployWorkflow(wf *workflow.WorkflowDecl) error {
+func (fm *FlowManager) deployWorkflow(wf *workflow.WorkflowDecl) (*WorkflowID, error) {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()
 
@@ -311,15 +310,15 @@ func (fm *FlowManager) deployWorkflow(wf *workflow.WorkflowDecl) error {
 	if _, ok := fm.pendingWorkflows[wfid]; !ok {
 		old, err := fm.stateStore.WorkflowByID(wfid)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if old == nil {
 			fm.pendingWorkflows[wfid] = wf
-			return nil
+			return &wfid, nil
 		}
 	}
 
-	return fmt.Errorf("Workflow already exists %v", wfid)
+	return nil, fmt.Errorf("Workflow already exists %v", wfid)
 }
 
 // undeployWorkflow undeploys a workflow.

@@ -1,17 +1,11 @@
 package flowmanager
 
 import (
-	"errors"
-
 	"github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/protos"
 	"github.com/megaspacelab/megaconnect/workflow"
 
 	"github.com/golang/protobuf/proto"
-)
-
-var (
-	ErrFinalized = errors.New("Pending state already finalized")
 )
 
 type eventID struct {
@@ -167,9 +161,9 @@ func (s *MemStateStore) ActionStatesByEvent(wfid WorkflowID, eventName string) (
 	return actionStates, nil
 }
 
-func (s *MemStateStore) MBlockByHeight(height uint64) (*protos.MBlock, error) {
-	if height >= uint64(len(s.committed.mblocks)) {
-		return nil, errors.New("Height out of range")
+func (s *MemStateStore) MBlockByHeight(height int64) (*protos.MBlock, error) {
+	if height >= int64(len(s.committed.mblocks)) || height < 0 {
+		return nil, nil
 	}
 
 	return s.committed.mblocks[height], nil
@@ -438,7 +432,7 @@ func (s *MemStateStore) FinalizeMBlock() (*protos.MBlock, error) {
 
 func (s *MemStateStore) CommitPendingMBlock(block *protos.MBlock) error {
 	if block != s.pendingMBlock() {
-		return errors.New("Wrong mblock to commit")
+		return ErrUnknownMBlock
 	}
 
 	for k, v := range s.pending.workflowByID {
