@@ -27,9 +27,7 @@ type Stmts []Stmt
 
 // Copy returns a new instance of Stmts
 func (s Stmts) Copy() Stmts {
-	r := make(Stmts, len(s))
-	copy(r, s)
-	return r
+	return append(s[:0:0], s...)
 }
 
 // Equal returns true if x is the equivalent stmts

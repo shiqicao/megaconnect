@@ -22,12 +22,7 @@ type Params []*ParamDecl
 
 // Copy returns a new Params
 func (p Params) Copy() Params {
-	if p == nil {
-		return nil
-	}
-	r := make(Params, len(p))
-	copy(r, p)
-	return r
+	return append(p[:0:0], p...)
 }
 
 // Equal returns true if two Params are equivalent
@@ -224,12 +219,7 @@ func (f FuncDecls) find(name string) *FuncDecl {
 
 // Copy creates a new list of function declarations
 func (f FuncDecls) Copy() FuncDecls {
-	if f == nil {
-		return nil
-	}
-	r := make(FuncDecls, len(f))
-	copy(r, f)
-	return r
+	return append(f[:0:0], f...)
 }
 
 // Equal returns true if two FuncDecls are equivalent

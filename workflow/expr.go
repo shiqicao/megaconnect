@@ -44,12 +44,7 @@ type Args []Expr
 
 // Copy creates a new Args
 func (a Args) Copy() Args {
-	if a == nil {
-		return nil
-	}
-	r := make([]Expr, len(a))
-	copy(r, a)
-	return r
+	return append(a[:0:0], a...)
 }
 
 // Equal returns true if two argument lists are the same
@@ -417,12 +412,7 @@ func (n NamespacePrefix) Equal(m NamespacePrefix) bool {
 
 // Copy creates a new namespace prefix
 func (n NamespacePrefix) Copy() NamespacePrefix {
-	if n == nil {
-		return nil
-	}
-	r := make(NamespacePrefix, len(n))
-	copy(r, n)
-	return r
+	return append(n[:0:0], n...)
 }
 
 // ObjAccessor represents field selection operation,
