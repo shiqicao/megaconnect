@@ -163,23 +163,23 @@ func (s *MemStateStore) ActionStatesByEvent(wfid WorkflowID, eventName string) (
 
 func (s *MemStateStore) MBlockByHeight(height int64) (*protos.MBlock, error) {
 	if height >= int64(len(s.committed.mblocks)) || height < 0 {
-		return nil, nil
+		return nil, ErrHeightOutOfRange
 	}
 
 	return s.committed.mblocks[height], nil
 }
 
-func (s *MemStateStore) lastMBlock() *protos.MBlock {
+func (s *MemStateStore) LatestMBlock() (*protos.MBlock, error) {
 	n := len(s.committed.mblocks)
 	if n == 0 {
-		return nil
+		return nil, nil
 	}
-	return s.committed.mblocks[n-1]
+	return s.committed.mblocks[n-1], nil
 }
 
 func (s *MemStateStore) pendingMBlock() *protos.MBlock {
 	if s.pending.mblock == nil {
-		parent := s.lastMBlock()
+		parent, _ := s.LatestMBlock()
 		if parent == nil {
 			// Genesis
 			s.pending.mblock = &protos.MBlock{}

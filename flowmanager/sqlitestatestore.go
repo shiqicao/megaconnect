@@ -11,7 +11,7 @@ import (
 	"github.com/megaspacelab/megaconnect/workflow"
 
 	"github.com/golang/protobuf/proto"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // This blank import is implicitly used as a SQL driver
 )
 
 type SQLiteStateStore struct {
@@ -29,7 +29,7 @@ func NewSQLiteStateStore(dbFile string) (*SQLiteStateStore, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite3", dbFile+"?journal_mode=WAL")
+	db, err := sql.Open("sqlite3", dbFile+"?journal_mode=WAL&_foreign_keys=on")
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func NewSQLiteStateStore(dbFile string) (*SQLiteStateStore, error) {
 		return nil, err
 	}
 
-	s.latestMBlock, err = s.LatestMBlock()
+	s.latestMBlock, err = s.fetchLatestMBlock()
 	if err != nil {
 		s.Close()
 		return nil, err
@@ -321,7 +321,7 @@ func scanMBlock(row *sql.Row) (*protos.MBlock, error) {
 	return mblock, nil
 }
 
-func (s *SQLiteStateStore) LatestMBlock() (*protos.MBlock, error) {
+func (s *SQLiteStateStore) fetchLatestMBlock() (*protos.MBlock, error) {
 	row := s.tx.QueryRow(`
 SELECT payload
 FROM mblock
@@ -332,7 +332,15 @@ LIMIT 1
 	return scanMBlock(row)
 }
 
+func (s *SQLiteStateStore) LatestMBlock() (*protos.MBlock, error) {
+	return proto.Clone(s.latestMBlock).(*protos.MBlock), nil
+}
+
 func (s *SQLiteStateStore) MBlockByHeight(height int64) (*protos.MBlock, error) {
+	if height >= s.nextMBlock.Height || height < 0 {
+		return nil, ErrHeightOutOfRange
+	}
+
 	row := s.tx.QueryRow(`
 SELECT payload
 FROM mblock
@@ -428,6 +436,8 @@ WHERE workflow_id = ? AND action_name = ?
 	return err
 }
 
+// PutWorkflow enters a new workflow into the store.
+// It's an error if the id already exists.
 func (s *SQLiteStateStore) PutWorkflow(id WorkflowID, wf *workflow.WorkflowDecl) error {
 	if s.finalized {
 		return ErrFinalized
@@ -541,15 +551,15 @@ func (s *SQLiteStateStore) FinalizeMBlock() (*protos.MBlock, error) {
 	// TODO - hash
 	s.nextMBlock.Hash = big.NewInt(s.nextMBlock.Height).Bytes()
 	s.finalized = true
-	return s.nextMBlock, nil
+	return proto.Clone(s.nextMBlock).(*protos.MBlock), nil
 }
 
 func (s *SQLiteStateStore) CommitPendingMBlock(block *protos.MBlock) error {
-	if block != s.nextMBlock {
+	if !proto.Equal(block, s.nextMBlock) {
 		return ErrUnknownMBlock
 	}
 
-	payload, err := proto.Marshal(block)
+	payload, err := proto.Marshal(s.nextMBlock)
 	if err != nil {
 		return err
 	}
@@ -557,7 +567,7 @@ func (s *SQLiteStateStore) CommitPendingMBlock(block *protos.MBlock) error {
 	_, err = s.tx.Exec(`
 INSERT INTO mblock(height, hash, payload)
 VALUES (?, ?, ?)
-`, block.Height, block.Hash, payload)
+`, s.nextMBlock.Height, s.nextMBlock.Hash, payload)
 	if err != nil {
 		return err
 	}
@@ -568,7 +578,7 @@ VALUES (?, ?, ?)
 	}
 	s.tx = nil
 
-	s.latestMBlock = block
+	s.latestMBlock = s.nextMBlock
 
 	return s.ResetPending()
 }
