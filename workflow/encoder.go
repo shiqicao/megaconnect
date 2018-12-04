@@ -474,6 +474,13 @@ func EncodeWorkflow(wf *WorkflowDecl) ([]byte, error) {
 	})
 }
 
+// EncodeActionDecl serializes action declaration to binary format
+func EncodeActionDecl(action *ActionDecl) ([]byte, error) {
+	return withByteBuffer(func(e *Encoder) error {
+		return e.EncodeActionDecl(action)
+	})
+}
+
 func withByteBuffer(f func(e *Encoder) error) ([]byte, error) {
 	var buf bytes.Buffer
 	e := &Encoder{writer: &buf}

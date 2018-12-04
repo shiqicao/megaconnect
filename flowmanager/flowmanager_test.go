@@ -182,7 +182,7 @@ func (s *FlowManagerSuite) TestDeployAndUndeployWorkflow() {
 
 func (s *FlowManagerSuite) TestReportBlockEvents() {
 	wf := s.workflow1()
-	err := s.fm.deployWorkflow(wf)
+	_, err := s.fm.deployWorkflow(wf)
 	s.Require().NoError(err)
 
 	_, err = s.fm.FinalizeAndCommitMBlock()

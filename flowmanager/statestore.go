@@ -1,9 +1,17 @@
 package flowmanager
 
 import (
+	"errors"
+
 	"github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/protos"
 	"github.com/megaspacelab/megaconnect/workflow"
+)
+
+var (
+	ErrFinalized        = errors.New("Pending state already finalized")
+	ErrUnknownMBlock    = errors.New("Unkown MBlock")
+	ErrHeightOutOfRange = errors.New("Height out of range")
 )
 
 // TODO - unify/cleanup proto types with decl types.
@@ -15,7 +23,8 @@ type StateStore interface {
 	WorkflowByID(id WorkflowID) (*workflow.WorkflowDecl, error)
 	MonitorsByChain(chain string) ([]*grpc.Monitor, error)
 	ActionStatesByEvent(wfid WorkflowID, eventName string) ([]*ActionState, error)
-	MBlockByHeight(height uint64) (*protos.MBlock, error)
+	MBlockByHeight(height int64) (*protos.MBlock, error)
+	LatestMBlock() (*protos.MBlock, error)
 
 	// Write operations.
 	PutBlockReport(block *protos.Block) error
