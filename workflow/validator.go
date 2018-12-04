@@ -49,7 +49,7 @@ func (a *AggValidator) Validate(wf *WorkflowDecl) (errs Errors) {
 	for _, v := range a.validators {
 		errs = errs.Concat(v.Validate(wf))
 	}
-	return errs
+	return
 }
 
 // NoVarRecursiveDefValidator validates no recursive variable definition,
@@ -80,7 +80,7 @@ func (nv *NoVarRecursiveDefValidator) validateMonitorVars(vars IdToExpr) (errs E
 	}
 	for _, node := range vars {
 		cycle := checkCycle(edges, []string{}, node.Id.Id())
-		// cycle[0] is node.Id if a cycle is detected for
+		// Only report error if cycle[0] is node.Id, this means a cycle is detected for
 		// the current declared var. If cycle[0] is not node.Id,
 		// the cycle is caught already or will be caught later.
 		if len(cycle) > 0 && cycle[0] == node.Id.Id() {
@@ -141,7 +141,7 @@ func (nr *NoRecursiveAction) Validate(wf *WorkflowDecl) (errs Errors) {
 
 	for _, node := range wf.EventDecls() {
 		cycle := checkCycle(edges, []string{}, node.name.Id())
-		// cycle[0] is node.Id if a cycle is detected for
+		// Only report error if cycle[0] is node.Id, this means a cycle is detected for
 		// the current declared var. If cycle[0] is not node.Id,
 		// the cycle is caught already or will be caught later.
 		if len(cycle) > 0 && cycle[0] == node.name.Id() {
