@@ -16,6 +16,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -51,28 +52,38 @@ func main() {
 		Usage: "workflow identifier for undeploy",
 	}
 
+	lib := &cli.PathFlag{
+		Name:  "lib",
+		Usage: "workflow APIs directory",
+		Value: mcli.DefaultWorkflowLibDir(),
+	}
+
 	app := &cli.App{
-		Name:   "Workflow compiler",
-		Flags:  []cli.Flag{output, &mcli.DebugFlag},
-		Action: mcli.ToExitCode(compile),
+		Name: "Workflow compiler",
 		Commands: []*cli.Command{
+			&cli.Command{
+				Name:   "compile",
+				Usage:  "compile workflow source code",
+				Action: mcli.ToExitCode(compile),
+				Flags:  []cli.Flag{&mcli.DebugFlag, output, lib},
+			},
 			&cli.Command{
 				Name:   "reflect",
 				Usage:  "decompile a binary to workflow",
 				Action: mcli.ToExitCode(decompile),
-				Flags:  []cli.Flag{output},
+				Flags:  []cli.Flag{&mcli.DebugFlag, output},
 			},
 			&cli.Command{
 				Name:   "deploy",
 				Usage:  "deploy a workflow to MegaSpace",
 				Action: mcli.ToExitCode(deploy),
-				Flags:  []cli.Flag{wmAddr},
+				Flags:  []cli.Flag{&mcli.DebugFlag, wmAddr, lib},
 			},
 			&cli.Command{
 				Name:   "undeploy",
 				Usage:  "undeploy a workflow from MegaSpace",
 				Action: mcli.ToExitCode(undeploy),
-				Flags:  []cli.Flag{wmAddr, wfid},
+				Flags:  []cli.Flag{&mcli.DebugFlag, wmAddr, wfid},
 			},
 		},
 		Writer:    os.Stdin,
@@ -82,60 +93,60 @@ func main() {
 }
 
 func decompile(ctx *cli.Context) error {
-	if ctx.Args().Len() > 0 {
-		binfile := ctx.Args().Get(0)
-		fs, err := os.Open(binfile)
-		if err != nil {
-			return err
-		}
-		decoder := wf.NewDecoder(fs)
-		wf, err := decoder.DecodeWorkflow()
-		if err != nil {
-			return err
-		}
-		output := ctx.Path("output")
-		if output == "" {
-			output = binfile + ".wf"
-		}
-		outputfs, err := os.Create(output)
-		if err != nil {
-			return err
-		}
-		err = wf.Print()(p.NewTxtPrinter(outputfs))
-		if err != nil {
-			return err
-		}
-		return nil
+	if ctx.Args().Len() == 0 {
+		return fmt.Errorf("missing binary file path")
 	}
-	return fmt.Errorf("missing binary file path")
+	binfile := ctx.Args().Get(0)
+	fs, err := os.Open(binfile)
+	if err != nil {
+		return err
+	}
+	decoder := wf.NewDecoder(fs)
+	wf, err := decoder.DecodeWorkflow()
+	if err != nil {
+		return err
+	}
+	output := ctx.Path("output")
+	if output == "" {
+		output = binfile + ".wf"
+	}
+	outputfs, err := os.Create(output)
+	if err != nil {
+		return err
+	}
+	return wf.Print()(p.NewTxtPrinter(outputfs))
+
 }
 
 func compile(ctx *cli.Context) error {
-	if ctx.Args().Len() > 0 {
-		src := ctx.Args().Get(0)
-		bin, errs := compiler.Compile(src, nil)
-		if !errs.Empty() {
-			printErrs(os.Stdout, errs)
-			return nil
-		}
-		output := ctx.Path("output")
-		if output == "" {
-			ext := filepath.Ext(src)
-			output = src[0 : len(src)-len(ext)]
-		}
-		fmt.Printf("output: %s \n", output)
-		binWriter, err := os.Create(output)
-		defer binWriter.Close()
-		if err != nil {
-			return err
-		}
-		if _, err = binWriter.Write(bin); err != nil {
-			return err
-		}
+	if ctx.Args().Len() == 0 {
+		return fmt.Errorf("missing source file")
+	}
+	src := ctx.Args().Get(0)
+	nss, err := loadLib(ctx)
+	if err != nil {
+		return err
+	}
+	bin, errs := compiler.Compile(src, nss)
+	if !errs.Empty() {
+		printErrs(os.Stdout, errs)
 		return nil
 	}
-
-	return fmt.Errorf("missing source file")
+	output := ctx.Path("output")
+	if output == "" {
+		ext := filepath.Ext(src)
+		output = src[0 : len(src)-len(ext)]
+	}
+	fmt.Printf("output: %s \n", output)
+	binWriter, err := os.Create(output)
+	defer binWriter.Close()
+	if err != nil {
+		return err
+	}
+	if _, err = binWriter.Write(bin); err != nil {
+		return err
+	}
+	return nil
 }
 
 func printErrs(w io.Writer, errs wf.Errors) {
@@ -162,8 +173,11 @@ func deploy(ctx *cli.Context) error {
 	} else {
 		return fmt.Errorf("missing input source file")
 	}
-
-	bin, errs := compiler.Compile(src, nil)
+	nss, err := loadLib(ctx)
+	if err != nil {
+		return err
+	}
+	bin, errs := compiler.Compile(src, nss)
 	if !errs.Empty() {
 		printErrs(os.Stdout, errs)
 		return nil
@@ -232,4 +246,35 @@ func createWMClient(context context.Context, ctx *cli.Context, logger *zap.Logge
 		return nil, err
 	}
 	return mgrpc.NewWorkflowManagerClient(wmConn), nil
+}
+
+func loadLib(ctx *cli.Context) ([]*wf.NamespaceDecl, error) {
+	var nss []*wf.NamespaceDecl
+	libpath := ctx.Path("lib")
+	if libpath == "" {
+		return nss, nil
+	}
+	files, err := ioutil.ReadDir(libpath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		fs, err := os.Open(filepath.Join(libpath, f.Name()))
+		if err != nil {
+			fmt.Printf("Failed to load: %s \n", f.Name())
+			continue
+		}
+		decoder := wf.NewDecoder(fs)
+		ns, err := decoder.DecodeNamespace()
+		if err != nil {
+			fmt.Printf("Failed to decode namespace: %s \n", f.Name())
+			continue
+		}
+		fmt.Printf("Load lib: %s \n", ns.Name())
+		nss = append(nss, ns)
+	}
+	return nss, nil
 }

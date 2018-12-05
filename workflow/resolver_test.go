@@ -27,16 +27,17 @@ func TestResolveAction(t *testing.T) {
 	assertErrs(t, 1, r.resolveAction(a(noNamespace())))
 	assertErrs(t, 1, r.resolveAction(a(withNamespace(ID("A")))))
 
-	lib := []*NamespaceDecl{
-		NewNamespaceDecl("A").AddFunc(
-			NewFuncDecl(
-				"F",
-				Params{},
-				BoolType,
-				nil,
-			),
+	ns := NewNamespaceDecl("A")
+	err := ns.AddFuncs(
+		NewFuncDecl(
+			"F",
+			Params{},
+			BoolType,
+			nil,
 		),
-	}
+	)
+	assert.NoError(t, err)
+	lib := []*NamespaceDecl{ns}
 
 	r = NewResolver(lib)
 	assertErrs(t, 1, r.resolveAction(a(noNamespace())))
@@ -51,7 +52,8 @@ func TestResolveAction(t *testing.T) {
 
 func TestResolveFuncCall(t *testing.T) {
 	withNamespace := func(nss ...*Id) *FuncCall { return NewFuncCall(NamespacePrefix(nss), ID("F")) }
-	A := NewNamespaceDecl("A").AddFunc(
+	A := NewNamespaceDecl("A")
+	err := A.AddFuncs(
 		NewFuncDecl(
 			"F",
 			Params{},
@@ -59,6 +61,7 @@ func TestResolveFuncCall(t *testing.T) {
 			nil,
 		),
 	)
+	assert.NoError(t, err)
 
 	lib := []*NamespaceDecl{A}
 	r := NewResolver(lib)
@@ -69,7 +72,10 @@ func TestResolveFuncCall(t *testing.T) {
 	f = withNamespace(ID("B"), ID("A"))
 	assert.Error(t, r.resolveFuncCall(f))
 
-	lib = []*NamespaceDecl{NewNamespaceDecl("B").AddNamespace(A)}
+	B := NewNamespaceDecl("B")
+	err = B.AddNamespaces(A)
+	assert.NoError(t, err)
+	lib = []*NamespaceDecl{B}
 	r = NewResolver(lib)
 	f = withNamespace(ID("A"))
 	assert.Error(t, r.resolveFuncCall(f))

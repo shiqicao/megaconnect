@@ -21,7 +21,7 @@ import (
 // Connector defines the shared structure for each chain-specific connector.
 type Connector interface {
 	// Namespace returns the namespace and APIs supported by workflow language for the connector.
-	Namespace() *wf.NamespaceDecl
+	Namespace() (*wf.NamespaceDecl, error)
 
 	// Metadata returns the metadata of connected blockchain and the connector.
 	Metadata() *Metadata
