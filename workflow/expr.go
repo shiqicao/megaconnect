@@ -565,7 +565,7 @@ func (o *ObjLit) Fields() IdToExpr { return o.fields.Copy() }
 func (o *ObjLit) Print() p.PrinterOp {
 	return p.Concat(
 		p.Text("{"),
-		o.fields.Print(false, p.Text(": ")),
+		o.fields.Print(p.Text(": "), p.Text(", ")),
 		p.Text("}"),
 	)
 }

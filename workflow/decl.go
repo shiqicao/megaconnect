@@ -294,7 +294,7 @@ func (m *MonitorDecl) Print() p.PrinterOp {
 		p.Text("chain "), p.Text(m.chain), p.Line(),
 		p.Text("condition "), m.cond.Print(), p.Line(),
 		p.Text("var {"),
-		p.Nest(1, m.vars.Print(true, p.Text(" = "))), p.Line(),
+		p.Nest(1, m.vars.Print(p.Text(" = "), p.Line())), p.Line(),
 		p.Text("}"), p.Line(),
 		m.event.Print(),
 	))
