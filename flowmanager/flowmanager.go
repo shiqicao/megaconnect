@@ -168,7 +168,7 @@ func (fm *FlowManager) SubscribeMBlock(_ *empty.Empty, stream mgrpc.MBlockApi_Su
 
 			for _, s := range fm.mblockSubs {
 				if s != sub {
-					filteredSubs = append(filteredSubs)
+					filteredSubs = append(filteredSubs, s)
 				}
 			}
 
