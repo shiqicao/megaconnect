@@ -11,6 +11,7 @@
 package workflow
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 
@@ -79,24 +80,19 @@ func (e Errors) ToErr() []error {
 	return e([]error{})
 }
 
-// TODO: Add an error base struct for storing (row, col) after parsing supported
-
-type WFError interface {
-	HasPos
+type ErrWithPos interface {
 	error
+	HasPos
 }
 
-type wfError struct {
-	hasPos
-}
-
-func (w *wfError) setPos(pos *Pos) *wfError {
-	return w
+func SetErrPos(err ErrWithPos, pos interface{ Pos() *Pos }) error {
+	err.SetPos(pos.Pos())
+	return err
 }
 
 // ErrArgTypeMismatch is returned if argument type does not match parameter type
 type ErrArgTypeMismatch struct {
-	wfError
+	hasPos
 	FuncName  string
 	ParamName string
 	ParamType Type
@@ -109,7 +105,7 @@ func (e *ErrArgTypeMismatch) Error() string {
 
 // ErrTypeMismatch returns if two types does not match
 type ErrTypeMismatch struct {
-	wfError
+	hasPos
 	ExpectedTypes []Type
 	ActualType    Type
 }
@@ -157,7 +153,7 @@ func (e *ErrObjFieldIncompatible) Error() string {
 
 // ErrObjFieldMissing is returned if expected field is missing in an object
 type ErrObjFieldMissing struct {
-	wfError
+	hasPos
 	Field   string
 	ObjType *ObjType
 }
@@ -179,7 +175,7 @@ func (e *ErrObjFieldTypeMismatch) Error() string {
 
 // ErrSymbolNotResolved is returned if a symbol is not resolved
 type ErrSymbolNotResolved struct {
-	wfError
+	hasPos
 	Symbol string
 }
 
@@ -189,7 +185,7 @@ func (e *ErrSymbolNotResolved) Error() string {
 
 // ErrAccessorRequireObjType is returned if the expression of an object accessor does not evaluate to an object
 type ErrAccessorRequireObjType struct {
-	wfError
+	hasPos
 	Type Type
 }
 
@@ -218,7 +214,7 @@ func (e *ErrMissingArg) Error() string {
 
 // ErrVarNotFound is returned if a variable is not declared
 type ErrVarNotFound struct {
-	wfError
+	hasPos
 	VarName string
 }
 
@@ -244,7 +240,7 @@ func (e *ErrEventExprNotSupport) Error() string {
 
 // ErrArgLenMismatch is returned if supplied arguments len does not match expected parameters len
 type ErrArgLenMismatch struct {
-	wfError
+	hasPos
 	FuncName string
 	ArgLen   int
 	ParamLen int
@@ -256,10 +252,52 @@ func (e *ErrArgLenMismatch) Error() string {
 
 // ErrEventNotFound is returned if event is not found
 type ErrEventNotFound struct {
-	wfError
+	hasPos
 	Name string
 }
 
 func (e *ErrEventNotFound) Error() string {
 	return fmt.Sprintf("Event %s not found", e.Name)
+}
+
+// ErrCycleVars is returned if there is a cycle dependency of variable declarations
+type ErrCycleVars struct {
+	hasPos
+	Path []string
+}
+
+func (e *ErrCycleVars) Error() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.Path[0])
+	for _, p := range e.Path[1:] {
+		buf.WriteString(" -> ")
+		buf.WriteString(p)
+	}
+	return fmt.Sprintf("variables should not have cycle dependency, %s", buf.String())
+}
+
+// ErrDupNames is returned if a name is defined already
+type ErrDupNames struct {
+	hasPos
+	Name string
+}
+
+func (e *ErrDupNames) Error() string {
+	return fmt.Sprintf("`%s` is already defined", e.Name)
+}
+
+// ErrCycleEvents is returned if there is a cycle dependency of actions
+type ErrCycleEvents struct {
+	hasPos
+	Path []string
+}
+
+func (e *ErrCycleEvents) Error() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.Path[0])
+	for _, p := range e.Path[1:] {
+		buf.WriteString(" -> ")
+		buf.WriteString(p)
+	}
+	return fmt.Sprintf("events should not have cycle dependency, %s", buf.String())
 }

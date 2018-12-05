@@ -26,6 +26,8 @@ func (i *Id) Print() p.PrinterOp { return p.Text(i.id) }
 
 func (i *Id) String() string { return i.id }
 
+func (i *Id) Children() []Node { return nil }
+
 // Equal returns true if two identifiers are equivalent
 func (i *Id) Equal(x *Id) bool {
 	if i != nil && x != nil {
@@ -48,6 +50,14 @@ type IdToTy map[string]idTy
 
 // NewIdToTy creates an instance of IdToTy
 func NewIdToTy() IdToTy { return make(IdToTy) }
+
+// Nodes returns a list of nodes
+func (i IdToTy) Nodes() (nodes []Node) {
+	for _, idTy := range i {
+		nodes = append(nodes, idTy.id, idTy.ty)
+	}
+	return
+}
 
 // Put inserts a new pair of Id and type
 func (i IdToTy) Put(id string, ty Type) IdToTy {
@@ -89,6 +99,14 @@ type IdToExpr map[string]IdExpr
 
 // NewIdToExpr creates an instance of IdToExpr
 func NewIdToExpr() IdToExpr { return make(IdToExpr) }
+
+// Nodes returns a list of nodes
+func (i IdToExpr) Nodes() (nodes []Node) {
+	for _, idExpr := range i {
+		nodes = append(nodes, idExpr.Id, idExpr.Expr)
+	}
+	return
+}
 
 // ExprMap returns a map from id string to Expr
 func (i IdToExpr) ExprMap() map[string]Expr {

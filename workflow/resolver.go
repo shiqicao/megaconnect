@@ -17,13 +17,9 @@ type Resolver struct {
 }
 
 // NewResolver creates a new instance of Resolver
-func NewResolver(
-	libs []*NamespaceDecl,
-	defaultNamespace NamespacePrefix,
-) *Resolver {
+func NewResolver(libs []*NamespaceDecl) *Resolver {
 	return &Resolver{
-		libs:             libs,
-		defaultNamespace: defaultNamespace,
+		libs: libs,
 	}
 }
 
@@ -42,6 +38,9 @@ func (r *Resolver) ResolveWorkflow(wf *WorkflowDecl) Errors {
 
 // ResolveMonitor resolves all symbols in action declaration
 func (r *Resolver) ResolveMonitor(monitor *MonitorDecl) Errors {
+	r.defaultNamespace = NamespacePrefix{NewId(monitor.chain)}
+	defer func() { r.defaultNamespace = nil }()
+
 	errs := r.resolveExpr(monitor.cond).
 		Concat(r.resolveStmt(monitor.event))
 	for _, v := range monitor.vars {

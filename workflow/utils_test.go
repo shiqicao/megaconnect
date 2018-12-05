@@ -63,6 +63,16 @@ var (
 	OC  = NewObjConst
 	OC1 = func(f string, c Const) *ObjConst { return OC(ObjFields{f: c}) }
 
+	// IdTExpr
+	I2E  = IdToExpr{}
+	I2E1 = func(id string, e Expr) IdToExpr { return IdToExpr{id: IdExpr{Id: ID(id), Expr: e}} }
+	I2E2 = func(id1 string, e1 Expr, id2 string, e2 Expr) IdToExpr {
+		return IdToExpr{
+			id1: IdExpr{Id: ID(id1), Expr: e1},
+			id2: IdExpr{Id: ID(id2), Expr: e2},
+		}
+	}
+
 	// ObjLit
 	OL  = NewObjLit
 	OL1 = func(f string, e Expr) *ObjLit {

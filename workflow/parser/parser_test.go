@@ -432,6 +432,12 @@ func assertWorkflowParsing(t *testing.T, w string) *wf.WorkflowDecl {
 	}
 	assert.True(t, wfl2.Equal(wfl))
 
+	// Validator shouldn't crash for any workflow
+	wf.WorkflowValidator.Validate(wfl)
+
+	// TypeChecker shouldn't crash for any workflow
+	wf.NewTypeChecker(wfl).Check()
+
 	return wfl
 }
 

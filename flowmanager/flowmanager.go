@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	dummyResolver = workflow.NewResolver(nil, nil)
+	dummyResolver = workflow.NewResolver(nil)
 )
 
 // FlowManager manages workflows and compiles them into monitors for each chain.

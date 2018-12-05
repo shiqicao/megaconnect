@@ -54,6 +54,9 @@ func NewEBinOp(op EventExprOperator, left EventExpr, right EventExpr) *EBinOp {
 	}
 }
 
+// Children returns a list of child nodes
+func (e *EBinOp) Children() []Node { return []Node{e.left, e.right} }
+
 // Equal returns true if two event expressions are equivalent
 func (e *EBinOp) Equal(x EventExpr) bool {
 	y, ok := x.(*EBinOp)
@@ -90,6 +93,9 @@ type EVar struct {
 
 // NewEVar returns a new instance of event variable
 func NewEVar(name string) *EVar { return &EVar{name: name} }
+
+// Children returns a list of child nodes
+func (e *EVar) Children() []Node { return nil }
 
 // Equal returns true if two event expressions are equivalent
 func (e *EVar) Equal(x EventExpr) bool {

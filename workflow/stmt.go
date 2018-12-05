@@ -52,6 +52,14 @@ func (s Stmts) Print() p.PrinterOp {
 	return separatedBy(ops, p.Line())
 }
 
+// Nodes returns a list of nodes
+func (s Stmts) Nodes() (nodes []Node) {
+	for _, stmt := range s {
+		nodes = append(nodes, stmt)
+	}
+	return
+}
+
 // Fire represents a fire statement
 type Fire struct {
 	stmt
@@ -67,6 +75,9 @@ func NewFire(eventName string, eventObj Expr) *Fire {
 		eventObj:  eventObj,
 	}
 }
+
+// Children returns a list of child nodes
+func (f *Fire) Children() []Node { return []Node{f.eventObj} }
 
 // Equal returns true if x is the same fire statement
 func (f *Fire) Equal(x Stmt) bool {

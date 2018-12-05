@@ -81,7 +81,7 @@ func VarDeclsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.IdToExp
 	id := Id(varDecl[0])
 	expr := varDecl[1].(wf.Expr)
 	if ok := varDecls.Add(id, expr); !ok {
-		return nil, &ErrDupDef{Id: id}
+		return nil, wf.SetErrPos(&wf.ErrDupNames{Name: id.Id()}, id)
 	}
 	return varDecls, nil
 }
@@ -96,7 +96,7 @@ func ObjLitFieldsAction(varDeclsRaw interface{}, varDeclRaw interface{}) (wf.IdT
 	field := Id(varDecl[0])
 	expr := varDecl[1].(wf.Expr)
 	if !varDecls.Add(field, expr) {
-		return nil, &ErrDupDef{Id: field}
+		return nil, wf.SetErrPos(&wf.ErrDupNames{Name: field.Id()}, field)
 	}
 	return varDecls, nil
 }
@@ -111,7 +111,7 @@ func ObjFieldsAction(fieldDeclsRaw interface{}, fieldDeclRaw interface{}) (wf.Id
 	field := Id(fieldDecl[0])
 	ty := fieldDecl[1].(wf.Type)
 	if !fieldDecls.Add(field, ty) {
-		return nil, &ErrDupDef{Id: field}
+		return nil, wf.SetErrPos(&wf.ErrDupNames{Name: field.Id()}, field)
 	}
 	return fieldDecls, nil
 }

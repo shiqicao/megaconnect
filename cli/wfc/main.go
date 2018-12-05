@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -112,9 +113,10 @@ func decompile(ctx *cli.Context) error {
 func compile(ctx *cli.Context) error {
 	if ctx.Args().Len() > 0 {
 		src := ctx.Args().Get(0)
-		bin, err := compiler.Compile(src)
-		if err != nil {
-			return err
+		bin, errs := compiler.Compile(src, nil)
+		if !errs.Empty() {
+			printErrs(os.Stdout, errs)
+			return nil
 		}
 		output := ctx.Path("output")
 		if output == "" {
@@ -136,6 +138,19 @@ func compile(ctx *cli.Context) error {
 	return fmt.Errorf("missing source file")
 }
 
+func printErrs(w io.Writer, errs wf.Errors) {
+	errors := errs.ToErr()
+	for _, e := range errors {
+		if hasPos, ok := e.(wf.HasPos); ok {
+			pos := hasPos.Pos()
+			if pos != nil {
+				fmt.Fprintf(w, "Error line %d, col %d: ", pos.StartRow, pos.StartCol)
+			}
+		}
+		fmt.Fprintln(os.Stdout, e.Error())
+	}
+}
+
 func deploy(ctx *cli.Context) error {
 	logger, err := createLogger(ctx)
 	if err != nil {
@@ -148,9 +163,10 @@ func deploy(ctx *cli.Context) error {
 		return fmt.Errorf("missing input source file")
 	}
 
-	bin, err := compiler.Compile(src)
-	if err != nil {
-		return err
+	bin, errs := compiler.Compile(src, nil)
+	if !errs.Empty() {
+		printErrs(os.Stdout, errs)
+		return nil
 	}
 
 	context := context.Background()

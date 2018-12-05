@@ -27,6 +27,9 @@ func NewUniOp(op Operator, operant Expr) *UniOp {
 	}
 }
 
+// Children returns a list of child nodes
+func (u *UniOp) Children() []Node { return []Node{u.operant} }
+
 // Operant returns operant in UniOp
 func (u *UniOp) Operant() Expr { return u.operant }
 
@@ -67,6 +70,9 @@ func NewBinOp(op Operator, left Expr, right Expr) *BinOp {
 		right: right,
 	}
 }
+
+// Children returns a list of child nodes
+func (b *BinOp) Children() []Node { return []Node{b.left, b.right} }
 
 // Left returns left child of a binary operator
 func (b *BinOp) Left() Expr { return b.left }
