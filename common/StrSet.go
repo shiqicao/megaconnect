@@ -10,32 +10,33 @@
 
 package common
 
-type StrSet map[string]Nothing
+type StringSet map[string]Nothing
 
-func (ss StrSet) Contains(str string) bool {
+func (ss StringSet) Contains(str string) bool {
 	_, ok := ss[str]
 	return ok
 }
 
-func (ss StrSet) Add(str string) StrSet {
+func (ss StringSet) Add(str string) StringSet {
 	ss[str] = Nothing{}
 	return ss
 }
 
-func (ss StrSet) Del(str string) StrSet {
+func (ss StringSet) Delete(str string) StringSet {
 	delete(ss, str)
 	return ss
 }
 
-func (ss StrSet) ToArr() (result []string) {
+func (ss StringSet) ToArray() []string {
+	result := make([]string, 0, len(ss))
 	for s := range ss {
 		result = append(result, s)
 	}
-	return
+	return result
 }
 
-func (ss StrSet) Union(xs StrSet) StrSet {
-	result := make(StrSet, len(ss))
+func (ss StringSet) Union(xs StringSet) StringSet {
+	result := make(StringSet, len(ss))
 	for s := range ss {
 		result.Add(s)
 	}

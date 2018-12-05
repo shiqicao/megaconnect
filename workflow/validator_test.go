@@ -18,11 +18,11 @@ import (
 )
 
 type strs = []string
-type edge = map[string]c.StrSet
+type edge = map[string]c.StringSet
 
 func TestCycleDetector(t *testing.T) {
-	ss := func(xs ...string) c.StrSet {
-		r := c.StrSet{}
+	ss := func(xs ...string) c.StringSet {
+		r := c.StringSet{}
 		for _, x := range xs {
 			r.Add(x)
 		}

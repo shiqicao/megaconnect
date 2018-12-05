@@ -74,7 +74,7 @@ func (nv *NoVarRecursiveDefValidator) Validate(wf *WorkflowDecl) (errs Errors) {
 }
 
 func (nv *NoVarRecursiveDefValidator) validateMonitorVars(vars IdToExpr) (errs Errors) {
-	edges := map[string]common.StrSet{}
+	edges := map[string]common.StringSet{}
 	for _, node := range vars {
 		edges[node.Id.id] = collectVars(node.Expr)
 	}
@@ -96,7 +96,7 @@ type NoDupNameInWorkflow struct{}
 // Validate returns a list of error if a workflow violates this validator
 func (nd *NoDupNameInWorkflow) Validate(wf *WorkflowDecl) (errs Errors) {
 	decls := wf.decls
-	names := common.StrSet{}
+	names := common.StringSet{}
 	for _, d := range decls {
 		name := d.Name().Id()
 		if names.Contains(name) {
@@ -126,14 +126,14 @@ type NoRecursiveAction struct{}
 
 // Validate returns a list of error if a workflow violates this validator
 func (nr *NoRecursiveAction) Validate(wf *WorkflowDecl) (errs Errors) {
-	edges := map[string]common.StrSet{}
+	edges := map[string]common.StringSet{}
 	for _, a := range wf.ActionDecls() {
 		src := a.TriggerEvents()
 		trg := collectActionTargetEvents(a)
 		for _, s := range src {
 			edge, ok := edges[s]
 			if !ok {
-				edge = common.StrSet{}
+				edge = common.StringSet{}
 			}
 			edges[s] = edge.Union(trg)
 		}
@@ -152,8 +152,8 @@ func (nr *NoRecursiveAction) Validate(wf *WorkflowDecl) (errs Errors) {
 	return
 }
 
-func collectActionTargetEvents(a *ActionDecl) common.StrSet {
-	events := common.StrSet{}
+func collectActionTargetEvents(a *ActionDecl) common.StringSet {
+	events := common.StringSet{}
 	NodeWalker(a, func(n Node) {
 		f, ok := n.(*Fire)
 		if !ok {
@@ -164,7 +164,7 @@ func collectActionTargetEvents(a *ActionDecl) common.StrSet {
 	return events
 }
 
-func checkCycle(edges map[string]common.StrSet, visited []string, root string) []string {
+func checkCycle(edges map[string]common.StringSet, visited []string, root string) []string {
 	for i, n := range visited {
 		if n == root {
 			return append(visited[i:], root)
@@ -184,8 +184,8 @@ func checkCycle(edges map[string]common.StrSet, visited []string, root string) [
 	return nil
 }
 
-func collectVars(e Expr) common.StrSet {
-	vars := common.StrSet{}
+func collectVars(e Expr) common.StringSet {
+	vars := common.StringSet{}
 	NodeWalker(e, func(n Node) {
 		v, ok := n.(*Var)
 		if !ok {
