@@ -114,6 +114,16 @@ var (
 	}
 	EAND = EB(wf.AndEOp)
 	EOR  = EB(wf.OrEOp)
+
+	// IdTExpr
+	I2E  = wf.IdToExpr{}
+	I2E1 = func(id string, e wf.Expr) wf.IdToExpr { return wf.IdToExpr{id: wf.IdExpr{Id: ID(id), Expr: e}} }
+	I2E2 = func(id1 string, e1 wf.Expr, id2 string, e2 wf.Expr) wf.IdToExpr {
+		return wf.IdToExpr{
+			id1: wf.IdExpr{Id: ID(id1), Expr: e1},
+			id2: wf.IdExpr{Id: ID(id2), Expr: e2},
+		}
+	}
 )
 
 func TestComment(t *testing.T) {
@@ -336,6 +346,34 @@ func TestFuncCall(t *testing.T) {
 func TestProps(t *testing.T) {
 	assertExprParsing(t, P("a"), "props(a)")
 	assertExprParsing(t, OA(P("a"), "b"), "props(a).b")
+}
+
+func TestMonitorVarParsing(t *testing.T) {
+	assertVarParsing(t, I2E, `
+	var {
+	}
+	`)
+
+	assertVarParsing(t, I2E1("a", I(3)), `
+	var {
+		a = 3
+	}
+	`)
+
+	assertVarParsing(t, I2E2("a", I(3), "b", T), `
+	var {
+		a = 3
+		b = true
+	}
+	`)
+}
+
+func assertVarParsing(t *testing.T, expected wf.IdToExpr, vars string) {
+	code := fmt.Sprintf("workflow b { monitor a { chain Eth condition true  %s  fire e { a : true } } }", vars)
+	w := assertWorkflowParsing(t, code)
+	md := w.MonitorDecls()[0]
+	assert.NotNil(t, md)
+	assert.True(t, expected.Equal(md.Vars()))
 }
 
 func assertExprParsingErr(t *testing.T, expr string) {

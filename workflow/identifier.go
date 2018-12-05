@@ -161,7 +161,7 @@ func (i IdToExpr) Copy() IdToExpr {
 }
 
 // Print pretty prints code
-func (i IdToExpr) Print(multiline bool, assignmentSymbol p.PrinterOp) p.PrinterOp {
+func (i IdToExpr) Print(assignmentSymbol p.PrinterOp, separator p.PrinterOp) p.PrinterOp {
 	vars := []p.PrinterOp{}
 	for _, decl := range i {
 		vars = append(vars, p.Concat(
@@ -169,12 +169,6 @@ func (i IdToExpr) Print(multiline bool, assignmentSymbol p.PrinterOp) p.PrinterO
 			assignmentSymbol,
 			decl.Expr.Print(),
 		))
-	}
-	var separator p.PrinterOp
-	if multiline {
-		separator = p.Concat(p.Text(","), p.Line())
-	} else {
-		separator = p.Text(", ")
 	}
 	return separatedBy(vars, separator)
 }
