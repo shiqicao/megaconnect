@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package grpc;
+option go_package = "github.com/megaspacelab/megaconnect/grpc";
+
+import "protos/mblock.proto";
+
+import "google/protobuf/empty.proto";
+
+
+// MBlockApi allows querying MBlocks.
+service MBlockApi {
+    // SubscribeMBlock subscribes to new blocks from megaspace network.
+    rpc SubscribeMBlock(google.protobuf.Empty) returns (stream protos.MBlock);
+
+    // MBlockByHeight gets the mblock by height.
+    rpc MBlockByHeight(MBlockByHeightRequest) returns (protos.MBlock);
+
+    // LatestMBlock gets the latest mblock.
+    rpc LatestMBlock(google.protobuf.Empty) returns (protos.MBlock);
+}
+
+message MBlockByHeightRequest {
+    int64 height = 1;
+}

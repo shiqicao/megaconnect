@@ -5,8 +5,8 @@ option go_package = "github.com/megaspacelab/megaconnect/grpc";
 
 import "google/protobuf/empty.proto";
 
-// WorkflowManager handles workflow related requests.
-service WorkflowManager {
+// WorkflowApi handles workflow related requests.
+service WorkflowApi {
     // DeployWorkflow deploys a workflow to the network.
     rpc DeployWorkflow(DeployWorkflowRequest) returns (DeployWorkflowResponse);
 
@@ -15,16 +15,16 @@ service WorkflowManager {
 }
 
 message DeployWorkflowRequest {
-    // payload is the binary representation of the workflow
+    // Payload is the binary representation of the workflow
     bytes payload = 1;
 }
 
 message UndeployWorkflowRequest {
-    // workflow_id is the ID of workflow that needs to be undeployed
+    // WorkflowId is the ID of workflow that needs to be undeployed
     bytes workflow_id = 1;
 }
 
 message DeployWorkflowResponse {
-    // workflow_id is the ID of the deployed workflow
+    // WorkflowId is the ID of the deployed workflow
     bytes workflow_id = 1;
 }

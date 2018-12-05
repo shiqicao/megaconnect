@@ -204,7 +204,7 @@ func createLogger(ctx *cli.Context) (*zap.Logger, error) {
 	return mcli.NewLogger(ctx.Bool("debug"))
 }
 
-func createWMClient(context context.Context, ctx *cli.Context, logger *zap.Logger) (mgrpc.WorkflowManagerClient, error) {
+func createWMClient(context context.Context, ctx *cli.Context, logger *zap.Logger) (mgrpc.WorkflowApiClient, error) {
 	wmAddr := ctx.String("wm-addr")
 	if wmAddr == "" {
 		return nil, fmt.Errorf("workflow manager address is required")
@@ -215,5 +215,5 @@ func createWMClient(context context.Context, ctx *cli.Context, logger *zap.Logge
 	if err != nil {
 		return nil, err
 	}
-	return mgrpc.NewWorkflowManagerClient(wmConn), nil
+	return mgrpc.NewWorkflowApiClient(wmConn), nil
 }

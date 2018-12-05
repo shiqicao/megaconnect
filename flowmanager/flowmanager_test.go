@@ -2,14 +2,22 @@ package flowmanager
 
 import (
 	"context"
+	"io"
+	"net"
 	"testing"
+	"time"
 
-	"github.com/golang/protobuf/proto"
 	mgrpc "github.com/megaspacelab/megaconnect/grpc"
 	"github.com/megaspacelab/megaconnect/protos"
 	w "github.com/megaspacelab/megaconnect/workflow"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const chainID = "Example"
@@ -20,6 +28,12 @@ type FlowManagerSuite struct {
 	log        *zap.Logger
 	stateStore *MemStateStore
 	fm         *FlowManager
+
+	server    *grpc.Server
+	conn      *grpc.ClientConn
+	mblockAPI mgrpc.MBlockApiClient
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 }
 
 func (s *FlowManagerSuite) SetupTest() {
@@ -28,6 +42,29 @@ func (s *FlowManagerSuite) SetupTest() {
 	s.log = log
 	s.stateStore = NewMemStateStore()
 	s.fm = NewFlowManager(s.stateStore, log)
+
+	s.server = grpc.NewServer()
+	s.fm.Register(s.server)
+
+	lis, err := net.Listen("tcp", "localhost:")
+	s.Require().NoError(err)
+
+	s.conn, err = grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
+	s.Require().NoError(err)
+	s.mblockAPI = mgrpc.NewMBlockApiClient(s.conn)
+
+	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
+
+	go s.server.Serve(lis)
+}
+
+func (s *FlowManagerSuite) TearDownTest() {
+	if s.conn != nil {
+		s.conn.Close()
+	}
+	if s.server != nil {
+		s.server.Stop()
+	}
 }
 
 func (s *FlowManagerSuite) workflow1() *w.WorkflowDecl {
@@ -252,6 +289,140 @@ func (s *FlowManagerSuite) TestReportBlockEvents() {
 	body = mblock.Events[3].Body
 	s.Require().IsType(body, new(protos.MEvent_ActionEvent))
 	s.Require().True(proto.Equal(body.(*protos.MEvent_ActionEvent).ActionEvent, actionEvent))
+}
+
+func (s *FlowManagerSuite) TestLatestMBlock() {
+	// No mblocks yet.
+	_, err := s.mblockAPI.LatestMBlock(s.ctx, new(empty.Empty))
+	s.Require().Error(err)
+	s.Require().Equal(codes.NotFound, status.Convert(err).Code())
+
+	// Finalize an mblock and get again.
+	mblock, err := s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
+	mblock2, err := s.mblockAPI.LatestMBlock(s.ctx, new(empty.Empty))
+	s.Require().NoError(err)
+	s.Require().True(proto.Equal(mblock, mblock2))
+}
+
+func (s *FlowManagerSuite) TestMBlockByHeight() {
+	// Finalize a couple of mblocks.
+	mblock, err := s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
+	mblock2, err := s.fm.FinalizeAndCommitMBlock()
+	s.Require().NoError(err)
+
+	// Retrieve those mblocks.
+	actualMBlock, err := s.mblockAPI.MBlockByHeight(s.ctx, &mgrpc.MBlockByHeightRequest{Height: mblock.Height})
+	s.Require().NoError(err)
+	s.Require().True(proto.Equal(mblock, actualMBlock))
+
+	actualMBlock, err = s.mblockAPI.MBlockByHeight(s.ctx, &mgrpc.MBlockByHeightRequest{Height: mblock2.Height})
+	s.Require().NoError(err)
+	s.Require().True(proto.Equal(mblock2, actualMBlock))
+
+	// Out of range.
+	_, err = s.mblockAPI.MBlockByHeight(s.ctx, &mgrpc.MBlockByHeightRequest{Height: mblock2.Height + 1})
+	s.Require().Error(err)
+}
+
+func (s *FlowManagerSuite) waitForSubsLen(n int, timeoutSecs int) {
+	checkSub := func() bool {
+		s.fm.lock.Lock()
+		defer s.fm.lock.Unlock()
+		return len(s.fm.mblockSubs) == n
+	}
+
+	for i := 0; !checkSub(); i++ {
+		if i >= timeoutSecs {
+			s.FailNow("Timeout waiting for subscription")
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func (s *FlowManagerSuite) TestSubscribeMBlock() {
+	stream, err := s.mblockAPI.SubscribeMBlock(s.ctx, new(empty.Empty))
+	s.Require().NoError(err)
+
+	mblockChan := make(chan *protos.MBlock)
+	errChan := make(chan error, 1)
+
+	go func() {
+		defer close(mblockChan)
+		defer close(errChan)
+
+		for {
+			mblock, err := stream.Recv()
+			if err != nil {
+				if err != io.EOF {
+					errChan <- err
+				}
+				return
+			}
+			mblockChan <- mblock
+		}
+	}()
+
+	// Wait until subscription has been established on the server side.
+	s.waitForSubsLen(1, 2)
+
+	// Finalize a few mblocks.
+	mblocks := make([]*protos.MBlock, 3)
+	for i := 0; i < len(mblocks); i++ {
+		mblocks[i], err = s.fm.FinalizeAndCommitMBlock()
+		s.Require().NoError(err)
+	}
+
+	// Verify all mblocks were received.
+	for i := 0; i < len(mblocks); i++ {
+		select {
+		case mblock, ok := <-mblockChan:
+			s.Require().True(ok)
+			s.Require().True(proto.Equal(mblock, mblocks[i]))
+		case err := <-errChan:
+			s.FailNowf("Subscription errored", "%v", err)
+		case <-time.After(time.Second):
+			s.FailNow("Timeout waiting for MBlock")
+		}
+	}
+}
+
+func (s *FlowManagerSuite) TestSubscribeMBlock_ClientCancel() {
+	_, err := s.mblockAPI.SubscribeMBlock(s.ctx, new(empty.Empty))
+	s.Require().NoError(err)
+
+	// Wait until subscription has been established on the server side.
+	s.waitForSubsLen(1, 2)
+
+	// Cancel client side streaming.
+	s.ctxCancel()
+
+	// Finalize a few mblocks.
+	for i := 0; i < 3; i++ {
+		_, err = s.fm.FinalizeAndCommitMBlock()
+		s.Require().NoError(err)
+	}
+
+	// The dead subscription should eventually be removed from fm.
+	s.waitForSubsLen(0, 2)
+}
+
+func (s *FlowManagerSuite) TestSubscribeMBlock_ClientStall() {
+	_, err := s.mblockAPI.SubscribeMBlock(s.ctx, new(empty.Empty))
+	s.Require().NoError(err)
+
+	// Wait until subscription has been established on the server side.
+	s.waitForSubsLen(1, 2)
+
+	// Finalize enough mblocks to overflow the buffer.
+	for i := 0; i < mblockSubBufferSize+5; i++ {
+		_, err = s.fm.FinalizeAndCommitMBlock()
+		s.Require().NoError(err)
+	}
+
+	// The stalled subscription should eventually be removed from fm.
+	s.waitForSubsLen(0, 2)
 }
 
 func TestFlowManager(t *testing.T) {
