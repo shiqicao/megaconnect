@@ -11,6 +11,8 @@
 package workflow
 
 import (
+	"fmt"
+
 	"github.com/megaspacelab/megaconnect/common"
 	p "github.com/megaspacelab/megaconnect/prettyprint"
 )
@@ -78,6 +80,11 @@ func (f *FuncDecl) Equal(x *FuncDecl) bool {
 		equalStrings(f.parent.FullName(), x.parent.FullName()) &&
 		f.params.Equal(x.params) &&
 		f.retType.Equal(x.retType)
+}
+
+// Copy creates a new instance of FuncDecl without setting parent field
+func (f *FuncDecl) Copy() *FuncDecl {
+	return NewFuncDecl(f.name, f.params, f.retType, f.evaluator)
 }
 
 // Print prints function signature
@@ -171,6 +178,20 @@ func (n *NamespaceDecl) Equal(x *NamespaceDecl) bool {
 	return equalStrings(n.FullName(), x.FullName()) && n.funs.Equal(x.funs)
 }
 
+// Copy deeply copies the namespace without setting parent
+func (n *NamespaceDecl) Copy() *NamespaceDecl {
+	r := NewNamespaceDecl(n.name)
+	for _, ns := range n.namespaces {
+		// ingore error, created namespace is always valid
+		r.AddNamespaces(ns.Copy())
+	}
+	for _, f := range n.funs {
+		// ingore error, created namespace is always valid
+		r.AddFuncs(f.Copy())
+	}
+	return r
+}
+
 func (n *NamespaceDecl) findNamespace(name string) *NamespaceDecl {
 	for _, ns := range n.namespaces {
 		if ns.name == name {
@@ -180,18 +201,32 @@ func (n *NamespaceDecl) findNamespace(name string) *NamespaceDecl {
 	return nil
 }
 
-// AddFunc insert a function declaration to this namespace
-func (n *NamespaceDecl) AddFunc(funcDecl *FuncDecl) *NamespaceDecl {
-	funcDecl.parent = n
-	n.funs = append(n.funs, funcDecl)
-	return n
+// AddFuncs insert a function declaration to this namespace
+func (n *NamespaceDecl) AddFuncs(funcDecls ...*FuncDecl) error {
+	for _, funcDecl := range funcDecls {
+		for _, f := range n.funs {
+			if f.name == funcDecl.name {
+				return fmt.Errorf("%s already exists", funcDecl.name)
+			}
+		}
+		funcDecl.parent = n
+		n.funs = append(n.funs, funcDecl)
+	}
+	return nil
 }
 
-// AddChild insert a namespace as child namespace
-func (n *NamespaceDecl) AddNamespace(ns *NamespaceDecl) *NamespaceDecl {
-	ns.parent = n
-	n.namespaces = append(n.namespaces, ns)
-	return n
+// AddNamespaces insert namespaces as child namespaces
+func (n *NamespaceDecl) AddNamespaces(nss ...*NamespaceDecl) error {
+	for _, ns := range nss {
+		for _, existingNs := range n.namespaces {
+			if existingNs.name == ns.name {
+				return fmt.Errorf("%s already exists", ns.name)
+			}
+		}
+		ns.parent = n
+		n.namespaces = append(n.namespaces, ns)
+	}
+	return nil
 }
 
 func (n *NamespaceDecl) Print() p.PrinterOp {

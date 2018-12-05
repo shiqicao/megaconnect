@@ -186,6 +186,16 @@ func TestWorkflowEncoding(t *testing.T) {
 }
 
 func TestNamespaceDecl(t *testing.T) {
+	addNS := func(ns *NamespaceDecl, nss ...*NamespaceDecl) *NamespaceDecl {
+		e := ns.AddNamespaces(nss...)
+		assert.NoError(t, e)
+		return ns
+	}
+	addF := func(ns *NamespaceDecl, fs ...*FuncDecl) *NamespaceDecl {
+		e := ns.AddFuncs(fs...)
+		assert.NoError(t, e)
+		return ns
+	}
 	check := func(ns *NamespaceDecl) {
 		withGen(
 			func(ge genEncoder, gd genDecoder) {
@@ -201,21 +211,24 @@ func TestNamespaceDecl(t *testing.T) {
 	}
 
 	check(NS("A"))
-	check(NS("A").AddNamespace(NS("B")))
-	check(NS("A").AddNamespace(NS("B").AddNamespace(NS("C"))))
-	check(NS("A").AddNamespace(NS("B")).AddNamespace(NS("C")))
-	check(NS("A").AddFunc(FD("A", Params{}, IntType, nil)))
-	check(NS("A").AddFunc(FD("A", Params{PARAM("a", IntType)}, IntType, nil)))
-	check(NS("A").AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)))
-	check(NS("A").
-		AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)).
-		AddFunc(FD("B", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)),
-	)
-	check(NS("A").
-		AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)).
-		AddFunc(FD("B", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)).
-		AddNamespace(NS("B")).AddFunc(FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)),
-	)
+	check(addNS(NS("A"), NS("B")))
+	check(addNS(NS("A"), NS("B"), NS("C")))
+	check(addNS(NS("A"), NS("B"), NS("C")))
+	check(addF(NS("A"), FD("A", Params{}, IntType, nil)))
+	check(addF(NS("A"), FD("A", Params{PARAM("a", IntType)}, IntType, nil)))
+	check(addF(NS("A"), FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)))
+	check(addF(NS("A"),
+		FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil),
+		FD("B", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil),
+	))
+	check(addNS(
+		addF(
+			NS("A"),
+			FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil),
+			FD("B", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil),
+		),
+		addF(NS("B"), FD("A", Params{PARAM("a", IntType), PARAM("b", StrType)}, IntType, nil)),
+	))
 }
 
 func TestPropEncoding(t *testing.T) {

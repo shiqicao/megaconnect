@@ -168,13 +168,12 @@ func (c *Connector) IsValidAddress(addr string) bool {
 }
 
 // Namespace returns the namespace and APIs supported by workflow language for the connector.
-func (c *Connector) Namespace() *wf.NamespaceDecl {
+func (c *Connector) Namespace() (*wf.NamespaceDecl, error) {
 	ns := wf.NewNamespaceDecl(chainId)
-	ns.AddFunc(
+	err := ns.AddFuncs(
 		wf.NewFuncDecl("GetBlockInterval", wf.Params{}, wf.IntType, func(_ *wf.Env, _ map[string]wf.Const) (wf.Const, error) {
 			return wf.NewIntConstFromI64(c.blockInterval.Nanoseconds()), nil
 		}),
-	).AddFunc(
 		wf.NewFuncDecl(
 			"Echo",
 			wf.Params{wf.NewParamDecl("x", wf.StrType)},
@@ -185,7 +184,11 @@ func (c *Connector) Namespace() *wf.NamespaceDecl {
 			},
 		),
 	)
-	return ns
+	if err != nil {
+		c.logger.Error("Failed to create namespace", zap.Error(err))
+		return nil, err
+	}
+	return ns, nil
 }
 
 type subscription struct {

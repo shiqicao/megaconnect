@@ -19,20 +19,25 @@ import (
 
 type chain interface {
 	QueryAccountBalance(addr string, height *big.Int) (*big.Int, error)
+	Namespace() (*wf.NamespaceDecl, error)
 }
 
-type chainAPI struct {
+type ChainAPI struct {
 	chain        chain
 	lib          *wf.NamespaceDecl
 	currentBlock common.Block
 }
 
-func newChainAPI(defaultNamesapce string, chain chain) *chainAPI {
-	api := &chainAPI{chain: chain}
+func NewChainAPI(chain chain) (*ChainAPI, error) {
+	api := &ChainAPI{chain: chain}
 
-	api.lib = wf.NewNamespaceDecl(
-		defaultNamesapce,
-	).AddFunc(
+	// chain.Namespace() returns a copy
+	connectorAPI, err := chain.Namespace()
+	if err != nil {
+		return nil, err
+	}
+
+	err = connectorAPI.AddFuncs(
 		wf.NewFuncDecl(
 			"GetBalance",
 			[]*wf.ParamDecl{
@@ -59,7 +64,6 @@ func newChainAPI(defaultNamesapce string, chain chain) *chainAPI {
 				return wf.NewIntConst(balance), nil
 			},
 		),
-	).AddFunc(
 		wf.NewFuncDecl(
 			"GetBlock",
 			[]*wf.ParamDecl{},
@@ -75,12 +79,16 @@ func newChainAPI(defaultNamesapce string, chain chain) *chainAPI {
 			},
 		),
 	)
-	return api
+	if err != nil {
+		return nil, err
+	}
+	api.lib = connectorAPI
+	return api, nil
 }
 
-func (c *chainAPI) setCurrentBlock(block common.Block) *chainAPI {
+func (c *ChainAPI) setCurrentBlock(block common.Block) *ChainAPI {
 	c.currentBlock = block
 	return c
 }
 
-func (c *chainAPI) getAPI() *wf.NamespaceDecl { return c.lib }
+func (c *ChainAPI) GetAPI() *wf.NamespaceDecl { return c.lib.Copy() }

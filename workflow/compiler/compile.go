@@ -13,7 +13,6 @@
 package compiler
 
 import (
-	"fmt"
 	"io"
 
 	wf "github.com/megaspacelab/megaconnect/workflow"
@@ -24,7 +23,6 @@ import (
 func Compile(src string, nss []*wf.NamespaceDecl) ([]byte, wf.Errors) {
 	w, err := parser.Parse(src)
 	if err != nil {
-		fmt.Printf(err.Error())
 		return nil, wf.ToErrors(err)
 	}
 

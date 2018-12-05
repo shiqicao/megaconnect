@@ -49,7 +49,7 @@ type ChainManager struct {
 	id        string
 	orchAddr  string
 	connector connector.Connector
-	chainAPI  *chainAPI
+	chainAPI  *ChainAPI
 	logger    *zap.Logger
 
 	// Dynamic members.
@@ -91,7 +91,12 @@ func New(
 	orchAddr string,
 	conn connector.Connector,
 	logger *zap.Logger,
-) *ChainManager {
+) (*ChainManager, error) {
+	api, err := NewChainAPI(conn)
+	if err != nil {
+		logger.Error("Failed to create chainAPI", zap.Error(err))
+		return nil, err
+	}
 	return &ChainManager{
 		id:         id,
 		orchAddr:   orchAddr,
@@ -99,8 +104,8 @@ func New(
 		logger:     logger,
 		monitors:   make(map[mgrpc.MonitorID]*mgrpc.Monitor),
 		blockCache: ring.New(blockCacheSize),
-		chainAPI:   newChainAPI(conn.Metadata().ChainID, conn),
-	}
+		chainAPI:   api,
+	}, nil
 }
 
 // Start would start an ChainManager loop
@@ -350,7 +355,7 @@ func (e *ChainManager) processBlockWithLock(block common.Block) error {
 	if err != nil {
 		e.logger.Error("Cache creation failed", zap.Error(err))
 	}
-	api := e.chainAPI.setCurrentBlock(block).getAPI()
+	api := e.chainAPI.setCurrentBlock(block).GetAPI()
 	interpreter := wf.NewInterpreter(
 		wf.NewEnv(nil),
 		cache,

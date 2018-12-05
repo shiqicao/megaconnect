@@ -34,11 +34,11 @@ var (
 	DataDirFlag = cli.PathFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
-		Value: defaultDataDir(),
+		Value: DefaultDataDir(),
 	}
 )
 
-func defaultDataDir() string {
+func DefaultDataDir() string {
 	basedir := os.Getenv("HOME")
 	if basedir == "" {
 		if usr, err := user.Current(); err == nil {
@@ -48,4 +48,8 @@ func defaultDataDir() string {
 		}
 	}
 	return filepath.Join(basedir, ".megaspace")
+}
+
+func DefaultWorkflowLibDir() string {
+	return filepath.Join(DefaultDataDir(), "workflow", "lib")
 }
