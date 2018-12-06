@@ -12,6 +12,7 @@ package flowmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -26,11 +27,13 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
 const (
 	chainConfigSubBufferSize = 3
+	mblockSubBufferSize      = 10
 )
 
 var (
@@ -52,8 +55,16 @@ type FlowManager struct {
 	// All persistent states go through stateStore.
 	stateStore StateStore
 
+	mblockSubs []*mblockSubscription
+
 	lock sync.Mutex
 	log  *zap.Logger
+}
+
+type mblockSubscription struct {
+	mblocks chan *protos.MBlock
+	err     chan error
+	peer    *peer.Peer
 }
 
 // NewFlowManager creates a new FlowManager.
@@ -69,7 +80,8 @@ func NewFlowManager(stateStore StateStore, log *zap.Logger) *FlowManager {
 
 // Register registers this FlowManager to the gRPC server.
 func (fm *FlowManager) Register(server *grpc.Server) {
-	mgrpc.RegisterWorkflowManagerServer(server, fm)
+	mgrpc.RegisterWorkflowApiServer(server, fm)
+	mgrpc.RegisterMBlockApiServer(server, fm)
 }
 
 // DeployWorkflow is invoked to deploy a workflow
@@ -121,6 +133,86 @@ func (fm *FlowManager) UndeployWorkflow(
 	fm.log.Debug("UndeployWorkflow successful", zap.Stringer("Workflow ID", id))
 
 	return &empty.Empty{}, nil
+}
+
+// SubscribeMBlock subscribes to new blocks from megaspace network.
+func (fm *FlowManager) SubscribeMBlock(_ *empty.Empty, stream mgrpc.MBlockApi_SubscribeMBlockServer) error {
+	peer, ok := peer.FromContext(stream.Context())
+	if !ok {
+		return status.Error(codes.Unknown, "Failed to get peer info")
+	}
+
+	sub := &mblockSubscription{
+		mblocks: make(chan *protos.MBlock, mblockSubBufferSize),
+		err:     make(chan error, 1),
+		peer:    peer,
+	}
+
+	func() {
+		fm.lock.Lock()
+		defer fm.lock.Unlock()
+
+		fm.mblockSubs = append(fm.mblockSubs, sub)
+	}()
+
+	fm.log.Debug("MBlock subscription created", zap.Stringer("peer", peer.Addr))
+
+	for mblock := range sub.mblocks {
+		if err := stream.Send(mblock); err != nil {
+			fm.log.Warn("Failed to send MBlock to peer", zap.Stringer("peer", peer.Addr), zap.Error(err))
+
+			fm.lock.Lock()
+			defer fm.lock.Unlock()
+
+			filteredSubs := fm.mblockSubs[:0]
+
+			for _, s := range fm.mblockSubs {
+				if s != sub {
+					filteredSubs = append(filteredSubs, s)
+				}
+			}
+
+			fm.mblockSubs = filteredSubs
+
+			return err
+		}
+
+		fm.log.Debug("Sent MBlock to peer", zap.Int64("height", mblock.Height), zap.Stringer("peer", peer.Addr))
+	}
+
+	return <-sub.err
+}
+
+// MBlockByHeight gets the mblock by height.
+func (fm *FlowManager) MBlockByHeight(_ context.Context, req *mgrpc.MBlockByHeightRequest) (*protos.MBlock, error) {
+	fm.lock.Lock()
+	defer fm.lock.Unlock()
+
+	mblock, err := fm.stateStore.MBlockByHeight(req.Height)
+	if err != nil {
+		return nil, err
+	}
+	if mblock == nil {
+		return nil, status.Error(codes.NotFound, "MBlock not found")
+	}
+
+	return mblock, nil
+}
+
+// LatestMBlock gets the latest mblock.
+func (fm *FlowManager) LatestMBlock(context.Context, *empty.Empty) (*protos.MBlock, error) {
+	fm.lock.Lock()
+	defer fm.lock.Unlock()
+
+	mblock, err := fm.stateStore.LatestMBlock()
+	if err != nil {
+		return nil, err
+	}
+	if mblock == nil {
+		return nil, status.Error(codes.NotFound, "No MBlocks yet")
+	}
+
+	return mblock, nil
 }
 
 // GetChainConfig returns the current ChainConfig and a subscription for future patches for chainID.
@@ -367,6 +459,22 @@ func (fm *FlowManager) FinalizeAndCommitMBlock() (*protos.MBlock, error) {
 	for chain, patch := range configPatches {
 		fm.publishChainConfigPatchWithLock(chain, patch)
 	}
+
+	// Publish the new block to all subs.
+	filteredSubs := fm.mblockSubs[:0]
+	for _, sub := range fm.mblockSubs {
+		select {
+		case sub.mblocks <- block:
+			filteredSubs = append(filteredSubs, sub)
+		default:
+			fm.log.Warn("MBlock subscription overflow", zap.Stringer("peer", sub.peer.Addr))
+
+			sub.err <- errors.New("Subscription overflow")
+			close(sub.err)
+			close(sub.mblocks)
+		}
+	}
+	fm.mblockSubs = filteredSubs
 
 	return block, nil
 }
