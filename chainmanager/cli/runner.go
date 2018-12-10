@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/megaspacelab/megaconnect/prettyprint"
@@ -90,7 +91,9 @@ func NewRunner(newConnector connBuilder) *Runner {
 				Flags: []cli.Flag{
 					&cli.PathFlag{
 						Name:    "output",
+						Usage:   "output folder",
 						Aliases: []string{"o"},
+						Value:   mcli.DefaultWorkflowLibDir(),
 					},
 				},
 			},
@@ -119,7 +122,10 @@ func Run(
 	conn connector.Connector,
 	logger *zap.Logger,
 ) error {
-	cm := chainmanager.New(cmID, orchAddr, conn, logger)
+	cm, err := chainmanager.New(cmID, orchAddr, conn, logger)
+	if err != nil {
+		return err
+	}
 
 	actualListenAddr := make(chan net.Addr, 1)
 	serveErr := make(chan error, 1)
@@ -136,8 +142,7 @@ func Run(
 	logger.Debug("Started to listen", zap.Stringer("addr", addr))
 
 	actualPort := addr.(*net.TCPAddr).Port
-	err := cm.Start(actualPort)
-	if err != nil {
+	if err = cm.Start(actualPort); err != nil {
 		logger.Error("ChainManager can not start", zap.Error(err))
 		return nil
 	}
@@ -168,34 +173,54 @@ func defaultCMID() string {
 
 func dumpapi(builder connBuilder) func(*cli.Context) error {
 	return func(ctx *cli.Context) error {
+		output := ctx.Path("output")
+		if output == "" {
+			return fmt.Errorf("missing output path")
+		}
 		debug := ctx.Bool(mcli.DebugFlag.Name)
 		logger, err := mcli.NewLogger(debug)
 		conn, err := builder(ctx, logger)
 		if err != nil {
 			return err
 		}
-		namespace := conn.Namespace()
-		output := ctx.Path("output")
-		if output == "" {
-			return fmt.Errorf("missing output path")
-		}
-
-		outputfs, err := os.Create(output)
-		defer outputfs.Close()
+		chainAPI, err := chainmanager.NewChainAPI(conn)
 		if err != nil {
 			return err
 		}
-		// wfns stands for workflow namespace
-		srcfs, err := os.Create(output + ".wfns")
+		namespace := chainAPI.GetAPI()
+		binfn := filepath.Join(output, namespace.Name())
+		if err := os.MkdirAll(output, 0700); err != nil {
+			return err
+		}
+
+		// Gerate binary file
+		binfs, err := os.Create(binfn)
+		defer binfs.Close()
+		if err != nil {
+			return err
+		}
+		encoder := workflow.NewEncoder(binfs, false)
+		if err := encoder.EncodeNamespace(namespace); err != nil {
+			return err
+		}
+		fmt.Printf("Generate %s \n", binfn)
+
+		// Gerate source file
+		srcdir := filepath.Join(output, "src")
+		if err := os.MkdirAll(srcdir, 0700); err != nil {
+			return err
+		}
+
+		srcfn := filepath.Join(srcdir, namespace.Name()+".wfns") // wfns stands for workflow namespace
+		srcfs, err := os.Create(srcfn)
 		defer srcfs.Close()
 		if err != nil {
 			return err
 		}
-		encoder := workflow.NewEncoder(outputfs, false)
-		err = encoder.EncodeNamespace(namespace)
-		if err != nil {
+		if err := namespace.Print()(prettyprint.NewTxtPrinter(srcfs)); err != nil {
 			return err
 		}
-		return namespace.Print()(prettyprint.NewTxtPrinter(srcfs))
+		fmt.Printf("Generate %s \n", srcfn)
+		return nil
 	}
 }

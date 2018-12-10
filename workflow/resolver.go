@@ -99,7 +99,7 @@ func (r *Resolver) resolveFuncCall(fun *FuncCall) error {
 	}
 	decl := resolveFun(r.libs, fun.Name().id, ns)
 	if decl == nil {
-		return &ErrSymbolNotResolved{Symbol: fun.Name().id}
+		return SetErrPos(&ErrSymbolNotResolved{Symbol: fun.Name().id}, fun.Name())
 	}
 	fun.SetDecl(decl)
 	return nil

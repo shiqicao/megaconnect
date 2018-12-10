@@ -51,7 +51,9 @@ func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
 		if err != nil {
 			return nil, err
 		}
-		ns.AddNamespace(c)
+		if err = ns.AddNamespaces(c); err != nil {
+			return nil, err
+		}
 	}
 	len, err = d.decodeLength()
 	if err != nil {
@@ -62,7 +64,9 @@ func (d *Decoder) DecodeNamespace() (*NamespaceDecl, error) {
 		if err != nil {
 			return nil, err
 		}
-		ns.AddFunc(fun)
+		if err = ns.AddFuncs(fun); err != nil {
+			return nil, err
+		}
 	}
 	return ns, nil
 }

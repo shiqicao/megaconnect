@@ -228,12 +228,13 @@ func (s *ChainManagerSuite) SetupTest() {
 		healthy:                        true,
 	}
 
-	s.cm = New(
+	s.cm, err = New(
 		"test-cm",
 		s.listenAddr.String(),
 		s.connector,
 		s.log,
 	)
+	s.Require().NoError(err)
 	s.cm.Register(s.server)
 	s.cmClient = mgrpc.NewChainManagerClient(s.conn)
 
