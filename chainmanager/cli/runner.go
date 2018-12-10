@@ -193,7 +193,7 @@ func dumpapi(builder connBuilder) func(*cli.Context) error {
 			return err
 		}
 
-		// Gerate binary file
+		// Generate binary file
 		binfs, err := os.Create(binfn)
 		defer binfs.Close()
 		if err != nil {
@@ -205,7 +205,7 @@ func dumpapi(builder connBuilder) func(*cli.Context) error {
 		}
 		fmt.Printf("Generate %s \n", binfn)
 
-		// Gerate source file
+		// Generate source file
 		srcdir := filepath.Join(output, "src")
 		if err := os.MkdirAll(srcdir, 0700); err != nil {
 			return err
