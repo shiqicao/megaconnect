@@ -278,3 +278,34 @@ func loadLib(ctx *cli.Context) ([]*wf.NamespaceDecl, error) {
 	}
 	return nss, nil
 }
+
+func loadLib(ctx *cli.Context) ([]*wf.NamespaceDecl, error) {
+	var nss []*wf.NamespaceDecl
+	libpath := ctx.Path("lib")
+	if libpath == "" {
+		return nss, nil
+	}
+	files, err := ioutil.ReadDir(libpath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		fs, err := os.Open(filepath.Join(libpath, f.Name()))
+		if err != nil {
+			fmt.Printf("Failed to load: %s \n", f.Name())
+			continue
+		}
+		decoder := wf.NewDecoder(fs)
+		ns, err := decoder.DecodeNamespace()
+		if err != nil {
+			fmt.Printf("Failed to decode namespace: %s \n", f.Name())
+			continue
+		}
+		fmt.Printf("Load lib: %s \n", ns.Name())
+		nss = append(nss, ns)
+	}
+	return nss, nil
+}
